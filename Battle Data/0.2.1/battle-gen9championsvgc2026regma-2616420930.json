@@ -1,0 +1,1143 @@
+{
+  "battle_id": "battle-gen9championsvgc2026regma-2616420930",
+  "version": "0.2.1",
+  "started_at": "2026-05-23T17:48:06.443596+00:00",
+  "outcome": "win",
+  "decisions": [
+    {
+      "turn": 1,
+      "slot": 0,
+      "state": {
+        "my_mon": "Aerodactyl",
+        "my_hp": "169/169",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Tyranitar",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Lycanroc",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "189/189",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "209/209",
+            "fainted": false
+          }
+        ],
+        "weather": "Sandstorm",
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Switch Sneasler",
+          "weight": 1.8,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Sneasler handles threats better (x0.5 vs x2.0) -> x1.8"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.7719,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 39% HP -> x1.77"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 1.5636,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 28% HP -> x1.56"
+          ]
+        },
+        {
+          "label": "Dual Wingbeat",
+          "weight": 1.5146,
+          "move_name": "Dual Wingbeat",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 26% HP -> x1.51"
+          ]
+        },
+        {
+          "label": "Switch Basculegion-F",
+          "weight": 1.2,
+          "move_name": null,
+          "switch_target": "Basculegion-F",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion-F handles threats better (x1.0 vs x2.0) -> x1.2"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 0.8,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8"
+          ]
+        }
+      ],
+      "chosen": "Switch Sneasler"
+    },
+    {
+      "turn": 1,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "189/189",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Tyranitar",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Lycanroc",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "189/189",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "209/209",
+            "fainted": false
+          }
+        ],
+        "weather": "Sandstorm",
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Iron Head",
+          "weight": 18.7219,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 137% HP -> x3.74",
+            "threat_elimination: guaranteed OHKO on Lycanroc -> x5.0"
+          ]
+        },
+        {
+          "label": "Kowtow Cleave",
+          "weight": 3.7053,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 74% HP -> x2.47",
+            "threat_elimination: 2HKO on Lycanroc -> x1.5"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5"
+          ]
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.0,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Basculegion-F",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Basculegion-F",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion-F weaker to threats (x1.0) -> x0.5"
+          ]
+        }
+      ],
+      "chosen": "Iron Head"
+    },
+    {
+      "turn": 2,
+      "slot": 0,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "122/169",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Tyranitar",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Rock Slide"
+            ]
+          },
+          {
+            "species": "Lycanroc",
+            "hp": "1/100",
+            "status": null,
+            "moves_seen": [
+              "Close Combat"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "122/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "59/189",
+            "fainted": false
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "209/209",
+            "fainted": false
+          }
+        ],
+        "weather": "Sandstorm",
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Close Combat",
+          "weight": 32.5662,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 276% HP -> x6.51",
+            "threat_elimination: guaranteed OHKO on Tyranitar -> x5.0"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 2.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.9311,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 47% HP -> x1.93"
+          ]
+        },
+        {
+          "label": "Dire Claw",
+          "weight": 1.9189,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 46% HP -> x1.92"
+          ]
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.4,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.4"
+          ]
+        },
+        {
+          "label": "Switch Basculegion-F",
+          "weight": 0.4,
+          "move_name": null,
+          "switch_target": "Basculegion-F",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion-F weaker to threats (x1.0) -> x0.4"
+          ]
+        }
+      ],
+      "chosen": "Close Combat"
+    },
+    {
+      "turn": 2,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "59/189",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Tyranitar",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Rock Slide"
+            ]
+          },
+          {
+            "species": "Lycanroc",
+            "hp": "1/100",
+            "status": null,
+            "moves_seen": [
+              "Close Combat"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "122/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "59/189",
+            "fainted": false
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "209/209",
+            "fainted": false
+          }
+        ],
+        "weather": "Sandstorm",
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Iron Head",
+          "weight": 25.7053,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 207% HP -> x5.14",
+            "threat_elimination: guaranteed OHKO on Lycanroc -> x5.0"
+          ]
+        },
+        {
+          "label": "Kowtow Cleave",
+          "weight": 16.0265,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 110% HP -> x3.21",
+            "threat_elimination: guaranteed OHKO on Lycanroc -> x5.0"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5"
+          ]
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 1.2,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl handles threats better (x2.0 vs x4.0) -> x1.2"
+          ]
+        },
+        {
+          "label": "Switch Basculegion-F",
+          "weight": 1.2,
+          "move_name": null,
+          "switch_target": "Basculegion-F",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion-F handles threats better (x1.0 vs x4.0) -> x1.2"
+          ]
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.0,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        }
+      ],
+      "chosen": "Iron Head"
+    },
+    {
+      "turn": 3,
+      "slot": 0,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "112/169",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Tyranitar",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Rock Slide",
+              "Protect"
+            ]
+          },
+          {
+            "species": "Lycanroc",
+            "hp": "1/100",
+            "status": null,
+            "moves_seen": [
+              "Close Combat",
+              "Protect"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "112/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "59/189",
+            "fainted": false
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "209/209",
+            "fainted": false
+          }
+        ],
+        "weather": "Sandstorm",
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Close Combat",
+          "weight": 32.5662,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 276% HP -> x6.51",
+            "threat_elimination: guaranteed OHKO on Tyranitar -> x5.0"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 2.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.9311,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 47% HP -> x1.93"
+          ]
+        },
+        {
+          "label": "Dire Claw",
+          "weight": 1.9189,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 46% HP -> x1.92"
+          ]
+        },
+        {
+          "label": "Switch Basculegion-F",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Basculegion-F",
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.4,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.4"
+          ]
+        }
+      ],
+      "chosen": "Close Combat"
+    },
+    {
+      "turn": 3,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "59/189",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Tyranitar",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Rock Slide",
+              "Protect"
+            ]
+          },
+          {
+            "species": "Lycanroc",
+            "hp": "1/100",
+            "status": null,
+            "moves_seen": [
+              "Close Combat",
+              "Protect"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "112/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "59/189",
+            "fainted": false
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "209/209",
+            "fainted": false
+          }
+        ],
+        "weather": "Sandstorm",
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Iron Head",
+          "weight": 25.7053,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 207% HP -> x5.14",
+            "threat_elimination: guaranteed OHKO on Lycanroc -> x5.0"
+          ]
+        },
+        {
+          "label": "Kowtow Cleave",
+          "weight": 16.0265,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 110% HP -> x3.21",
+            "threat_elimination: guaranteed OHKO on Lycanroc -> x5.0"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5"
+          ]
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 1.2,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl handles threats better (x2.0 vs x4.0) -> x1.2"
+          ]
+        },
+        {
+          "label": "Switch Basculegion-F",
+          "weight": 1.2,
+          "move_name": null,
+          "switch_target": "Basculegion-F",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion-F handles threats better (x1.0 vs x4.0) -> x1.2"
+          ]
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.0,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        }
+      ],
+      "chosen": "Iron Head"
+    },
+    {
+      "turn": 4,
+      "slot": 0,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "102/169",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Garchomp",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Milotic",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "102/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "59/189",
+            "fainted": false
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "209/209",
+            "fainted": false
+          }
+        ],
+        "weather": "Sandstorm",
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Close Combat",
+          "weight": 3.174,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 56% HP -> x2.12",
+            "threat_elimination: 2HKO on Garchomp -> x1.5"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 2.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5"
+          ]
+        },
+        {
+          "label": "Dire Claw",
+          "weight": 1.746,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 37% HP -> x1.75"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.378,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 19% HP -> x1.38"
+          ]
+        },
+        {
+          "label": "Switch Basculegion-F",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Basculegion-F",
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.4,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.4"
+          ]
+        }
+      ],
+      "chosen": "Close Combat"
+    },
+    {
+      "turn": 4,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "59/189",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Garchomp",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Milotic",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "102/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "59/189",
+            "fainted": false
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "209/209",
+            "fainted": false
+          }
+        ],
+        "weather": "Sandstorm",
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Kowtow Cleave",
+          "weight": 1.6021,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 44% HP -> x1.88",
+            "doubling_up: doubling up (protected last turn, other opp not threatening) -> x0.85"
+          ]
+        },
+        {
+          "label": "Iron Head",
+          "weight": 1.5679,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 42% HP -> x1.84",
+            "doubling_up: doubling up (protected last turn, other opp not threatening) -> x0.85"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5"
+          ]
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.0,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Basculegion-F",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Basculegion-F",
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.5"
+          ]
+        }
+      ],
+      "chosen": "Kowtow Cleave"
+    },
+    {
+      "turn": 5,
+      "slot": 0,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "55/169",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Garchomp-Mega",
+            "hp": "0/0",
+            "status": null,
+            "moves_seen": [
+              "Swords Dance"
+            ]
+          },
+          {
+            "species": "Milotic",
+            "hp": "94/100",
+            "status": null,
+            "moves_seen": [
+              "Icy Wind"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "55/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "48/189",
+            "fainted": false
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "209/209",
+            "fainted": false
+          }
+        ],
+        "weather": "Sandstorm",
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Close Combat",
+          "weight": 3.156,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 55% HP -> x2.10",
+            "threat_elimination: 2HKO on Milotic -> x1.5"
+          ]
+        },
+        {
+          "label": "Switch Basculegion-F",
+          "weight": 1.8,
+          "move_name": null,
+          "switch_target": "Basculegion-F",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion-F handles threats better (x0.5 vs x1.0) -> x1.8"
+          ]
+        },
+        {
+          "label": "Dire Claw",
+          "weight": 1.746,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 37% HP -> x1.75"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.378,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 19% HP -> x1.38"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 0.8,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8"
+          ]
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.5"
+          ]
+        }
+      ],
+      "chosen": "Close Combat"
+    },
+    {
+      "turn": 5,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "48/189",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Garchomp-Mega",
+            "hp": "0/0",
+            "status": null,
+            "moves_seen": [
+              "Swords Dance"
+            ]
+          },
+          {
+            "species": "Milotic",
+            "hp": "94/100",
+            "status": null,
+            "moves_seen": [
+              "Icy Wind"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "55/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "48/189",
+            "fainted": false
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "209/209",
+            "fainted": false
+          }
+        ],
+        "weather": "Sandstorm",
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Kowtow Cleave",
+          "weight": 1.8753,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 44% HP -> x1.88"
+          ]
+        },
+        {
+          "label": "Switch Basculegion-F",
+          "weight": 1.8,
+          "move_name": null,
+          "switch_target": "Basculegion-F",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion-F handles threats better (x0.5 vs x1.0) -> x1.8"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5"
+          ]
+        },
+        {
+          "label": "Iron Head",
+          "weight": 1.4177,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 21% HP -> x1.42"
+          ]
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.0,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.5"
+          ]
+        }
+      ],
+      "chosen": "Kowtow Cleave"
+    }
+  ]
+}

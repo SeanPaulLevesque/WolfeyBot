@@ -1,0 +1,1839 @@
+{
+  "battle_id": "battle-gen9championsvgc2026regma-2617001985",
+  "version": "0.3.4",
+  "started_at": "2026-05-24T15:45:59.868111+00:00",
+  "outcome": "loss",
+  "decisions": [
+    {
+      "turn": 1,
+      "slot": 0,
+      "state": {
+        "my_mon": "Aerodactyl",
+        "my_hp": "171/171",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Scovillain",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Gyarados",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl",
+            "hp": "171/171",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "206/206",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "187/187",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion",
+            "hp": "227/227",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Dual Wingbeat",
+          "weight": 16.8085,
+          "move_name": "Dual Wingbeat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 118% HP -> x3.36",
+            "threat_elimination: guaranteed OHKO on Scovillain -> x5.0"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 4.1372,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 88% HP -> x2.76",
+            "threat_elimination: 2HKO on Scovillain -> x1.5"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 3.4287,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 64% HP -> x2.29",
+            "threat_elimination: 2HKO on Scovillain -> x1.5"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 2.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5"
+          ]
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 2.0,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Sneasler handles threats better (x1.0 vs x2.0) [OHKO escape] -> x2.0"
+          ]
+        },
+        {
+          "label": "Switch Basculegion",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Basculegion",
+          "target_slot": null,
+          "reasons": []
+        }
+      ],
+      "chosen": "Dual Wingbeat"
+    },
+    {
+      "turn": 1,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "206/206",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Scovillain",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Gyarados",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl",
+            "hp": "171/171",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "206/206",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "187/187",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion",
+            "hp": "227/227",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Kowtow Cleave",
+          "weight": 3.9798,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 83% HP -> x2.65",
+            "threat_elimination: 2HKO on Scovillain -> x1.5",
+            "doubling_up: partner confirmed OHKO (w=16.8) -> redirect to slot 1"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 3.75,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5",
+            "protect: OHKO threat -> x2.5"
+          ]
+        },
+        {
+          "label": "Iron Head",
+          "weight": 1.7741,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 39% HP -> x1.77",
+            "doubling_up: partner confirmed OHKO (w=16.8) -> redirect to slot 1"
+          ]
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.5248,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 26% HP -> x1.52",
+            "doubling_up: partner confirmed OHKO (w=16.8) -> redirect to slot 1"
+          ]
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Basculegion",
+          "weight": 0.4,
+          "move_name": null,
+          "switch_target": "Basculegion",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion weaker to threats (x2.0) -> x0.4"
+          ]
+        }
+      ],
+      "chosen": "Kowtow Cleave"
+    },
+    {
+      "turn": 2,
+      "slot": 0,
+      "state": {
+        "my_mon": "Aerodactyl-Mega",
+        "my_hp": "49/171",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Scovillain-Mega",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Overheat"
+            ]
+          },
+          {
+            "species": "Gyarados",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Waterfall"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "49/171",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "187/187",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Basculegion",
+            "hp": "227/227",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Rock Tomb",
+          "weight": 3.4694,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 66% HP -> x2.31",
+            "threat_elimination: 2HKO on Gyarados -> x1.5"
+          ]
+        },
+        {
+          "label": "Dual Wingbeat",
+          "weight": 3.2255,
+          "move_name": "Dual Wingbeat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 58% HP -> x2.15",
+            "threat_elimination: 2HKO on Scovillain-Mega -> x1.5"
+          ]
+        },
+        {
+          "label": "Switch Basculegion",
+          "weight": 1.8,
+          "move_name": null,
+          "switch_target": "Basculegion",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion handles threats better (x0.5 vs x2.0) -> x1.8"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 1.6285,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 31% HP -> x1.63"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 0.8,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8"
+          ]
+        }
+      ],
+      "chosen": "Rock Tomb"
+    },
+    {
+      "turn": 2,
+      "slot": 1,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "187/187",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Scovillain-Mega",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Overheat"
+            ]
+          },
+          {
+            "species": "Gyarados",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Waterfall"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "49/171",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "187/187",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Basculegion",
+            "hp": "227/227",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Close Combat",
+          "weight": 3.8125,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 77% HP -> x2.54",
+            "threat_elimination: 2HKO on Scovillain-Mega -> x1.5"
+          ]
+        },
+        {
+          "label": "Dire Claw",
+          "weight": 3.0476,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 52% HP -> x2.03",
+            "threat_elimination: 2HKO on Scovillain-Mega -> x1.5"
+          ]
+        },
+        {
+          "label": "Switch Basculegion",
+          "weight": 1.8,
+          "move_name": null,
+          "switch_target": "Basculegion",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion handles threats better (x0.5 vs x1.0) -> x1.8"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.2431,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 39% HP -> x1.78",
+            "doubling_up: doubling up (other opp not threatening) -> x0.7"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 0.8,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8"
+          ]
+        }
+      ],
+      "chosen": "Close Combat"
+    },
+    {
+      "turn": 3,
+      "slot": 0,
+      "state": {
+        "my_mon": "Aerodactyl-Mega",
+        "my_hp": "49/171",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Scovillain-Mega",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Overheat",
+              "Protect"
+            ]
+          },
+          {
+            "species": "Corviknight",
+            "hp": "84/100",
+            "status": null,
+            "moves_seen": []
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "49/171",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "187/187",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Basculegion",
+            "hp": "227/227",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Dual Wingbeat",
+          "weight": 4.1931,
+          "move_name": "Dual Wingbeat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 58% HP -> x2.15",
+            "threat_elimination: 2HKO on Scovillain-Mega -> x1.5",
+            "opp_protect_recency: target used Protect last turn -> x1.3"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 2.4254,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 43% HP -> x1.87",
+            "opp_protect_recency: target used Protect last turn -> x1.3"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 2.1171,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 31% HP -> x1.63",
+            "opp_protect_recency: target used Protect last turn -> x1.3"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 0.8,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8"
+          ]
+        },
+        {
+          "label": "Switch Basculegion",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Basculegion",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion weaker to threats (x1.0) -> x0.5"
+          ]
+        }
+      ],
+      "chosen": "Dual Wingbeat"
+    },
+    {
+      "turn": 3,
+      "slot": 1,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "187/187",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Scovillain-Mega",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Overheat",
+              "Protect"
+            ]
+          },
+          {
+            "species": "Corviknight",
+            "hp": "84/100",
+            "status": null,
+            "moves_seen": []
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "49/171",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "187/187",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Basculegion",
+            "hp": "227/227",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Close Combat",
+          "weight": 3.4694,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 77% HP -> x2.54",
+            "threat_elimination: 2HKO on Scovillain-Mega -> x1.5",
+            "opp_protect_recency: target used Protect last turn -> x1.3",
+            "doubling_up: doubling up (protected last turn) -> x0.7"
+          ]
+        },
+        {
+          "label": "Dire Claw",
+          "weight": 2.7733,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 52% HP -> x2.03",
+            "threat_elimination: 2HKO on Scovillain-Mega -> x1.5",
+            "opp_protect_recency: target used Protect last turn -> x1.3",
+            "doubling_up: doubling up (protected last turn) -> x0.7"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 2.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5"
+          ]
+        },
+        {
+          "label": "Switch Basculegion",
+          "weight": 2.0,
+          "move_name": null,
+          "switch_target": "Basculegion",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion handles threats better (x1.0 vs x2.0) [OHKO escape] -> x2.0"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.3848,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 26% HP -> x1.52",
+            "opp_protect_recency: target used Protect last turn -> x1.3",
+            "doubling_up: doubling up (protected last turn) -> x0.7"
+          ]
+        }
+      ],
+      "chosen": "Close Combat"
+    },
+    {
+      "turn": 4,
+      "slot": 0,
+      "state": {
+        "my_mon": "Aerodactyl-Mega",
+        "my_hp": "39/171",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Gyarados",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Corviknight",
+            "hp": "84/100",
+            "status": null,
+            "moves_seen": [
+              "Bulk Up"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "39/171",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "176/187",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Basculegion",
+            "hp": "227/227",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Rock Tomb",
+          "weight": 3.4694,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 66% HP -> x2.31",
+            "threat_elimination: 2HKO on Gyarados -> x1.5"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 3.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5",
+            "protect: low HP (23%) -> x1.5"
+          ]
+        },
+        {
+          "label": "Switch Basculegion",
+          "weight": 2.0,
+          "move_name": null,
+          "switch_target": "Basculegion",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion handles threats better (x1.0 vs x2.0) [OHKO escape] -> x2.0"
+          ]
+        },
+        {
+          "label": "Dual Wingbeat",
+          "weight": 1.8653,
+          "move_name": "Dual Wingbeat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 43% HP -> x1.87"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 1.4675,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 23% HP -> x1.47"
+          ]
+        }
+      ],
+      "chosen": "Rock Tomb"
+    },
+    {
+      "turn": 4,
+      "slot": 1,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "176/187",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Gyarados",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Corviknight",
+            "hp": "84/100",
+            "status": null,
+            "moves_seen": [
+              "Bulk Up"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "39/171",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "176/187",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Basculegion",
+            "hp": "227/227",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Protect",
+          "weight": 2.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5"
+          ]
+        },
+        {
+          "label": "Switch Basculegion",
+          "weight": 2.0,
+          "move_name": null,
+          "switch_target": "Basculegion",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion handles threats better (x1.0 vs x2.0) [OHKO escape] -> x2.0"
+          ]
+        },
+        {
+          "label": "Close Combat",
+          "weight": 1.6558,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 33% HP -> x1.66"
+          ]
+        },
+        {
+          "label": "Dire Claw",
+          "weight": 0.9767,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 39% HP -> x1.78",
+            "doubling_up: doubling up (Protect risk, other opp threatening) -> x0.55"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 0.9767,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 39% HP -> x1.78",
+            "doubling_up: doubling up (Protect risk, other opp threatening) -> x0.55"
+          ]
+        }
+      ],
+      "chosen": "Protect"
+    },
+    {
+      "turn": 5,
+      "slot": 0,
+      "state": {
+        "my_mon": "Aerodactyl-Mega",
+        "my_hp": "29/171",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Gyarados",
+            "hp": "90/100",
+            "status": null,
+            "moves_seen": [
+              "Waterfall"
+            ]
+          },
+          {
+            "species": "Corviknight",
+            "hp": "84/100",
+            "status": null,
+            "moves_seen": [
+              "Bulk Up"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "29/171",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "165/187",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Basculegion",
+            "hp": "227/227",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Rock Tomb",
+          "weight": 3.4694,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 66% HP -> x2.31",
+            "threat_elimination: 2HKO on Gyarados -> x1.5"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 3.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5",
+            "protect: low HP (17%) -> x1.5"
+          ]
+        },
+        {
+          "label": "Switch Basculegion",
+          "weight": 2.0,
+          "move_name": null,
+          "switch_target": "Basculegion",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion handles threats better (x1.0 vs x2.0) [OHKO escape] -> x2.0"
+          ]
+        },
+        {
+          "label": "Dual Wingbeat",
+          "weight": 1.8653,
+          "move_name": "Dual Wingbeat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 43% HP -> x1.87"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 1.4675,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 23% HP -> x1.47"
+          ]
+        }
+      ],
+      "chosen": "Rock Tomb"
+    },
+    {
+      "turn": 5,
+      "slot": 1,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "165/187",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Gyarados",
+            "hp": "90/100",
+            "status": null,
+            "moves_seen": [
+              "Waterfall"
+            ]
+          },
+          {
+            "species": "Corviknight",
+            "hp": "84/100",
+            "status": null,
+            "moves_seen": [
+              "Bulk Up"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "29/171",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "165/187",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Basculegion",
+            "hp": "227/227",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Switch Basculegion",
+          "weight": 2.0,
+          "move_name": null,
+          "switch_target": "Basculegion",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion handles threats better (x1.0 vs x2.0) [OHKO escape] -> x2.0"
+          ]
+        },
+        {
+          "label": "Dire Claw",
+          "weight": 0.9767,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 39% HP -> x1.78",
+            "doubling_up: doubling up (Protect risk, other opp threatening) -> x0.55"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 0.9767,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 39% HP -> x1.78",
+            "doubling_up: doubling up (Protect risk, other opp threatening) -> x0.55"
+          ]
+        },
+        {
+          "label": "Close Combat",
+          "weight": 0.8618,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 28% HP -> x1.57",
+            "doubling_up: doubling up (Protect risk, other opp threatening) -> x0.55"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 0.08,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: used Protect last turn -> x0.1"
+          ]
+        }
+      ],
+      "chosen": "Switch Basculegion"
+    },
+    {
+      "turn": 6,
+      "slot": 0,
+      "state": {
+        "my_mon": "Aerodactyl-Mega",
+        "my_hp": "19/171",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Gyarados",
+            "hp": "79/100",
+            "status": null,
+            "moves_seen": [
+              "Waterfall"
+            ]
+          },
+          {
+            "species": "Corviknight",
+            "hp": "84/100",
+            "status": null,
+            "moves_seen": [
+              "Bulk Up"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "19/171",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion",
+            "hp": "191/227",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Sneasler",
+            "hp": "165/187",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Rock Tomb",
+          "weight": 3.4694,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 66% HP -> x2.31",
+            "threat_elimination: 2HKO on Gyarados -> x1.5"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 3.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5",
+            "protect: low HP (11%) -> x1.5"
+          ]
+        },
+        {
+          "label": "Dual Wingbeat",
+          "weight": 1.8653,
+          "move_name": "Dual Wingbeat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 43% HP -> x1.87"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 1.4675,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 23% HP -> x1.47"
+          ]
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": []
+        }
+      ],
+      "chosen": "Rock Tomb"
+    },
+    {
+      "turn": 6,
+      "slot": 1,
+      "state": {
+        "my_mon": "Basculegion",
+        "my_hp": "191/227",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Gyarados",
+            "hp": "79/100",
+            "status": null,
+            "moves_seen": [
+              "Waterfall"
+            ]
+          },
+          {
+            "species": "Corviknight",
+            "hp": "84/100",
+            "status": null,
+            "moves_seen": [
+              "Bulk Up"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "19/171",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion",
+            "hp": "191/227",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Sneasler",
+            "hp": "165/187",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Protect",
+          "weight": 2.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5"
+          ]
+        },
+        {
+          "label": "Last Respects",
+          "weight": 1.8917,
+          "move_name": "Last Respects",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 65% HP -> x2.29",
+            "threat_elimination: 2HKO on Gyarados -> x1.5",
+            "doubling_up: doubling up (Protect risk, other opp threatening) -> x0.55"
+          ]
+        },
+        {
+          "label": "Liquidation",
+          "weight": 0.8563,
+          "move_name": "Liquidation",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 28% HP -> x1.56",
+            "doubling_up: doubling up (Protect risk, other opp threatening) -> x0.55"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 0.7852,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 21% HP -> x1.43",
+            "doubling_up: doubling up (Protect risk, other opp threatening) -> x0.55"
+          ]
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 0.4,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Sneasler weaker to threats (x2.0) -> x0.4"
+          ]
+        }
+      ],
+      "chosen": "Protect"
+    },
+    {
+      "turn": 7,
+      "slot": 0,
+      "state": {
+        "my_mon": "Aerodactyl-Mega",
+        "my_hp": "9/171",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Gyarados",
+            "hp": "69/100",
+            "status": null,
+            "moves_seen": [
+              "Waterfall",
+              "Thunder Wave"
+            ]
+          },
+          {
+            "species": "Corviknight",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Bulk Up",
+              "Roost"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "9/171",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion",
+            "hp": "191/227",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Sneasler",
+            "hp": "165/187",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Rock Tomb",
+          "weight": 3.4694,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 66% HP -> x2.31",
+            "threat_elimination: 2HKO on Gyarados -> x1.5"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 3.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5",
+            "protect: low HP (5%) -> x1.5"
+          ]
+        },
+        {
+          "label": "Dual Wingbeat",
+          "weight": 1.8653,
+          "move_name": "Dual Wingbeat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 43% HP -> x1.87"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 1.4675,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 23% HP -> x1.47"
+          ]
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": []
+        }
+      ],
+      "chosen": "Rock Tomb"
+    },
+    {
+      "turn": 7,
+      "slot": 1,
+      "state": {
+        "my_mon": "Basculegion",
+        "my_hp": "191/227",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Gyarados",
+            "hp": "69/100",
+            "status": null,
+            "moves_seen": [
+              "Waterfall",
+              "Thunder Wave"
+            ]
+          },
+          {
+            "species": "Corviknight",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Bulk Up",
+              "Roost"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "9/171",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion",
+            "hp": "191/227",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Sneasler",
+            "hp": "165/187",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Last Respects",
+          "weight": 1.8917,
+          "move_name": "Last Respects",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 65% HP -> x2.29",
+            "threat_elimination: 2HKO on Gyarados -> x1.5",
+            "doubling_up: doubling up (Protect risk, other opp threatening) -> x0.55"
+          ]
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Liquidation",
+          "weight": 0.8563,
+          "move_name": "Liquidation",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 28% HP -> x1.56",
+            "doubling_up: doubling up (Protect risk, other opp threatening) -> x0.55"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 0.7852,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 21% HP -> x1.43",
+            "doubling_up: doubling up (Protect risk, other opp threatening) -> x0.55"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 0.08,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: used Protect last turn -> x0.1"
+          ]
+        }
+      ],
+      "chosen": "Last Respects"
+    },
+    {
+      "turn": 8,
+      "slot": 0,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "165/187",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Gyarados",
+            "hp": "75/100",
+            "status": null,
+            "moves_seen": [
+              "Waterfall",
+              "Thunder Wave",
+              "Protect"
+            ]
+          },
+          {
+            "species": "Corviknight",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Bulk Up",
+              "Roost"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "165/187",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion",
+            "hp": "191/227",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "0/0",
+            "fainted": true
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Dire Claw",
+          "weight": 2.3085,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 39% HP -> x1.78",
+            "opp_protect_recency: target used Protect last turn -> x1.3"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 2.3085,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 39% HP -> x1.78",
+            "opp_protect_recency: target used Protect last turn -> x1.3"
+          ]
+        },
+        {
+          "label": "Close Combat",
+          "weight": 2.037,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 28% HP -> x1.57",
+            "opp_protect_recency: target used Protect last turn -> x1.3"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 2.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5"
+          ]
+        }
+      ],
+      "chosen": "Dire Claw"
+    },
+    {
+      "turn": 8,
+      "slot": 1,
+      "state": {
+        "my_mon": "Basculegion",
+        "my_hp": "191/227",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Gyarados",
+            "hp": "75/100",
+            "status": null,
+            "moves_seen": [
+              "Waterfall",
+              "Thunder Wave",
+              "Protect"
+            ]
+          },
+          {
+            "species": "Corviknight",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Bulk Up",
+              "Roost"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "165/187",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion",
+            "hp": "191/227",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "0/0",
+            "fainted": true
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Last Respects",
+          "weight": 6.6648,
+          "move_name": "Last Respects",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 96% HP -> x2.93",
+            "threat_elimination: OHKO on max roll vs Gyarados -> x2.5",
+            "opp_protect_recency: target used Protect last turn -> x1.3",
+            "doubling_up: doubling up (protected last turn) -> x0.7"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 2.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5"
+          ]
+        },
+        {
+          "label": "Liquidation",
+          "weight": 1.4169,
+          "move_name": "Liquidation",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 28% HP -> x1.56",
+            "opp_protect_recency: target used Protect last turn -> x1.3",
+            "doubling_up: doubling up (protected last turn) -> x0.7"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 1.2992,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 21% HP -> x1.43",
+            "opp_protect_recency: target used Protect last turn -> x1.3",
+            "doubling_up: doubling up (protected last turn) -> x0.7"
+          ]
+        }
+      ],
+      "chosen": "Last Respects"
+    },
+    {
+      "turn": 9,
+      "slot": 0,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "154/187",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Garchomp",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Corviknight",
+            "hp": "68/100",
+            "status": null,
+            "moves_seen": [
+              "Bulk Up",
+              "Roost",
+              "Brave Bird"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "154/187",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Kingambit",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Aerodactyl-Mega",
+            "hp": "0/0",
+            "fainted": true
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Close Combat",
+          "weight": 3.1288,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 54% HP -> x2.09",
+            "threat_elimination: 2HKO on Garchomp -> x1.5"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 2.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5"
+          ]
+        },
+        {
+          "label": "Dire Claw",
+          "weight": 1.362,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 18% HP -> x1.36"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.181,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 9% HP -> x1.18"
+          ]
+        }
+      ],
+      "chosen": "Close Combat"
+    }
+  ]
+}

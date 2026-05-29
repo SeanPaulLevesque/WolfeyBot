@@ -1,0 +1,41 @@
+"""decision — Modular move picker for WolfeyBot doubles.
+
+Re-exports the full public API from :mod:`decision.engine` and
+:mod:`decision.modules` so that the common import patterns::
+
+    from decision import make_engine, Action
+    from decision import DecisionEngine, ScoringModule
+
+continue to work unchanged after the package was split from a single
+``decision.py`` module.
+"""
+from decision.engine import (  # noqa: F401
+    Action,
+    ScoringModule,
+    DecisionEngine,
+    _build_actions,
+    _PROTECT_MOVES,
+    _FAKE_OUT_USERS,
+)
+from decision.modules import (  # noqa: F401
+    DamageOutputModule,
+    ThreatEliminationModule,
+    IncomingOHKOModule,
+    TurnOrderModule,
+    SetterPresenceModule,
+    ConsecutiveProtectModule,
+    ProtectModule,
+    SwitchModule,
+    DoublingUpModule,
+    OppProtectRecencyModule,
+    FakeOutModule,
+    FieldConditionModule,
+    FieldSetterDisruptionModule,
+    _fake_out_threatened,
+    _our_combatant,
+    _opp_combatant,
+    _our_stats,
+    _assumed_ability,
+    _effective_ability,
+    make_engine,
+)

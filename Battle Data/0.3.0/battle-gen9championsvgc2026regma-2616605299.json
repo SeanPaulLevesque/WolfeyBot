@@ -1,0 +1,1473 @@
+{
+  "battle_id": "battle-gen9championsvgc2026regma-2616605299",
+  "version": "0.3.0",
+  "started_at": "2026-05-23T23:37:26.671124+00:00",
+  "outcome": "win",
+  "decisions": [
+    {
+      "turn": 1,
+      "slot": 0,
+      "state": {
+        "my_mon": "Aerodactyl",
+        "my_hp": "169/169",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Palafin",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Farigiraf",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "189/189",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "209/209",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Switch Basculegion-F",
+          "weight": 4.0,
+          "move_name": null,
+          "switch_target": "Basculegion-F",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion-F handles threats better (x0.5 vs x2.0) [OHKO escape] -> x4.0"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 2.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: already outspeeds all opponents -> x0.8",
+            "protect: OHKO threat -> x2.5"
+          ]
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 2.0,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Sneasler handles threats better (x1.0 vs x2.0) [OHKO escape] -> x2.0"
+          ]
+        },
+        {
+          "label": "Dual Wingbeat",
+          "weight": 1.7555,
+          "move_name": "Dual Wingbeat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 38% HP -> x1.76"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.5618,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 28% HP -> x1.56"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 1.377,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 19% HP -> x1.38"
+          ]
+        }
+      ],
+      "chosen": "Switch Basculegion-F"
+    },
+    {
+      "turn": 1,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "189/189",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Palafin",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Farigiraf",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "189/189",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "209/209",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Kowtow Cleave",
+          "weight": 7.41,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 98% HP -> x2.96",
+            "threat_elimination: OHKO on max roll vs Farigiraf -> x2.5"
+          ]
+        },
+        {
+          "label": "Iron Head",
+          "weight": 1.9206,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 46% HP -> x1.92"
+          ]
+        },
+        {
+          "label": "Switch Basculegion-F",
+          "weight": 1.8,
+          "move_name": null,
+          "switch_target": "Basculegion-F",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Basculegion-F handles threats better (x0.5 vs x1.0) -> x1.8"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5"
+          ]
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.0,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": []
+        }
+      ],
+      "chosen": "Kowtow Cleave"
+    },
+    {
+      "turn": 2,
+      "slot": 0,
+      "state": {
+        "my_mon": "Basculegion-F",
+        "my_hp": "97/209",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Aerodactyl",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Farigiraf",
+            "hp": "23/100",
+            "status": null,
+            "moves_seen": [
+              "Thunderbolt"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Basculegion-F",
+            "hp": "97/209",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "189/189",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Liquidation",
+          "weight": 18.9936,
+          "move_name": "Liquidation",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 140% HP -> x3.80",
+            "threat_elimination: guaranteed OHKO on Aerodactyl -> x5.0"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 3.101,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 53% HP -> x2.07",
+            "threat_elimination: 2HKO on Aerodactyl -> x1.5"
+          ]
+        },
+        {
+          "label": "Last Respects",
+          "weight": 1.8301,
+          "move_name": "Last Respects",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 42% HP -> x1.83"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5"
+          ]
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 1.2,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Sneasler handles threats better (x1.0 vs x2.0) -> x1.2"
+          ]
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": []
+        }
+      ],
+      "chosen": "Liquidation"
+    },
+    {
+      "turn": 2,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "189/189",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Aerodactyl",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Farigiraf",
+            "hp": "23/100",
+            "status": null,
+            "moves_seen": [
+              "Thunderbolt"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Basculegion-F",
+            "hp": "97/209",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "189/189",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Iron Head",
+          "weight": 12.7974,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 133% HP -> x3.66",
+            "threat_elimination: guaranteed OHKO on Aerodactyl -> x5.0",
+            "doubling_up: doubling up (other opp not threatening) -> x0.7"
+          ]
+        },
+        {
+          "label": "Kowtow Cleave",
+          "weight": 7.41,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": 1,
+          "reasons": [
+            "damage_output: 98% HP -> x2.96",
+            "threat_elimination: OHKO on max roll vs Farigiraf -> x2.5"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5"
+          ]
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.0,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.5"
+          ]
+        }
+      ],
+      "chosen": "Iron Head"
+    },
+    {
+      "turn": 3,
+      "slot": 0,
+      "state": {
+        "my_mon": "Basculegion-F",
+        "my_hp": "43/209",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Mamoswine",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Palafin-Hero",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Basculegion-F",
+            "hp": "43/209",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "189/189",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Liquidation",
+          "weight": 7.4731,
+          "move_name": "Liquidation",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 99% HP -> x2.99",
+            "threat_elimination: OHKO on max roll vs Mamoswine -> x2.5"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 2.25,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5",
+            "protect: low HP (21%) -> x1.5"
+          ]
+        },
+        {
+          "label": "Last Respects",
+          "weight": 1.5968,
+          "move_name": "Last Respects",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 30% HP -> x1.60"
+          ]
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 1.3879,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 19% HP -> x1.39"
+          ]
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Sneasler weaker to threats (x1.0) -> x0.5"
+          ]
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.5"
+          ]
+        }
+      ],
+      "chosen": "Liquidation"
+    },
+    {
+      "turn": 3,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "189/189",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Mamoswine",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          },
+          {
+            "species": "Palafin-Hero",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": []
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Basculegion-F",
+            "hp": "43/209",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "189/189",
+            "fainted": false
+          },
+          {
+            "species": "Sneasler",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Iron Head",
+          "weight": 5.0919,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 95% HP -> x2.91",
+            "threat_elimination: OHKO on max roll vs Mamoswine -> x2.5",
+            "doubling_up: doubling up (other opp not threatening) -> x0.7"
+          ]
+        },
+        {
+          "label": "Kowtow Cleave",
+          "weight": 2.1152,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 51% HP -> x2.01",
+            "threat_elimination: 2HKO on Mamoswine -> x1.5",
+            "doubling_up: doubling up (other opp not threatening) -> x0.7"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5"
+          ]
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.0,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Sneasler",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Sneasler",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Sneasler weaker to threats (x1.0) -> x0.5"
+          ]
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.5"
+          ]
+        }
+      ],
+      "chosen": "Iron Head"
+    },
+    {
+      "turn": 4,
+      "slot": 0,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "169/169",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Mamoswine",
+            "hp": "14/100",
+            "status": null,
+            "moves_seen": [
+              "Earthquake"
+            ]
+          },
+          {
+            "species": "Palafin-Hero",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Protect"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "69/189",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Close Combat",
+          "weight": 17.5323,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 125% HP -> x3.51",
+            "threat_elimination: guaranteed OHKO on Mamoswine -> x5.0"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 2.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "protect: OHKO threat -> x2.5"
+          ]
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.4277,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 21% HP -> x1.43"
+          ]
+        },
+        {
+          "label": "Dire Claw",
+          "weight": 1.4177,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 21% HP -> x1.42"
+          ]
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": []
+        }
+      ],
+      "chosen": "Close Combat"
+    },
+    {
+      "turn": 4,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "69/189",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Mamoswine",
+            "hp": "14/100",
+            "status": null,
+            "moves_seen": [
+              "Earthquake"
+            ]
+          },
+          {
+            "species": "Palafin-Hero",
+            "hp": "100/100",
+            "status": null,
+            "moves_seen": [
+              "Protect"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "69/189",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Iron Head",
+          "weight": 5.0919,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 95% HP -> x2.91",
+            "threat_elimination: OHKO on max roll vs Mamoswine -> x2.5",
+            "doubling_up: doubling up (other opp not threatening) -> x0.7"
+          ]
+        },
+        {
+          "label": "Kowtow Cleave",
+          "weight": 2.1152,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": 0,
+          "reasons": [
+            "damage_output: 51% HP -> x2.01",
+            "threat_elimination: 2HKO on Mamoswine -> x1.5",
+            "doubling_up: doubling up (other opp not threatening) -> x0.7"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5"
+          ]
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.0,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 1.0,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": []
+        }
+      ],
+      "chosen": "Iron Head"
+    },
+    {
+      "turn": 5,
+      "slot": 0,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "9/169",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Mamoswine",
+            "hp": "0/0",
+            "status": null,
+            "moves_seen": [
+              "Earthquake",
+              "Ice Shard"
+            ]
+          },
+          {
+            "species": "Palafin-Hero",
+            "hp": "80/100",
+            "status": null,
+            "moves_seen": [
+              "Protect",
+              "Jet Punch"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "9/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "69/189",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "protect: low HP (5%) -> x1.5"
+          ]
+        },
+        {
+          "label": "Close Combat",
+          "weight": 1.0,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Dire Claw",
+          "weight": 1.0,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.0,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.5"
+          ]
+        }
+      ],
+      "chosen": "Protect"
+    },
+    {
+      "turn": 5,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "69/189",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Mamoswine",
+            "hp": "0/0",
+            "status": null,
+            "moves_seen": [
+              "Earthquake",
+              "Ice Shard"
+            ]
+          },
+          {
+            "species": "Palafin-Hero",
+            "hp": "80/100",
+            "status": null,
+            "moves_seen": [
+              "Protect",
+              "Jet Punch"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "9/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "69/189",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5"
+          ]
+        },
+        {
+          "label": "Kowtow Cleave",
+          "weight": 1.0,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Iron Head",
+          "weight": 1.0,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.0,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.5"
+          ]
+        }
+      ],
+      "chosen": "Protect"
+    },
+    {
+      "turn": 6,
+      "slot": 0,
+      "state": {
+        "my_mon": "Sneasler",
+        "my_hp": "9/169",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Mamoswine",
+            "hp": "0/0",
+            "status": null,
+            "moves_seen": [
+              "Earthquake",
+              "Ice Shard"
+            ]
+          },
+          {
+            "species": "Palafin-Hero",
+            "hp": "80/100",
+            "status": null,
+            "moves_seen": [
+              "Protect",
+              "Jet Punch"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "9/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "69/189",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Close Combat",
+          "weight": 1.0,
+          "move_name": "Close Combat",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Dire Claw",
+          "weight": 1.0,
+          "move_name": "Dire Claw",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.0,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.5"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 0.1,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "protect: used Protect last turn -> x0.1"
+          ]
+        }
+      ],
+      "chosen": "Close Combat"
+    },
+    {
+      "turn": 6,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "69/189",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Mamoswine",
+            "hp": "0/0",
+            "status": null,
+            "moves_seen": [
+              "Earthquake",
+              "Ice Shard"
+            ]
+          },
+          {
+            "species": "Palafin-Hero",
+            "hp": "80/100",
+            "status": null,
+            "moves_seen": [
+              "Protect",
+              "Jet Punch"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Sneasler",
+            "hp": "9/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "69/189",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Kowtow Cleave",
+          "weight": 1.0,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Iron Head",
+          "weight": 1.0,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.0,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Switch Aerodactyl",
+          "weight": 0.5,
+          "move_name": null,
+          "switch_target": "Aerodactyl",
+          "target_slot": null,
+          "reasons": [
+            "switch_eval: Aerodactyl weaker to threats (x2.0) -> x0.5"
+          ]
+        },
+        {
+          "label": "Protect",
+          "weight": 0.15,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5",
+            "protect: used Protect last turn -> x0.1"
+          ]
+        }
+      ],
+      "chosen": "Kowtow Cleave"
+    },
+    {
+      "turn": 7,
+      "slot": 0,
+      "state": {
+        "my_mon": "Aerodactyl",
+        "my_hp": "169/169",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Mamoswine",
+            "hp": "0/0",
+            "status": null,
+            "moves_seen": [
+              "Earthquake",
+              "Ice Shard"
+            ]
+          },
+          {
+            "species": "Palafin-Hero",
+            "hp": "9/100",
+            "status": null,
+            "moves_seen": [
+              "Protect",
+              "Jet Punch"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "69/189",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Sneasler",
+            "hp": "0/0",
+            "fainted": true
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Dual Wingbeat",
+          "weight": 1.0,
+          "move_name": "Dual Wingbeat",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Rock Tomb",
+          "weight": 1.0,
+          "move_name": "Rock Tomb",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Ice Fang",
+          "weight": 1.0,
+          "move_name": "Ice Fang",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Protect",
+          "weight": 1.0,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        }
+      ],
+      "chosen": "Dual Wingbeat"
+    },
+    {
+      "turn": 7,
+      "slot": 1,
+      "state": {
+        "my_mon": "Kingambit",
+        "my_hp": "69/189",
+        "my_status": null,
+        "opp_mons": [
+          {
+            "species": "Mamoswine",
+            "hp": "0/0",
+            "status": null,
+            "moves_seen": [
+              "Earthquake",
+              "Ice Shard"
+            ]
+          },
+          {
+            "species": "Palafin-Hero",
+            "hp": "9/100",
+            "status": null,
+            "moves_seen": [
+              "Protect",
+              "Jet Punch"
+            ]
+          }
+        ],
+        "my_team_hp": [
+          {
+            "species": "Aerodactyl",
+            "hp": "169/169",
+            "fainted": false
+          },
+          {
+            "species": "Kingambit",
+            "hp": "69/189",
+            "fainted": false
+          },
+          {
+            "species": "Basculegion-F",
+            "hp": "0/0",
+            "fainted": true
+          },
+          {
+            "species": "Sneasler",
+            "hp": "0/0",
+            "fainted": true
+          }
+        ],
+        "weather": null,
+        "terrain": null,
+        "trick_room": false
+      },
+      "ranked_actions": [
+        {
+          "label": "Protect",
+          "weight": 1.5,
+          "move_name": "Protect",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": [
+            "priority_speed: priority useful (opponent may outspeed) -> x1.5"
+          ]
+        },
+        {
+          "label": "Kowtow Cleave",
+          "weight": 1.0,
+          "move_name": "Kowtow Cleave",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Iron Head",
+          "weight": 1.0,
+          "move_name": "Iron Head",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        },
+        {
+          "label": "Low Kick",
+          "weight": 1.0,
+          "move_name": "Low Kick",
+          "switch_target": null,
+          "target_slot": null,
+          "reasons": []
+        }
+      ],
+      "chosen": "Protect"
+    }
+  ]
+}

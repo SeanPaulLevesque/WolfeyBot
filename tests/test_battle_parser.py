@@ -1,0 +1,650 @@
+"""test_battle_parser.py — Integration tests for BattleParser.feed().
+
+Tests that specific Showdown protocol messages update BattleState correctly.
+All tests are synchronous wrappers around async coroutines via asyncio.run().
+"""
+import asyncio
+import json
+import pytest
+from unittest.mock import AsyncMock
+
+from battle import BattleParser, BattleState
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def make_parser(username="TestBot"):
+    """Return a fresh BattleParser with a no-op decision callback."""
+    on_decide = AsyncMock()
+    parser = BattleParser(
+        battle_id="battle-gen9-test-123",
+        my_username=username,
+        on_decision_needed=on_decide,
+    )
+    return parser, on_decide
+
+
+def run(coro):
+    return asyncio.run(coro)
+
+
+# ── Player / side detection ───────────────────────────────────────────────────
+
+class TestPlayerMessage:
+    def test_recognises_our_side(self):
+        parser, _ = make_parser("TestBot")
+        run(parser.feed("|player|p2|TestBot||1400"))
+        assert parser.state.my_side == "p2"
+
+    def test_parses_elo(self):
+        parser, _ = make_parser("TestBot")
+        run(parser.feed("|player|p1|TestBot||1523"))
+        assert parser.state.my_elo == 1523
+
+    def test_ignores_opponent_player_message(self):
+        parser, _ = make_parser("TestBot")
+        run(parser.feed("|player|p2|TestBot||"))  # our side, no elo
+        run(parser.feed("|player|p1|Opponent||1600"))
+        assert parser.state.my_side == "p2"   # unchanged by opponent line
+        assert parser.state.my_elo is None    # no elo set for us
+
+
+# ── Gametype ─────────────────────────────────────────────────────────────────
+
+class TestGametypeMessage:
+    def test_sets_doubles_flag(self):
+        parser, _ = make_parser()
+        run(parser.feed("|gametype|doubles"))
+        assert parser.state.is_doubles is True
+
+    def test_singles_does_not_set_flag(self):
+        parser, _ = make_parser()
+        run(parser.feed("|gametype|singles"))
+        assert parser.state.is_doubles is False
+
+
+# ── Switch / drag ─────────────────────────────────────────────────────────────
+
+class TestSwitchMessage:
+    def test_adds_opponent_to_actives(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        assert len(parser.state.opp_actives) == 1
+        assert parser.state.opp_actives[0].species == "Garchomp"
+        assert parser.state.opp_actives[0].hp == 175
+
+    def test_adds_opponent_to_correct_slot(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2b: Incineroar|Incineroar, L50, M|301/301"))
+        assert len(parser.state.opp_actives) >= 2
+        assert parser.state.opp_actives[1].species == "Incineroar"
+
+    def test_resets_opp_last_move_on_switch_in(self):
+        """Switching in resets the last-move tracker so FakeOutModule
+        treats the new arrival as a fresh Fake Out threat."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        parser.state.opp_last_moves = ["Fake Out"]
+        run(parser.feed("|switch|p2a: Incineroar|Incineroar, L50, M|301/301"))
+        assert parser.state.opp_last_moves[0] == ""
+
+    def test_detects_own_mon_switched_in(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p2"
+        run(parser.feed("|switch|p2a: Garganacl|Garganacl, L50|301/301"))
+        assert len(parser.state.my_actives) == 1
+        assert parser.state.my_actives[0].species == "Garganacl"
+
+
+# ── Damage / heal ─────────────────────────────────────────────────────────────
+
+class TestDamageHeal:
+    def _setup(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        return parser
+
+    def test_damage_reduces_hp(self):
+        parser = self._setup()
+        run(parser.feed("|-damage|p2a: Garchomp|100/175"))
+        assert parser.state.opp_actives[0].hp == 100
+
+    def test_heal_increases_hp(self):
+        parser = self._setup()
+        run(parser.feed("|-damage|p2a: Garchomp|100/175"))
+        run(parser.feed("|-heal|p2a: Garchomp|150/175"))
+        assert parser.state.opp_actives[0].hp == 150
+
+    def test_faint_via_damage_message(self):
+        parser = self._setup()
+        run(parser.feed("|-damage|p2a: Garchomp|0 fnt"))
+        mon = parser.state.opp_actives[0]
+        assert mon.fainted is True
+        assert mon.hp == 0
+
+
+# ── Status ───────────────────────────────────────────────────────────────────
+
+class TestStatusMessages:
+    def test_status_applied(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garganacl|Garganacl, L50|300/300"))
+        run(parser.feed("|-status|p2a: Garganacl|brn"))
+        assert parser.state.opp_actives[0].status == "brn"
+
+    def test_curestatus_clears_status(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garganacl|Garganacl, L50|300/300"))
+        run(parser.feed("|-status|p2a: Garganacl|par"))
+        run(parser.feed("|-curestatus|p2a: Garganacl|par"))
+        assert parser.state.opp_actives[0].status is None
+
+
+# ── Boost / unboost ───────────────────────────────────────────────────────────
+
+class TestBoostUnboost:
+    def test_boost_increments(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-boost|p2a: Garchomp|atk|2"))
+        assert parser.state.opp_actives[0].boosts["atk"] == 2
+
+    def test_unboost_decrements(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-unboost|p2a: Garchomp|spe|1"))
+        assert parser.state.opp_actives[0].boosts["spe"] == -1
+
+
+# ── Move tracking ─────────────────────────────────────────────────────────────
+
+class TestMoveTracking:
+    def test_opponent_move_recorded_in_revealed_moves(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|move|p2a: Garchomp|Earthquake|p1a: Garganacl"))
+        assert "Earthquake" in parser.state.opp_actives[0].moves
+
+    def test_opponent_last_move_updated(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Incineroar|Incineroar, L50, M|301/301"))
+        run(parser.feed("|move|p2a: Incineroar|Fake Out|p1a: TestMon"))
+        assert parser.state.opp_last_moves[0] == "Fake Out"
+
+    def test_same_move_not_added_twice(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|move|p2a: Garchomp|Earthquake|p1a: Garganacl"))
+        run(parser.feed("|move|p2a: Garchomp|Earthquake|p1a: Garganacl"))
+        assert parser.state.opp_actives[0].moves.count("Earthquake") == 1
+
+
+# ── Field conditions ─────────────────────────────────────────────────────────
+
+class TestTrickRoom:
+    def test_fieldstart_trick_room_sets_flag(self):
+        """The fix in 0.3.3 — Showdown sends 'move: Trick Room' with a space."""
+        parser, _ = make_parser()
+        run(parser.feed("|-fieldstart|move: Trick Room"))
+        assert parser.state.trick_room is True
+        assert parser.state.trick_room_turns_left == 5
+
+    def test_fieldend_trick_room_clears_flag(self):
+        parser, _ = make_parser()
+        run(parser.feed("|-fieldstart|move: Trick Room"))
+        run(parser.feed("|-fieldend|move: Trick Room"))
+        assert parser.state.trick_room is False
+        assert parser.state.trick_room_turns_left == 0
+
+    def test_fieldstart_terrain_does_not_set_trick_room(self):
+        parser, _ = make_parser()
+        run(parser.feed("|-fieldstart|move: Electric Terrain"))
+        assert parser.state.trick_room is False
+        assert parser.state.terrain == "Electric Terrain"
+
+
+# ── Tailwind ─────────────────────────────────────────────────────────────────
+
+class TestTailwind:
+    # Format A (older PS logs): condition name embedded in args[0]
+    def test_sidestart_tailwind_sets_our_flag_format_a(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|-sidestart|p1: Tailwind|move: Tailwind"))
+        assert parser.state.my_tailwind is True
+        assert parser.state.my_tailwind_turns_left == 4
+
+    def test_sidestart_tailwind_sets_opp_flag_format_a(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|-sidestart|p2: Tailwind|move: Tailwind"))
+        assert parser.state.opp_tailwind is True
+        assert parser.state.opp_tailwind_turns_left == 4
+
+    # Format B (real PS live battles): player name in args[0], condition in args[1]
+    def test_sidestart_tailwind_sets_opp_flag_format_b(self):
+        """Real PS live format: side arg is 'p2: PlayerName', condition is args[1]."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|-sidestart|p2: WolfeyRocks|Tailwind"))
+        assert parser.state.opp_tailwind is True
+        assert parser.state.opp_tailwind_turns_left == 4
+
+    def test_sidestart_tailwind_sets_our_flag_format_b(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|-sidestart|p1: PlayerOne|Tailwind"))
+        assert parser.state.my_tailwind is True
+        assert parser.state.my_tailwind_turns_left == 4
+
+    def test_sideend_tailwind_clears_flag(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|-sidestart|p1: Tailwind|move: Tailwind"))
+        run(parser.feed("|-sideend|p1: Tailwind|move: Tailwind"))
+        assert parser.state.my_tailwind is False
+        assert parser.state.my_tailwind_turns_left == 0
+
+    def test_sideend_tailwind_clears_flag_format_b(self):
+        """Real PS live format for sideend."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|-sidestart|p2: WolfeyRocks|Tailwind"))
+        run(parser.feed("|-sideend|p2: WolfeyRocks|Tailwind"))
+        assert parser.state.opp_tailwind is False
+        assert parser.state.opp_tailwind_turns_left == 0
+
+    def test_sidestart_tailwind_does_not_set_flag_for_other_condition(self):
+        """An unrelated sidestart message must not affect Tailwind flags."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|-sidestart|p2: PlayerTwo|Reflect"))
+        assert parser.state.opp_tailwind is False
+        assert parser.state.opp_tailwind_turns_left == 0
+
+
+# ── Turn counter ──────────────────────────────────────────────────────────────
+
+class TestTurnCounter:
+    def test_turn_message_updates_turn_number(self):
+        parser, _ = make_parser()
+        run(parser.feed("|turn|3"))
+        assert parser.state.turn == 3
+
+    def test_turn_decrements_tailwind_counter(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        parser.state.my_tailwind_turns_left = 3
+        run(parser.feed("|turn|2"))
+        assert parser.state.my_tailwind_turns_left == 2
+
+    def test_turn_decrements_trick_room_counter(self):
+        parser, _ = make_parser()
+        parser.state.trick_room_turns_left = 4
+        run(parser.feed("|turn|2"))
+        assert parser.state.trick_room_turns_left == 3
+
+
+# ── Faint ─────────────────────────────────────────────────────────────────────
+
+class TestFaint:
+    def test_faint_sets_fainted_flag(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|faint|p2a: Garchomp"))
+        assert parser.state.opp_actives[0].fainted is True
+        assert parser.state.opp_actives[0].hp == 0
+
+
+# ── Win ───────────────────────────────────────────────────────────────────────
+
+class TestWin:
+    def test_win_fires_callback_with_true(self):
+        on_end = AsyncMock()
+        parser = BattleParser(
+            battle_id="battle-test",
+            my_username="TestBot",
+            on_decision_needed=AsyncMock(),
+            on_battle_end=on_end,
+        )
+        run(parser.feed("|win|TestBot"))
+        on_end.assert_called_once_with(True)
+
+    def test_loss_fires_callback_with_false(self):
+        on_end = AsyncMock()
+        parser = BattleParser(
+            battle_id="battle-test",
+            my_username="TestBot",
+            on_decision_needed=AsyncMock(),
+            on_battle_end=on_end,
+        )
+        run(parser.feed("|win|Opponent"))
+        on_end.assert_called_once_with(False)
+
+    def test_no_callback_set_does_not_raise(self):
+        """on_battle_end=None should not raise when win arrives."""
+        parser = BattleParser(
+            battle_id="battle-test",
+            my_username="TestBot",
+            on_decision_needed=AsyncMock(),
+            on_battle_end=None,
+        )
+        run(parser.feed("|win|Opponent"))  # should not raise
+
+
+# ── Item / Ability ────────────────────────────────────────────────────────────
+
+class TestItemAbility:
+    def test_item_revealed(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50|175/175"))
+        run(parser.feed("|-item|p2a: Garchomp|Choice Scarf"))
+        assert parser.state.opp_actives[0].item == "Choice Scarf"
+
+    def test_enditem_clears_item_and_sets_consumed(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50|175/175"))
+        run(parser.feed("|-item|p2a: Garchomp|Choice Scarf"))
+        run(parser.feed("|-enditem|p2a: Garchomp|Choice Scarf"))
+        mon = parser.state.opp_actives[0]
+        assert mon.item is None
+        assert mon.item_consumed is True
+
+    def test_ability_revealed(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50|175/175"))
+        run(parser.feed("|-ability|p2a: Garchomp|Rough Skin"))
+        assert parser.state.opp_actives[0].ability == "Rough Skin"
+
+
+# ── Error recovery ────────────────────────────────────────────────────────────
+
+class TestErrorMessage:
+    def test_error_resets_rqid_for_retry(self):
+        """After '[Invalid choice]' the server sends a new |request|.
+        We must allow it through by clearing last_rqid_handled."""
+        parser, _ = make_parser()
+        parser.state.rqid = 5
+        parser.state.last_rqid_handled = 5
+        run(parser.feed("|error|[Invalid choice] Can't move: your Mon is trapped!"))
+        assert parser.state.last_rqid_handled is None
+
+
+# ── Trapped (Shadow Tag / Arena Trap / trapping move) ────────────────────────
+
+class TestTrapped:
+    def test_normal_turn_populates_trapped_per_slot(self):
+        """active[].trapped from the |request| is recorded per slot."""
+        parser, _ = make_parser()
+        data = {"active": [
+            {"moves": [{"move": "Dragon Claw"}], "trapped": True},
+            {"moves": [{"move": "Protect"}]},
+        ]}
+        parser._handle_normal_turn(data, [])
+        assert parser.state.trapped == [True, False]
+
+    def test_maybe_trapped_is_not_treated_as_trapped(self):
+        """`maybeTrapped` is only a hint — switching is still legal."""
+        parser, _ = make_parser()
+        data = {"active": [{"moves": [{"move": "Dragon Claw"}], "maybeTrapped": True}]}
+        parser._handle_normal_turn(data, [])
+        assert parser.state.trapped == [False]
+
+    def test_force_switch_clears_trapped(self):
+        """A force-switch phase must clear any lingering trapped flags."""
+        parser, _ = make_parser()
+        parser.state.trapped = [True, True]
+        parser._handle_force_switch({"forceSwitch": [True, False]})
+        assert parser.state.trapped == [False, False]
+
+
+# ── Terastallize ─────────────────────────────────────────────────────────────
+
+class TestTerastallize:
+    def test_opponent_tera_sets_flag_and_type(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-terastallize|p2a: Garchomp|Dragon"))
+        mon = parser.state.opp_actives[0]
+        assert mon.terastallized is True
+        assert mon.tera_type == "Dragon"
+
+    def test_our_mon_tera_sets_flag_and_type(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p1a: Garganacl|Garganacl, L50|301/301"))
+        run(parser.feed("|-terastallize|p1a: Garganacl|Water"))
+        mon = parser.state.my_actives[0]
+        assert mon.terastallized is True
+        assert mon.tera_type == "Water"
+
+    def test_tera_type_overrides_previous(self):
+        """A second terastallize message (shouldn't happen in practice, but be safe)."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-terastallize|p2a: Garchomp|Dragon"))
+        run(parser.feed("|-terastallize|p2a: Garchomp|Steel"))
+        assert parser.state.opp_actives[0].tera_type == "Steel"
+
+
+# ── Cant ─────────────────────────────────────────────────────────────────────
+
+class TestCant:
+    def test_cant_clears_opponent_last_move(self):
+        """Flinch/paralysis clears stale last-move so Protect-spam detection stays clean."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        parser.state.opp_last_moves = ["Earthquake"]
+        run(parser.feed("|cant|p2a: Garchomp|par"))
+        assert parser.state.opp_last_moves[0] == ""
+
+    def test_cant_clears_our_last_move(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        parser.state.my_last_moves = ["Protect"]
+        run(parser.feed("|cant|p1a: Garganacl|flinch"))
+        assert parser.state.my_last_moves[0] == ""
+
+    def test_cant_works_when_last_moves_list_empty(self):
+        """Should not raise when last_moves list is shorter than the slot index."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|cant|p2a: Garchomp|slp"))  # should not raise
+        assert parser.state.opp_last_moves[0] == ""
+
+    def test_cant_slot_b_clears_correct_slot(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        parser.state.opp_last_moves = ["Earthquake", "Protect"]
+        run(parser.feed("|cant|p2b: Incineroar|flinch"))
+        assert parser.state.opp_last_moves[0] == "Earthquake"  # slot-a unchanged
+        assert parser.state.opp_last_moves[1] == ""            # slot-b cleared
+
+
+# ── Clear boost ───────────────────────────────────────────────────────────────
+
+class TestClearBoost:
+    def test_clearboost_zeros_all_stat_stages(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-boost|p2a: Garchomp|atk|2"))
+        run(parser.feed("|-boost|p2a: Garchomp|spe|1"))
+        run(parser.feed("|-clearboost|p2a: Garchomp"))
+        mon = parser.state.opp_actives[0]
+        assert mon.boosts["atk"] == 0
+        assert mon.boosts["spe"] == 0
+
+    def test_clearboost_only_affects_target(self):
+        """A second active mon's boosts must not be disturbed."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|switch|p2b: Incineroar|Incineroar, L50, M|301/301"))
+        run(parser.feed("|-boost|p2a: Garchomp|atk|2"))
+        run(parser.feed("|-boost|p2b: Incineroar|atk|1"))
+        run(parser.feed("|-clearboost|p2a: Garchomp"))
+        assert parser.state.opp_actives[0].boosts["atk"] == 0
+        assert parser.state.opp_actives[1].boosts["atk"] == 1  # untouched
+
+
+# ── Clear all boosts ──────────────────────────────────────────────────────────
+
+class TestClearAllBoost:
+    def test_clearallboost_zeros_all_active_mons(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|switch|p2b: Incineroar|Incineroar, L50, M|301/301"))
+        run(parser.feed("|-boost|p2a: Garchomp|atk|2"))
+        run(parser.feed("|-boost|p2b: Incineroar|spe|1"))
+        run(parser.feed("|-clearallboost"))
+        assert parser.state.opp_actives[0].boosts["atk"] == 0
+        assert parser.state.opp_actives[1].boosts["spe"] == 0
+
+
+# ── Invert boost ──────────────────────────────────────────────────────────────
+
+class TestInvertBoost:
+    def test_invertboost_negates_positive_stages(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-boost|p2a: Garchomp|atk|3"))
+        run(parser.feed("|-invertboost|p2a: Garchomp"))
+        assert parser.state.opp_actives[0].boosts["atk"] == -3
+
+    def test_invertboost_negates_negative_stages(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-unboost|p2a: Garchomp|def|2"))
+        run(parser.feed("|-invertboost|p2a: Garchomp"))
+        assert parser.state.opp_actives[0].boosts["def"] == 2
+
+
+# ── Set boost ─────────────────────────────────────────────────────────────────
+
+class TestSetBoost:
+    def test_setboost_overrides_current_stage(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-boost|p2a: Garchomp|atk|1"))
+        run(parser.feed("|-setboost|p2a: Garchomp|atk|3"))
+        assert parser.state.opp_actives[0].boosts["atk"] == 3
+
+
+# ── Transform ─────────────────────────────────────────────────────────────────
+
+class TestTransform:
+    def test_transform_copies_species(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Ditto|Ditto, L50|155/155"))
+        run(parser.feed("|switch|p1a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-transform|p2a: Ditto|p1a: Garchomp"))
+        assert parser.state.opp_actives[0].species == "Garchomp"
+
+    def test_transform_copies_revealed_moves(self):
+        """Our Ditto transforms into an opponent who has already revealed moves.
+
+        _on_move only appends to mon.moves for *opponent* mons (our moves are
+        known from request JSON).  So we test: opp Garchomp reveals a move,
+        then our Ditto transforms into it and inherits that move list.
+        """
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p1a: Ditto|Ditto, L50|155/155"))          # our Ditto
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175")) # opp Garchomp
+        run(parser.feed("|move|p2a: Garchomp|Earthquake|p1a: Ditto"))      # opp reveals move
+        run(parser.feed("|-transform|p1a: Ditto|p2a: Garchomp"))           # our Ditto copies
+        assert "Earthquake" in parser.state.my_actives[0].moves
+
+
+# ── Disable / Encore tracking ─────────────────────────────────────────────────
+
+class TestDisableEncore:
+    """Parser correctly sets/clears my_disabled_moves and my_encored_moves."""
+
+    def _setup(self):
+        """Return a parser with our Venusaur already on the field."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p1a: Venusaur|Venusaur, L50|180/180"))
+        # Seed last_moves so Encore can read it
+        parser.state.my_last_moves = ["Giga Drain"]
+        return parser
+
+    # ── Disable ───────────────────────────────────────────────────────────────
+
+    def test_activate_disable_sets_disabled_move(self):
+        parser = self._setup()
+        run(parser.feed("|-activate|p1a: Venusaur|move: Disable|Giga Drain"))
+        assert parser.state.my_disabled_moves[0] == "Giga Drain"
+
+    def test_activate_disable_opponent_ignored(self):
+        """Disable on the opponent's mon must not touch our state."""
+        parser = self._setup()
+        parser.state.my_side = "p1"
+        run(parser.feed("|-activate|p2a: Incineroar|move: Disable|Flare Blitz"))
+        # Our list should still be empty/default
+        assert not parser.state.my_disabled_moves or parser.state.my_disabled_moves[0] is None
+
+    def test_end_disable_clears_disabled_move(self):
+        parser = self._setup()
+        run(parser.feed("|-activate|p1a: Venusaur|move: Disable|Giga Drain"))
+        assert parser.state.my_disabled_moves[0] == "Giga Drain"
+        run(parser.feed("|-end|p1a: Venusaur|Disable"))
+        assert parser.state.my_disabled_moves[0] is None
+
+    def test_switch_clears_disabled_move(self):
+        parser = self._setup()
+        run(parser.feed("|-activate|p1a: Venusaur|move: Disable|Giga Drain"))
+        assert parser.state.my_disabled_moves[0] == "Giga Drain"
+        run(parser.feed("|switch|p1a: Garchomp|Garchomp, L50|175/175"))
+        assert parser.state.my_disabled_moves[0] is None
+
+    # ── Encore ────────────────────────────────────────────────────────────────
+
+    def test_start_encore_locks_last_move(self):
+        parser = self._setup()
+        run(parser.feed("|-start|p1a: Venusaur|Encore"))
+        assert parser.state.my_encored_moves[0] == "Giga Drain"
+
+    def test_start_encore_opponent_ignored(self):
+        """Encore on the opponent's mon must not touch our state."""
+        parser = self._setup()
+        run(parser.feed("|-start|p2a: Incineroar|Encore"))
+        assert not parser.state.my_encored_moves or parser.state.my_encored_moves[0] is None
+
+    def test_end_encore_clears_encored_move(self):
+        parser = self._setup()
+        run(parser.feed("|-start|p1a: Venusaur|Encore"))
+        assert parser.state.my_encored_moves[0] == "Giga Drain"
+        run(parser.feed("|-end|p1a: Venusaur|Encore"))
+        assert parser.state.my_encored_moves[0] is None
+
+    def test_switch_clears_encored_move(self):
+        parser = self._setup()
+        run(parser.feed("|-start|p1a: Venusaur|Encore"))
+        assert parser.state.my_encored_moves[0] == "Giga Drain"
+        run(parser.feed("|switch|p1a: Kingambit|Kingambit, L50|165/165"))
+        assert parser.state.my_encored_moves[0] is None
+

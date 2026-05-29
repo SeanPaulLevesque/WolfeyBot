@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# Virtual environment
+.venv/
+venv/
+
+# Personal/local Claude settings (keep the shared .claude/settings.json)
+.claude/settings.local.json
+
+# Runtime logs (may contain session data / credentials)
+*.log
+bot.log
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/

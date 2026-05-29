@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WolfeyBot — Decision Engine Architecture</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      padding: 40px 32px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────────── */
+    .page-header { margin-bottom: 40px; }
+    .page-header h1 { color: #58a6ff; font-size: 1.9rem; margin-bottom: 6px; }
+    .page-header p  { color: #8b949e; font-size: 0.95rem; }
+    .page-header code { background: #21262d; padding: 2px 6px; border-radius: 4px; font-size: 0.9rem; color: #c9d1d9; }
+
+    /* ── Section titles ──────────────────────────────────────────────────── */
+    h2 { color: #79c0ff; font-size: 1.15rem; margin: 40px 0 14px; border-bottom: 1px solid #30363d; padding-bottom: 8px; }
+
+    /* ── Diagram wrapper ─────────────────────────────────────────────────── */
+    .diagram-wrap {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 28px 20px;
+      overflow-x: auto;
+      display: flex;
+      justify-content: center;
+    }
+    .diagram-wrap .mermaid { max-width: 900px; width: 100%; }
+
+    /* ── Weight convention banner ────────────────────────────────────────── */
+    .convention {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-left: 4px solid #1f6feb;
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-size: 0.88rem;
+      line-height: 1.7;
+      color: #c9d1d9;
+    }
+    .convention strong { color: #e6edf3; }
+    .convention .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #21262d; border: 1px solid #30363d;
+      border-radius: 20px; padding: 4px 12px;
+      font-size: 0.82rem;
+    }
+    .chip .val { font-weight: 700; font-family: monospace; }
+    .chip.green .val { color: #3fb950; }
+    .chip.red   .val { color: #f85149; }
+    .chip.yellow .val { color: #d29922; }
+
+    /* ── Module cards grid ───────────────────────────────────────────────── */
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 16px;
+    }
+
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card-header { display: flex; align-items: center; gap: 10px; }
+    .card-num {
+      background: #1f6feb;
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.78rem;
+      border-radius: 20px;
+      padding: 3px 10px;
+      white-space: nowrap;
+    }
+    .card h3 { color: #e6edf3; font-size: 1rem; }
+    .card .purpose { color: #8b949e; font-size: 0.84rem; line-height: 1.5; }
+
+    .mult-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; }
+    .mult-table thead th {
+      text-align: left; color: #6e7681;
+      font-weight: 600; font-size: 0.75rem;
+      text-transform: uppercase; letter-spacing: .05em;
+      padding: 4px 6px; border-bottom: 1px solid #30363d;
+    }
+    .mult-table tbody td { padding: 5px 6px; color: #c9d1d9; vertical-align: top; }
+    .mult-table tbody tr:hover td { background: #21262d; }
+    .factor { font-family: monospace; font-weight: 700; white-space: nowrap; }
+    .factor.up   { color: #3fb950; }
+    .factor.down { color: #f85149; }
+    .factor.note { color: #d29922; }
+
+    .tag {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 1px 7px;
+      border-radius: 10px;
+      background: #21262d;
+      color: #8b949e;
+      border: 1px solid #30363d;
+    }
+    .tag.red    { background: #3d1a1a; color: #f85149; border-color: #6a1e1e; }
+    .tag.green  { background: #12261e; color: #3fb950; border-color: #1a4731; }
+    .tag.yellow { background: #2d2600; color: #d29922; border-color: #4d4000; }
+    .tag.blue   { background: #0d2045; color: #58a6ff; border-color: #1a3a7a; }
+
+    /* ── Data flow diagram ───────────────────────────────────────────────── */
+    .dataflow-wrap {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 28px 20px;
+      overflow-x: auto;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────────────── */
+    footer { margin-top: 48px; color: #6e7681; font-size: 0.82rem; text-align: center; }
+  </style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>⚔️ WolfeyBot — Decision Engine Architecture</h1>
+  <p><code>decision.py</code> — Modular move-scoring pipeline for Champions VGC doubles (Gen 9)</p>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     PIPELINE FLOWCHART
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Scoring Pipeline</h2>
+<div class="diagram-wrap">
+<div class="mermaid">
+%%{init: {
+  "theme": "dark",
+  "themeVariables": {
+    "primaryColor":       "#1f6feb",
+    "primaryTextColor":   "#e6edf3",
+    "primaryBorderColor": "#30363d",
+    "lineColor":          "#58a6ff",
+    "background":         "#0d1117",
+    "mainBkg":            "#21262d",
+    "nodeBorder":         "#444c56",
+    "fontSize":           "14px"
+  }
+}}%%
+flowchart TD
+    IN(["🎮  BattleState + slot"])
+
+    BUILD["📋  _build_actions\nall legal moves + bench switches\nevery Action.weight = 1.0"]
+
+    M1["① DamageOutputModule\nbase damage scoring\nsets target_slot"]
+    M2["② ThreatEliminationModule\nKO-opportunity bonus\nmay override target_slot"]
+    M3["③ OppProtectRecencyModule\nboost vs mon that just Protected"]
+    M4["④ PrioritySpeedModule\npriority moves × speed matchup"]
+    M5["⑤ ProtectModule\nProtect bonuses/penalties\n1v1 endgame suppression"]
+    M6["⑥ FakeOutModule\nFake Out threat discounting"]
+    M7["⑦ FieldConditionModule\nstall on expiring field effects"]
+    M8["⑧ SwitchModule\ntype-matchup switch scoring"]
+    M9["⑨ DoublingUpModule\ntarget coordination\nconfirmed-OHKO redirect"]
+
+    SORT["📊  sort actions by weight ↓\nreturn highest-weight Action"]
+    OUT(["🎯  Best Action\n.label · .target_slot · .reasons"])
+
+    IN    --> BUILD
+    BUILD --> M1
+    M1    --> M2
+    M2    --> M3
+    M3    --> M4
+    M4    --> M5
+    M5    --> M6
+    M6    --> M7
+    M7    --> M8
+    M8    --> M9
+    M9    --> SORT
+    SORT  --> OUT
+
+    style IN   fill:#1f6feb,stroke:#388bfd,color:#fff
+    style OUT  fill:#238636,stroke:#2ea043,color:#fff
+    style SORT fill:#161b22,stroke:#444c56
+    style BUILD fill:#21262d,stroke:#444c56
+    style M1  fill:#21262d,stroke:#444c56
+    style M2  fill:#21262d,stroke:#444c56
+    style M3  fill:#21262d,stroke:#444c56
+    style M4  fill:#21262d,stroke:#444c56
+    style M5  fill:#21262d,stroke:#444c56
+    style M6  fill:#21262d,stroke:#444c56
+    style M7  fill:#21262d,stroke:#444c56
+    style M8  fill:#21262d,stroke:#444c56
+    style M9  fill:#21262d,stroke:#444c56
+</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     WEIGHT CONVENTION
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Weight Convention</h2>
+<div class="convention">
+  <strong>All actions start at weight = 1.0.</strong>
+  Every module <em>multiplies</em> — never adds to — the weight.
+  This keeps vetoes clean, bonuses composable, and the scale intuitive.
+  Only relative ordering between actions matters; there is no normalisation.
+  <div class="chips">
+    <div class="chip green"><span class="val">&gt; 1.0</span><span>encouraged</span></div>
+    <div class="chip yellow"><span class="val">= 1.0</span><span>neutral / no opinion</span></div>
+    <div class="chip red"><span class="val">&lt; 1.0</span><span>discouraged</span></div>
+    <div class="chip red"><span class="val">= 0.0</span><span>vetoed (never pick)</span></div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MODULE REFERENCE CARDS
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Module Reference</h2>
+<div class="module-grid">
+
+  <!-- ① DamageOutputModule -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">① DAMAGE OUTPUT</span>
+      <span class="tag blue">all moves</span>
+    </div>
+    <h3>DamageOutputModule</h3>
+    <p class="purpose">
+      Scores every move by the average damage fraction it deals to the best
+      available target.  Sets <code>action.target_slot</code> to whichever
+      opponent was most susceptible.  Uses the median damage roll (×0.925).
+    </p>
+    <table class="mult-table">
+      <thead><tr><th>Condition</th><th>Multiplier</th></tr></thead>
+      <tbody>
+        <tr><td>OHKO (100% avg damage)</td><td><span class="factor up">×3.00</span></td></tr>
+        <tr><td>50% avg damage</td><td><span class="factor up">×2.00</span></td></tr>
+        <tr><td>25% avg damage</td><td><span class="factor up">×1.50</span></td></tr>
+        <tr><td>0% (status / immune)</td><td><span class="factor note">×1.00</span></td></tr>
+        <tr><td><em>Formula: 1 + fraction × 2</em></td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ② ThreatEliminationModule -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">② THREAT ELIMINATION</span>
+      <span class="tag green">KO bonus</span>
+    </div>
+    <h3>ThreatEliminationModule</h3>
+    <p class="purpose">
+      Stacks a large additional multiplier on top of DamageOutput when a move
+      can guarantee or threaten a knockout.  Also overrides
+      <code>target_slot</code> to point at the KO target.
+    </p>
+    <table class="mult-table">
+      <thead><tr><th>Condition</th><th>Multiplier</th></tr></thead>
+      <tbody>
+        <tr><td>Guaranteed OHKO (min roll ≥ defender HP)</td><td><span class="factor up">×5.00</span></td></tr>
+        <tr><td>OHKO on max roll only</td><td><span class="factor up">×2.50</span></td></tr>
+        <tr><td>2HKO (2× avg ≥ HP)</td><td><span class="factor up">×1.50</span></td></tr>
+        <tr><td colspan="2" style="color:#6e7681;font-size:0.8rem;padding-top:6px">
+          Combined with DamageOutput: guaranteed OHKO typically reaches<br>
+          weight ≈ 3.0 × 5.0 = <strong style="color:#3fb950">15–22</strong>
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ③ OppProtectRecencyModule -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">③ OPP PROTECT RECENCY</span>
+      <span class="tag green">attack redirect</span>
+    </div>
+    <h3>OppProtectRecencyModule</h3>
+    <p class="purpose">
+      Consecutive Protect has a dramatically lower success rate in Gen 9.
+      When <code>target_slot</code> points at an opponent who used a
+      Protect-family move last turn, the attack is unlikely to be wasted —
+      reward it with a small boost.
+    </p>
+    <table class="mult-table">
+      <thead><tr><th>Condition</th><th>Multiplier</th></tr></thead>
+      <tbody>
+        <tr><td>Target used Protect/Detect/etc. last turn</td><td><span class="factor up">×1.30</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ④ PrioritySpeedModule -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">④ PRIORITY / SPEED</span>
+      <span class="tag blue">priority moves only</span>
+    </div>
+    <h3>PrioritySpeedModule</h3>
+    <p class="purpose">
+      Adjusts the value of priority moves (prio &gt; 0) based on the speed
+      matchup.  Priority is most valuable when the opponent may move first;
+      wasted when we already outspeed everyone.
+    </p>
+    <table class="mult-table">
+      <thead><tr><th>Condition</th><th>Multiplier</th></tr></thead>
+      <tbody>
+        <tr><td>Any opponent may outspeed us</td><td><span class="factor up">×1.50</span></td></tr>
+        <tr><td>We outspeed all opponents</td><td><span class="factor down">×0.80</span></td></tr>
+        <tr><td>Fake Out available (first turn in play)</td><td><span class="factor up">×3.00</span> <em style="color:#6e7681;font-size:0.8rem">additional</em></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ⑤ ProtectModule -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">⑤ PROTECT</span>
+      <span class="tag yellow">Protect-family only</span>
+    </div>
+    <h3>ProtectModule</h3>
+    <p class="purpose">
+      Boosts Protect-family moves when threatened or at low HP.
+      Strongly penalises back-to-back Protect use.
+      Suppresses all bonuses in a <strong>1v1 endgame</strong> (last mon
+      alive, one opponent) where Protecting just delays the loss.
+    </p>
+    <table class="mult-table">
+      <thead><tr><th>Condition</th><th>Multiplier</th></tr></thead>
+      <tbody>
+        <tr><td>Opponent can OHKO on max roll</td><td><span class="factor up">×2.50</span></td></tr>
+        <tr><td>Critical HP (&lt; 5%)</td><td><span class="factor up">×3.00</span></td></tr>
+        <tr><td>Low HP (&lt; 25%)</td><td><span class="factor up">×1.50</span></td></tr>
+        <tr><td>Used Protect last turn (consecutive)</td><td><span class="factor down">×0.10</span></td></tr>
+        <tr><td>1v1 endgame (last mon, 1 opp)</td><td><span class="factor down">no bonus — stays ×1.00</span></td></tr>
+        <tr><td colspan="2" style="color:#6e7681;font-size:0.8rem;padding-top:6px">
+          Critical HP waives consecutive penalty, except in 1v1 endgame
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ⑥ FakeOutModule -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">⑥ FAKE OUT</span>
+      <span class="tag red">threat discount</span>
+    </div>
+    <h3>FakeOutModule</h3>
+    <p class="purpose">
+      When a known Fake Out user (Incineroar, Scream Tail, etc.) is active
+      and has not yet moved this field entry, it will flinch exactly one of
+      our mons.  Protect safely dodges it; attacks risk being wasted.
+    </p>
+    <table class="mult-table">
+      <thead><tr><th>Condition</th><th>Multiplier</th></tr></thead>
+      <tbody>
+        <tr><td>Protect-family move</td><td><span class="factor up">×3.00</span></td></tr>
+        <tr><td>Attack move</td><td><span class="factor down">×0.50</span></td></tr>
+        <tr><td>Switch action</td><td><span class="factor note">×1.00</span> (sidesteps Fake Out)</td></tr>
+        <tr><td colspan="2" style="color:#6e7681;font-size:0.8rem;padding-top:6px">
+          Calibrated so a confirmed OHKO (≈22) ≈ Protect's combined score (≈11)
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ⑦ FieldConditionModule -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">⑦ FIELD CONDITION</span>
+      <span class="tag yellow">Protect-family only</span>
+    </div>
+    <h3>FieldConditionModule</h3>
+    <p class="purpose">
+      Boosts Protect on the final active turn of a harmful field effect so
+      the bot stalls rather than attacking into a disadvantageous condition.
+      Strong enough to beat typical damage scores but weaker than a
+      confirmed OHKO.
+    </p>
+    <table class="mult-table">
+      <thead><tr><th>Condition</th><th>Multiplier</th></tr></thead>
+      <tbody>
+        <tr><td>Last turn of opponent Tailwind (1 turn left)</td><td><span class="factor up">×3.00</span></td></tr>
+        <tr><td>Last turn of active Trick Room (1 turn left)</td><td><span class="factor up">×3.00</span></td></tr>
+        <tr><td colspan="2" style="color:#6e7681;font-size:0.8rem;padding-top:6px">
+          Both can stack if both expire simultaneously
+        </td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ⑧ SwitchModule -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-num">⑧ SWITCH</span>
+      <span class="tag blue">switch actions only</span>
+    </div>
+    <h3>SwitchModule</h3>
+    <p class="purpose">
+      Evaluates bench switches by how well the incoming mon handles the
+      active opponent threat types.  Scale is lifted when the current mon
+      is OHKO-threatened, making good escapes competitive with Protect.
+      Vetoes duplicates to prevent both slots switching to the same target.
+    </p>
+    <table class="mult-table">
+      <thead><tr><th>Condition</th><th>Multiplier</th></tr></thead>
+      <tbody>
+        <tr><td>OHKO escape → resists threats (≤0.5×)</td><td><span class="factor up">×4.00</span></td></tr>
+        <tr><td>OHKO escape → neutral to threats</td><td><span class="factor up">×2.00</span></td></tr>
+        <tr><td>Normal → resists threats (≤0.5×)</td><td><span class="factor up">×1.80</span></td></tr>
+        <tr><td>Normal → neutral to threats</td><td><span class="factor up">×1.20</span></td></tr>
+        <tr><td>Switch target also OHKO-threatened</td><td><span class="factor down">cap ×0.80</span></td></tr>
+        <tr><td>Switch target weak to threats</td><td><span class="factor down">×0.40–0.50</span></td></tr>
+        <tr><td>Partner already switching there</td><td><span class="factor down">×0 (veto)</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ⑨ DoublingUpModule -->
+  <div class="card" style="grid-column: 1 / -1; max-width: 760px;">
+    <div class="card-header">
+      <span class="card-num">⑨ DOUBLING UP</span>
+      <span class="tag red">runs last — reads partner decision</span>
+    </div>
+    <h3>DoublingUpModule</h3>
+    <p class="purpose">
+      Penalises both slots targeting the same opponent (doubling up on a
+      Protect wastes both moves).  Reads the partner slot's committed
+      <code>target_slot</code>.  Only fires when two or more opponents are
+      active.  Spread moves are excluded.
+      <br><br>
+      <strong>Confirmed-OHKO redirect:</strong> when the partner already
+      has a confirmed OHKO on the shared target AND another opponent is
+      alive, attacks are <em>redirected</em> to the surviving opponent
+      rather than near-vetoed — preventing the engine from defaulting
+      to Protect.
+    </p>
+    <table class="mult-table">
+      <thead><tr><th>Scenario</th><th>Multiplier</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Doubling up — both factors<br>
+            <small style="color:#6e7681">(target Protected last turn <em>and</em> other opp not threatening)</small>
+          </td>
+          <td><span class="factor down">×0.85</span></td>
+        </tr>
+        <tr>
+          <td>Doubling up — one factor<br>
+            <small style="color:#6e7681">(Protected last turn <em>or</em> other opp not threatening)</small>
+          </td>
+          <td><span class="factor down">×0.70</span></td>
+        </tr>
+        <tr>
+          <td>Doubling up — neither factor<br>
+            <small style="color:#6e7681">(Protect risk, other opp is threatening)</small>
+          </td>
+          <td><span class="factor down">×0.55</span></td>
+        </tr>
+        <tr>
+          <td>Partner near-KO on same target (weight ≥ 10)</td>
+          <td><span class="factor down">×0.65</span> <em style="color:#6e7681;font-size:0.8rem">additional</em></td>
+        </tr>
+        <tr>
+          <td>Partner confirmed OHKO (weight ≥ 15) <em>+ alt target exists</em></td>
+          <td><span class="factor up">redirect to alt target, no penalty</span></td>
+        </tr>
+        <tr>
+          <td>Partner confirmed OHKO (weight ≥ 15) <em>+ no alt target</em></td>
+          <td><span class="factor down">×0.05</span> (near-veto)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div><!-- end .module-grid -->
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     INTERNAL HELPERS DIAGRAM
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Internal Helpers &amp; Data Flow</h2>
+<div class="dataflow-wrap">
+<div class="mermaid">
+%%{init: {
+  "theme": "dark",
+  "themeVariables": {
+    "primaryColor": "#1f6feb", "primaryTextColor": "#e6edf3",
+    "primaryBorderColor": "#30363d", "lineColor": "#58a6ff",
+    "background": "#0d1117", "mainBkg": "#21262d",
+    "nodeBorder": "#444c56", "fontSize": "13px"
+  }
+}}%%
+flowchart LR
+    subgraph STATE["BattleState (read-only inputs)"]
+        direction TB
+        S1["my_actives / opp_actives\nHP, boosts, status, item, ability"]
+        S2["my_team / available_switches"]
+        S3["weather / terrain\ntrick_room / tailwind turns"]
+        S4["my_last_moves / opp_last_moves"]
+        S5["my_slot_decisions\n← partner's committed Action"]
+        S6["moves_per_slot\n← server legal-move list"]
+    end
+
+    subgraph HELPERS["Internal Helpers"]
+        direction TB
+        H1["_our_combatant(state, slot)\nBuilds Combatant for speed calc\n(mega-aware, exact stats)"]
+        H2["_opp_combatant(state, opp_slot)\nBuilds Combatant for opponent\n(infers weather-speed ability)"]
+        H3["_our_stats(state, slot)\nReturns stat dict (mega-aware)"]
+        H4["_fake_out_threatened(state)\nTrue if fresh Fake Out user active"]
+    end
+
+    subgraph EXTERNAL["External Modules"]
+        direction TB
+        E1["damage.py\noutgoing_damage()\nincoming_damage()\nfull_damage_calc()"]
+        E2["turn_order.py\nwill_outspeed()\npriority_bracket()"]
+        E3["team.py\nfind_member()"]
+        E4["data/\ntypes_of()\nget_move_type()\nis_spread_move()"]
+    end
+
+    STATE   --> HELPERS
+    HELPERS --> E1
+    HELPERS --> E2
+    HELPERS --> E3
+    STATE   --> E4
+
+    E1 & E2 & E3 & E4 --> MODULES
+
+    MODULES(["Module chain\n① – ⑨"])
+
+    style STATE   fill:#161b22,stroke:#30363d
+    style HELPERS fill:#161b22,stroke:#30363d
+    style EXTERNAL fill:#161b22,stroke:#30363d
+    style MODULES fill:#1f6feb,stroke:#388bfd,color:#fff
+</div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     TYPICAL WEIGHT EXAMPLES
+═══════════════════════════════════════════════════════════════════════════ -->
+<h2>Typical Combined Weight Examples</h2>
+<div class="module-grid" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+
+  <div class="card">
+    <h3>Confirmed OHKO attack</h3>
+    <p class="purpose">DamageOutput × ThreatElimination</p>
+    <table class="mult-table"><tbody>
+      <tr><td>100% damage</td><td><span class="factor up">×3.00</span></td></tr>
+      <tr><td>Guaranteed OHKO</td><td><span class="factor up">×5.00</span></td></tr>
+      <tr><td style="border-top:1px solid #30363d"><strong>Total</strong></td><td><span class="factor up">≈ 15–22</span></td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="card">
+    <h3>Protect vs Fake Out threat</h3>
+    <p class="purpose">FakeOut × PrioritySpeed × Protect</p>
+    <table class="mult-table"><tbody>
+      <tr><td>Fake Out threat boost</td><td><span class="factor up">×3.00</span></td></tr>
+      <tr><td>Priority move, opp may outspeed</td><td><span class="factor up">×1.50</span></td></tr>
+      <tr><td>OHKO-threatened</td><td><span class="factor up">×2.50</span></td></tr>
+      <tr><td style="border-top:1px solid #30363d"><strong>Total</strong></td><td><span class="factor up">≈ 11.25</span></td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="card">
+    <h3>Protect in 1v1 endgame</h3>
+    <p class="purpose">ProtectModule suppresses all bonuses</p>
+    <table class="mult-table"><tbody>
+      <tr><td>Critical HP (&lt; 5%)</td><td><span class="factor note">suppressed</span></td></tr>
+      <tr><td>OHKO threat</td><td><span class="factor note">suppressed</span></td></tr>
+      <tr><td>1v1 endgame guard</td><td><span class="factor note">→ continue</span></td></tr>
+      <tr><td style="border-top:1px solid #30363d"><strong>Total</strong></td><td><span class="factor note">= 1.00</span></td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="card">
+    <h3>Escape switch (OHKO threat)</h3>
+    <p class="purpose">SwitchModule OHKO-escape scale</p>
+    <table class="mult-table"><tbody>
+      <tr><td>Escape to resist (≤0.5× eff)</td><td><span class="factor up">×4.00</span></td></tr>
+      <tr><td>Escape to neutral</td><td><span class="factor up">×2.00</span></td></tr>
+      <tr><td>Switch target also threatened</td><td><span class="factor down">cap ×0.80</span></td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="card">
+    <h3>Attack vs partner's confirmed OHKO target</h3>
+    <p class="purpose">DoublingUpModule redirect path</p>
+    <table class="mult-table"><tbody>
+      <tr><td>Alt target exists</td><td><span class="factor up">redirect, no penalty</span></td></tr>
+      <tr><td>No alt target</td><td><span class="factor down">×0.55 × ×0.05 ≈ ×0.03</span></td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="card">
+    <h3>Back-to-back Protect</h3>
+    <p class="purpose">ProtectModule consecutive penalty</p>
+    <table class="mult-table"><tbody>
+      <tr><td>Consecutive Protect</td><td><span class="factor down">×0.10</span></td></tr>
+      <tr><td>+ Critical HP waiver (not 1v1)</td><td><span class="factor note">penalty skipped</span></td></tr>
+      <tr><td>+ Critical HP in 1v1</td><td><span class="factor down">penalty applies anyway</span></td></tr>
+    </tbody></table>
+  </div>
+
+</div>
+
+<footer>
+  WolfeyBot v0.3.3 &nbsp;·&nbsp; Champions VGC 2026 Reg-MA &nbsp;·&nbsp; decision.py architecture
+</footer>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    securityLevel: 'loose',
+  });
+</script>
+</body>
+</html>

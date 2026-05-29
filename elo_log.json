@@ -1,0 +1,3432 @@
+[
+  {
+    "timestamp": "2026-05-24T13:52:25Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616940956",
+    "version": "0.3.3",
+    "elo_before": 1227,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T13:57:57Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616943970",
+    "version": "0.3.3",
+    "elo_before": 1201,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T14:05:58Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616946688-5gurqvr060ff621waikf9hqdanx6rlbpw",
+    "version": "0.3.3",
+    "elo_before": 1220,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T14:10:47Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616950610",
+    "version": "0.3.3",
+    "elo_before": 1239,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T14:17:22Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616953198",
+    "version": "0.3.3",
+    "elo_before": 1220,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T14:21:25Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616956221",
+    "version": "0.3.3",
+    "elo_before": 1193,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T14:27:47Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616958255",
+    "version": "0.3.3",
+    "elo_before": 1220,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T14:33:40Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616961500",
+    "version": "0.3.3",
+    "elo_before": 1202,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T14:38:51Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616964663",
+    "version": "0.3.3",
+    "elo_before": 1177,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T14:44:01Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616967268-e1ia3059348f4j9gcw7m3drd9rp88kbpw",
+    "version": "0.3.3",
+    "elo_before": 1153,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T15:02:43Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616977195",
+    "version": "0.3.3",
+    "elo_before": 1177,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T15:10:04Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616979984",
+    "version": "0.3.3",
+    "elo_before": 1200,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T15:13:33Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616983373-vtjgru5cdm88587kmlgqlfdm5510ge0pw",
+    "version": "0.3.4",
+    "elo_before": 1224,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T15:20:04Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616985872",
+    "version": "0.3.4",
+    "elo_before": 1195,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T15:24:45Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616989429-d03lbqotkxt33vhek9s9cuqx8kxql4gpw",
+    "version": "0.3.4",
+    "elo_before": 1214,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T15:30:44Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616991972",
+    "version": "0.3.4",
+    "elo_before": 1236,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T15:35:58Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616995261-ix0iepf3k1g3djj8l57jc8a12d8lp0kpw",
+    "version": "0.3.4",
+    "elo_before": 1208,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T15:42:59Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2616998122",
+    "version": "0.3.4",
+    "elo_before": 1179,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T15:49:50Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617001985",
+    "version": "0.3.4",
+    "elo_before": 1200,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T15:55:23Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617005898",
+    "version": "0.3.4",
+    "elo_before": 1177,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T15:59:55Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617009075",
+    "version": "0.3.4",
+    "elo_before": 1199,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T16:06:14Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617011783",
+    "version": "0.3.4",
+    "elo_before": 1224,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T16:11:13Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617015379-hua08ny9fk8j9r3tpxxpeexi3erxwacpw",
+    "version": "0.3.4",
+    "elo_before": 1193,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T16:15:26Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617018192",
+    "version": "0.3.4",
+    "elo_before": 1212,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T16:20:17Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617020539",
+    "version": "0.3.4",
+    "elo_before": 1192,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T16:25:26Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617023159",
+    "version": "0.3.4",
+    "elo_before": 1213,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T16:30:33Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617026005",
+    "version": "0.3.4",
+    "elo_before": 1196,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T16:34:49Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617028884",
+    "version": "0.3.4",
+    "elo_before": 1220,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T16:40:18Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617031265",
+    "version": "0.3.4",
+    "elo_before": 1246,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T16:45:21Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617034357",
+    "version": "0.3.4",
+    "elo_before": 1269,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T19:20:27Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617122149-pl2n8ekac10bhscclw83pdeqap28ynxpw",
+    "version": "0.3.5",
+    "elo_before": 1290,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T19:28:31Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617125251",
+    "version": "0.3.5",
+    "elo_before": 1270,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-24T19:35:34Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617129790",
+    "version": "0.3.5",
+    "elo_before": 1252,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T19:40:40Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617133930",
+    "version": "0.3.5",
+    "elo_before": 1279,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T19:45:16Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617136900",
+    "version": "0.3.5",
+    "elo_before": 1307,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-24T19:51:57Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617139560",
+    "version": "0.3.5",
+    "elo_before": 1323,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T00:31:02Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617288714",
+    "version": "0.4.0",
+    "elo_before": 1337,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T00:36:09Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617291062",
+    "version": "0.4.0",
+    "elo_before": 1314,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T00:40:35Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617293570",
+    "version": "0.4.0",
+    "elo_before": 1334,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T00:46:32Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617295814",
+    "version": "0.4.0",
+    "elo_before": 1313,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T00:52:48Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617298812-tml9brje6vl3pmxmi08cuyimprbk3impw",
+    "version": "0.4.0",
+    "elo_before": 1298,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T01:00:01Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617301915",
+    "version": "0.4.0",
+    "elo_before": 1278,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T01:05:38Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617305456-b551c1ku766n5qvy48clkj8ohops29mpw",
+    "version": "0.4.0",
+    "elo_before": 1258,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T01:09:56Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617308252-vhwdu57sftb2hnrndsmgypj1xplq7iapw",
+    "version": "0.4.0",
+    "elo_before": 1227,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T01:15:52Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617310441-dxej7a0m83bj12oeyswu3lxyfb8di9hpw",
+    "version": "0.4.0",
+    "elo_before": 1258,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T01:23:02Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617313318-2wk1txbkij04pfrwsmeubb6wb70qqv6pw",
+    "version": "0.4.0",
+    "elo_before": 1287,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T01:29:29Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617316841",
+    "version": "0.4.0",
+    "elo_before": 1256,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T01:34:32Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617320077-mqemx403ljs8t3tes560kp3q0nga1alpw",
+    "version": "0.4.0",
+    "elo_before": 1235,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T01:39:47Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617322551",
+    "version": "0.4.0",
+    "elo_before": 1260,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T01:46:15Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617325206",
+    "version": "0.4.0",
+    "elo_before": 1232,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T01:51:43Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617328444",
+    "version": "0.4.0",
+    "elo_before": 1264,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T01:56:13Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617331196-kun63y0fg8wb519qwpf9ifimikgw3iqpw",
+    "version": "0.4.0",
+    "elo_before": 1246,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T02:00:21Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617333486-5yaqk601v7lfv56p8xwlk2pxju97vecpw",
+    "version": "0.4.0",
+    "elo_before": 1276,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T02:05:52Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617335516",
+    "version": "0.4.0",
+    "elo_before": 1257,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T02:11:11Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617338236",
+    "version": "0.4.0",
+    "elo_before": 1230,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T02:14:48Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617340858-a95rh08pey04gpt8d4m3ecprenomm0kpw",
+    "version": "0.4.0",
+    "elo_before": 1207,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T02:20:01Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617342681-hn137ksffdo0uo31lfgponnbdfacmhapw",
+    "version": "0.4.0",
+    "elo_before": 1227,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T02:24:03Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617345224",
+    "version": "0.4.0",
+    "elo_before": 1206,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T02:29:20Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617347273",
+    "version": "0.4.0",
+    "elo_before": 1229,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T02:35:32Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617349826-ru2uuu1pplsbitiasvtvymlcjmgwyjupw",
+    "version": "0.4.0",
+    "elo_before": 1199,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T02:41:55Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617352994",
+    "version": "0.4.0",
+    "elo_before": 1218,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T02:48:53Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617356108",
+    "version": "0.4.0",
+    "elo_before": 1199,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T02:54:05Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617359475",
+    "version": "0.4.0",
+    "elo_before": 1222,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T02:59:33Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617362027",
+    "version": "0.4.0",
+    "elo_before": 1204,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T03:04:24Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617364693",
+    "version": "0.4.0",
+    "elo_before": 1232,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T03:10:19Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617366986",
+    "version": "0.4.0",
+    "elo_before": 1201,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T03:15:27Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617369761",
+    "version": "0.4.0",
+    "elo_before": 1172,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T03:19:56Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617372218",
+    "version": "0.4.0",
+    "elo_before": 1144,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T03:25:27Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617374331",
+    "version": "0.4.0",
+    "elo_before": 1126,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T03:29:50Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617376899",
+    "version": "0.4.0",
+    "elo_before": 1098,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T13:58:11Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617630705",
+    "version": "0.4.0",
+    "elo_before": 1119,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T14:03:21Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617633830",
+    "version": "0.4.0",
+    "elo_before": 1148,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T14:09:01Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617636716-vka3b6tb382dpbloldgirnbcshctdwxpw",
+    "version": "0.4.0",
+    "elo_before": 1171,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T14:15:17Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617639924",
+    "version": "0.4.0",
+    "elo_before": 1191,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T14:22:47Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617643457",
+    "version": "0.4.0",
+    "elo_before": 1215,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T14:29:02Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617647754",
+    "version": "0.4.0",
+    "elo_before": 1194,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T14:33:16Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617650646",
+    "version": "0.5.0",
+    "elo_before": 1169,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T14:37:59Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617653974",
+    "version": "0.5.0",
+    "elo_before": 1151,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T14:42:35Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617656798",
+    "version": "0.5.0",
+    "elo_before": 1119,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T14:46:55Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617659538",
+    "version": "0.5.0",
+    "elo_before": 1142,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T14:55:04Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617662203",
+    "version": "0.5.0",
+    "elo_before": 1172,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T15:01:16Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617667093",
+    "version": "0.5.0",
+    "elo_before": 1140,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T15:07:44Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617670693",
+    "version": "0.5.0",
+    "elo_before": 1112,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T15:12:33Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617674619-r07nyfnookg9t8nbvllcmitudlwcdv4pw",
+    "version": "0.5.0",
+    "elo_before": 1139,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T15:17:09Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617677546-vc5mtxsipuuy60c9oy8n9jji1eyumq1pw",
+    "version": "0.5.0",
+    "elo_before": 1121,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T15:22:20Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617680257-f8oqmgiwenv3perb62ngei614xmcm3gpw",
+    "version": "0.5.0",
+    "elo_before": 1143,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T15:27:38Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617683354",
+    "version": "0.5.0",
+    "elo_before": 1115,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T15:32:25Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617686485-c56cfrvk66ecqjpagj39slbdn08m8eupw",
+    "version": "0.5.0",
+    "elo_before": 1146,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T15:37:50Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617689381",
+    "version": "0.5.0",
+    "elo_before": 1127,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T15:42:43Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617692743",
+    "version": "0.5.0",
+    "elo_before": 1155,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T15:47:54Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617695705",
+    "version": "0.5.0",
+    "elo_before": 1177,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T15:53:43Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617698969",
+    "version": "0.5.0",
+    "elo_before": 1155,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T16:00:19Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617702523-oqa08f4uvanftg68mpn66i646gb19qopw",
+    "version": "0.5.0",
+    "elo_before": 1174,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T16:04:52Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617705859-svstuw7yaeoyiuclcgg1x2add000vucpw",
+    "version": "0.5.0",
+    "elo_before": 1150,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T16:11:08Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617709445",
+    "version": "0.5.0",
+    "elo_before": 1169,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T16:15:36Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617713302-hxfbpo6dtqqj1o75w7rvkbrqdk2qm0mpw",
+    "version": "0.5.0",
+    "elo_before": 1143,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T16:20:28Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617716124",
+    "version": "0.5.0",
+    "elo_before": 1166,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T16:25:46Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617719244",
+    "version": "0.5.0",
+    "elo_before": 1190,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T16:31:45Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617722443-b52jmnoyx65vkkbmh6fqpqymtto2g9tpw",
+    "version": "0.5.0",
+    "elo_before": 1209,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T16:38:22Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617726172",
+    "version": "0.5.0",
+    "elo_before": 1179,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T16:44:14Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617730325",
+    "version": "0.5.0",
+    "elo_before": 1207,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T16:48:37Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617734094",
+    "version": "0.5.0",
+    "elo_before": 1176,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T18:59:54Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617816124-k78xv2r3ygetcn486myhy4khyeuuuycpw",
+    "version": "0.5.1",
+    "elo_before": 1151,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T19:04:12Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617818920-qokamo2c178p022b5b3ygtg5b68k67opw",
+    "version": "0.5.1",
+    "elo_before": 1170,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T19:09:27Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617821627",
+    "version": "0.5.1",
+    "elo_before": 1189,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T19:13:19Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617824922-gyvb5qa4c1nvgnfqoom0u1wtrxiiaecpw",
+    "version": "0.5.1",
+    "elo_before": 1217,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T19:19:03Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617827320-imxdwxavvg1jlbe4iuh6ieybrf729dnpw",
+    "version": "0.5.1",
+    "elo_before": 1242,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T19:23:58Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617830875",
+    "version": "0.5.1",
+    "elo_before": 1223,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T19:29:36Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617833951",
+    "version": "0.5.1",
+    "elo_before": 1246,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T19:35:02Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617837485",
+    "version": "0.5.1",
+    "elo_before": 1277,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T19:43:00Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617840865",
+    "version": "0.5.1",
+    "elo_before": 1258,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T19:45:14Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617844727",
+    "version": "0.5.3",
+    "elo_before": 1279,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T19:50:57Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617847309-6sn6arrbuegtj4pxfyp2xkel5mvgix7pw",
+    "version": "0.5.3",
+    "elo_before": 1305,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T19:56:40Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617850878",
+    "version": "0.5.3",
+    "elo_before": 1327,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T20:02:56Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617854337-5x8qvxahvsjeh7q8qndnekg7crec7l6pw",
+    "version": "0.5.3",
+    "elo_before": 1303,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T20:07:57Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617858101",
+    "version": "0.5.3",
+    "elo_before": 1325,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T20:14:12Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617861135",
+    "version": "0.5.3",
+    "elo_before": 1303,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T20:19:23Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617864900",
+    "version": "0.5.3",
+    "elo_before": 1325,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T20:23:50Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617868002",
+    "version": "0.5.3",
+    "elo_before": 1346,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T20:26:31Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617869026",
+    "version": "0.5.4",
+    "elo_before": 1370,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T20:32:34Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617872317-uuxwu2ua172qtkyfhsex6j7089dtdn6pw",
+    "version": "0.5.4",
+    "elo_before": 1389,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T20:41:05Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617876006",
+    "version": "0.5.4",
+    "elo_before": 1368,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T20:48:09Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617881158",
+    "version": "0.5.4",
+    "elo_before": 1349,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T21:34:59Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617909531",
+    "version": "0.5.4",
+    "elo_before": 1363,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T21:38:55Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617912588-088vaipt0c27f6hv99fvd4trbtcrmp5pw",
+    "version": "0.5.4",
+    "elo_before": 1345,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T21:44:12Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617914816",
+    "version": "0.5.4",
+    "elo_before": 1369,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T21:50:00Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617917780-b4yadyasmv7eaidnej7lx1k2yh4o3pjpw",
+    "version": "0.5.4",
+    "elo_before": 1345,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T21:56:44Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617920973",
+    "version": "0.5.4",
+    "elo_before": 1363,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T22:01:29Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617924676",
+    "version": "0.5.4",
+    "elo_before": 1381,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T22:06:39Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617927337",
+    "version": "0.5.4",
+    "elo_before": 1357,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T22:12:31Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617930215",
+    "version": "0.5.4",
+    "elo_before": 1335,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T22:18:51Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617933498",
+    "version": "0.5.4",
+    "elo_before": 1314,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T22:22:54Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617937010-ktp5mbrxqxeb24196mfbl68ah7xfx5gpw",
+    "version": "0.5.4",
+    "elo_before": 1293,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T22:29:39Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617939221-rn8cwxe76x8ouftpn8pl2akfgx4k4mwpw",
+    "version": "0.5.4",
+    "elo_before": 1320,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T22:34:03Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617942829",
+    "version": "0.5.4",
+    "elo_before": 1340,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T22:39:35Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617945276",
+    "version": "0.5.4",
+    "elo_before": 1316,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T22:44:44Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617948360",
+    "version": "0.5.4",
+    "elo_before": 1294,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-25T22:50:14Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617951180-ic7wve79d5bvie2klyxak9i2ld6vqw9pw",
+    "version": "0.5.4",
+    "elo_before": 1266,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-25T22:56:18Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2617954155",
+    "version": "0.5.4",
+    "elo_before": 1285,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T00:37:48Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618007259",
+    "version": "0.5.4",
+    "elo_before": 1258,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T00:42:18Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618009959",
+    "version": "0.5.4",
+    "elo_before": 1289,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T00:47:23Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618012243-upwovvuandqghf5ypccv7ibnye471rnpw",
+    "version": "0.5.4",
+    "elo_before": 1317,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T00:52:45Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618014866",
+    "version": "0.5.4",
+    "elo_before": 1342,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T00:58:23Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618017608-q3mifp44dx2ouin9misrfb8rkwqjnv5pw",
+    "version": "0.5.4",
+    "elo_before": 1327,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T01:04:30Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618020445",
+    "version": "0.5.4",
+    "elo_before": 1311,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T01:08:39Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618023591-m4yuhcvtofnar5ajdfnv0ftoynl9b8npw",
+    "version": "0.5.4",
+    "elo_before": 1331,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T01:14:04Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618025818",
+    "version": "0.5.4",
+    "elo_before": 1313,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T01:19:46Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618028533",
+    "version": "0.5.4",
+    "elo_before": 1292,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T01:25:16Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618031540",
+    "version": "0.5.4",
+    "elo_before": 1261,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T01:31:28Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618034393",
+    "version": "0.5.4",
+    "elo_before": 1292,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T01:36:21Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618037678",
+    "version": "0.5.4",
+    "elo_before": 1317,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T01:42:09Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618040118",
+    "version": "0.5.4",
+    "elo_before": 1292,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T01:48:34Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618043167-tq2onm4o229scag25efdfwww4fxuyi1pw",
+    "version": "0.5.4",
+    "elo_before": 1272,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T01:55:20Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618046423",
+    "version": "0.5.4",
+    "elo_before": 1243,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T12:20:46Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618310306",
+    "version": "0.5.6",
+    "elo_before": 1218,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T12:27:15Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618312702",
+    "version": "0.5.6",
+    "elo_before": 1247,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T12:34:19Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618316169",
+    "version": "0.5.6",
+    "elo_before": 1224,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T12:39:59Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618319980",
+    "version": "0.5.6",
+    "elo_before": 1252,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T12:46:10Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618323181",
+    "version": "0.5.6",
+    "elo_before": 1271,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T12:51:44Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618326700-tctivl0or71cr2gmb809jcxo17sr0uqpw",
+    "version": "0.5.6",
+    "elo_before": 1299,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T12:57:14Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618329923-w063xwn3j3pntcmr0ihuil688nh5c16pw",
+    "version": "0.5.6",
+    "elo_before": 1324,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T13:01:43Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618333093",
+    "version": "0.5.6",
+    "elo_before": 1347,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T13:07:16Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618335622",
+    "version": "0.5.6",
+    "elo_before": 1331,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T13:13:28Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618338997",
+    "version": "0.5.6",
+    "elo_before": 1306,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T13:18:11Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618342740",
+    "version": "0.5.6",
+    "elo_before": 1325,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T13:25:22Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618345694",
+    "version": "0.5.6",
+    "elo_before": 1340,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T13:30:28Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618350127-v3gvjo1kna9mwnul0ssn59i63iaewf8pw",
+    "version": "0.5.6",
+    "elo_before": 1326,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T13:37:57Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618353297",
+    "version": "0.5.6",
+    "elo_before": 1343,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T13:42:47Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618358135",
+    "version": "0.5.6",
+    "elo_before": 1326,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T13:47:36Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618361211",
+    "version": "0.5.6",
+    "elo_before": 1345,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T13:53:20Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618364296",
+    "version": "0.5.6",
+    "elo_before": 1323,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T13:58:03Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618368049-py8r3bku5816c3scs241643uggghp5apw",
+    "version": "0.5.6",
+    "elo_before": 1347,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T14:03:12Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618371022",
+    "version": "0.5.6",
+    "elo_before": 1370,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T14:09:14Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618374403-hhytw6mbd71xdmh3s8mc5hdefn4aov2pw",
+    "version": "0.5.6",
+    "elo_before": 1351,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T14:13:26Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618378427",
+    "version": "0.5.6",
+    "elo_before": 1331,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T14:19:20Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618381208",
+    "version": "0.5.6",
+    "elo_before": 1347,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T14:25:27Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618385206",
+    "version": "0.5.6",
+    "elo_before": 1331,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T14:29:59Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618389316-yf669ot6o6m6bis3ks7qq626v80t87ipw",
+    "version": "0.5.6",
+    "elo_before": 1307,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T14:38:02Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618392380-kp3e0jdett6ilqogs88fjaol2eqj1iapw",
+    "version": "0.5.6",
+    "elo_before": 1324,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T14:42:04Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618397764",
+    "version": "0.5.6",
+    "elo_before": 1345,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T14:47:45Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618400602-tdm0138wi7vy284b6603x5glnsalbi2pw",
+    "version": "0.5.6",
+    "elo_before": 1367,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T14:53:37Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618404461",
+    "version": "0.5.6",
+    "elo_before": 1384,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T14:59:18Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618408472-3miatp6uv8vgctrawyfcpdgwxd1bqo4pw",
+    "version": "0.5.6",
+    "elo_before": 1400,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T15:03:38Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618412313-rh6c6sounvy199ltwtk67frw6g8buiipw",
+    "version": "0.5.6",
+    "elo_before": 1377,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T15:08:12Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618415257-02cup0xjr0wnthc7jle4n136e6scxv7pw",
+    "version": "0.5.6",
+    "elo_before": 1364,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T15:13:16Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618418365-om4bcqokikpk4shn4kjuci1n04hb7awpw",
+    "version": "0.5.6",
+    "elo_before": 1380,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T15:19:11Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618421826",
+    "version": "0.5.6",
+    "elo_before": 1363,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T15:24:10Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618425896",
+    "version": "0.5.6",
+    "elo_before": 1343,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T15:29:19Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618429357",
+    "version": "0.5.6",
+    "elo_before": 1327,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T15:34:20Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618432837-s3rbmsg0xubtrr0cu208gyipu8bixyopw",
+    "version": "0.5.6",
+    "elo_before": 1307,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T15:40:16Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618436260",
+    "version": "0.5.6",
+    "elo_before": 1290,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T15:44:40Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618440369",
+    "version": "0.5.6",
+    "elo_before": 1312,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T15:49:35Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618443484",
+    "version": "0.5.6",
+    "elo_before": 1290,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T15:54:07Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618446914",
+    "version": "0.5.6",
+    "elo_before": 1311,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T16:02:31Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618450138",
+    "version": "0.5.6",
+    "elo_before": 1295,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T16:08:13Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618455902",
+    "version": "0.5.6",
+    "elo_before": 1316,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T16:14:06Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618459823-3astr3nhbspc5iajtcfrta2bxs17d4hpw",
+    "version": "0.5.6",
+    "elo_before": 1330,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T16:20:04Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618464051",
+    "version": "0.5.6",
+    "elo_before": 1305,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T16:25:28Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618468277-7o3ddanoe7t0uk0dvid3y9bd6w45to7pw",
+    "version": "0.5.6",
+    "elo_before": 1322,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T16:30:44Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618472043-a95xtb06qlp0mnrxsw64s62dlox2di4pw",
+    "version": "0.5.6",
+    "elo_before": 1299,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T16:36:27Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618475733",
+    "version": "0.5.6",
+    "elo_before": 1325,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T16:42:08Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618479736-flncvcpnp57kcmaw0qsbvjnsxieyex5pw",
+    "version": "0.5.6",
+    "elo_before": 1307,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T16:47:58Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618483800",
+    "version": "0.5.6",
+    "elo_before": 1283,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T16:53:32Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618487934",
+    "version": "0.5.6",
+    "elo_before": 1258,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T16:58:26Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618491910",
+    "version": "0.5.6",
+    "elo_before": 1278,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T17:04:34Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618495353",
+    "version": "0.5.6",
+    "elo_before": 1306,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T17:09:23Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618499704",
+    "version": "0.5.6",
+    "elo_before": 1285,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T17:16:24Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618503100",
+    "version": "0.5.6",
+    "elo_before": 1259,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T17:24:58Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618508112",
+    "version": "0.5.6",
+    "elo_before": 1287,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T17:30:21Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618514169",
+    "version": "0.5.6",
+    "elo_before": 1268,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T17:36:39Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618518050",
+    "version": "0.5.6",
+    "elo_before": 1297,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T17:42:17Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618522690-vxthuc5hvwvhr083wgnt647q4yenluqpw",
+    "version": "0.5.6",
+    "elo_before": 1321,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T17:48:14Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618526784",
+    "version": "0.5.6",
+    "elo_before": 1307,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T17:54:23Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618531132",
+    "version": "0.5.6",
+    "elo_before": 1329,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T17:59:49Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618535587",
+    "version": "0.5.6",
+    "elo_before": 1312,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T18:04:07Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618539404-tr6afskdlgtcs25ln33dyg00pw394xypw",
+    "version": "0.5.6",
+    "elo_before": 1288,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T18:09:10Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618542453",
+    "version": "0.5.6",
+    "elo_before": 1313,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T18:15:00Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618546085",
+    "version": "0.5.6",
+    "elo_before": 1296,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T18:20:08Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618550327",
+    "version": "0.5.6",
+    "elo_before": 1276,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T18:25:27Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618553974",
+    "version": "0.5.6",
+    "elo_before": 1253,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T18:30:57Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618557735",
+    "version": "0.5.6",
+    "elo_before": 1232,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T18:35:33Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618561635",
+    "version": "0.5.6",
+    "elo_before": 1202,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T18:41:24Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618564790",
+    "version": "0.5.6",
+    "elo_before": 1172,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T18:49:53Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618568851-jsn7b2qnyus4wxtiue7n22khw8icrpfpw",
+    "version": "0.5.6",
+    "elo_before": 1147,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T18:55:28Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618574765",
+    "version": "0.5.6",
+    "elo_before": 1115,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T19:00:49Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618578643",
+    "version": "0.5.6",
+    "elo_before": 1086,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T19:04:39Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618582233",
+    "version": "0.5.6",
+    "elo_before": 1058,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T19:09:49Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618584787",
+    "version": "0.5.6",
+    "elo_before": 1088,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T19:16:27Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618588263",
+    "version": "0.5.6",
+    "elo_before": 1108,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T19:21:50Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618592800",
+    "version": "0.5.6",
+    "elo_before": 1127,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T19:27:02Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618596400",
+    "version": "0.5.6",
+    "elo_before": 1147,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T19:31:47Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618599883-wreevrsai1yycxwofnlj2k7t4dtfx34pw",
+    "version": "0.5.6",
+    "elo_before": 1165,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T19:39:31Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618603040",
+    "version": "0.5.6",
+    "elo_before": 1189,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T19:46:22Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618608330-pkt7dt60uuonnf6voxwxiwgqh0x0j6gpw",
+    "version": "0.5.6",
+    "elo_before": 1163,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T19:52:00Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618612820",
+    "version": "0.5.6",
+    "elo_before": 1189,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T19:56:40Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618616544",
+    "version": "0.5.6",
+    "elo_before": 1161,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T20:01:28Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618619490",
+    "version": "0.5.6",
+    "elo_before": 1192,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T20:05:37Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618622600-6wqs9y29333fioy6ofera21kp2dqamspw",
+    "version": "0.5.6",
+    "elo_before": 1162,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T20:09:02Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618625185",
+    "version": "0.5.6",
+    "elo_before": 1135,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T20:14:27Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618627346",
+    "version": "0.5.6",
+    "elo_before": 1167,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T20:19:16Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618630749-77edu4hs8jia0hj566l0e91stjpwsn0pw",
+    "version": "0.5.6",
+    "elo_before": 1138,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T20:25:12Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618633778",
+    "version": "0.5.6",
+    "elo_before": 1170,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T20:29:56Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618637554",
+    "version": "0.5.6",
+    "elo_before": 1197,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T20:35:41Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618640517-ivtbxfyvjfk1ut0twt9isyym7kpsojhpw",
+    "version": "0.5.6",
+    "elo_before": 1224,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T20:42:03Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618644161",
+    "version": "0.5.6",
+    "elo_before": 1251,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T20:46:58Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618648208",
+    "version": "0.5.6",
+    "elo_before": 1221,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T20:51:20Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618651284-5iu470wsesfjbi7m2j3xkekh68rh11tpw",
+    "version": "0.5.6",
+    "elo_before": 1249,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T20:57:10Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618654028",
+    "version": "0.5.6",
+    "elo_before": 1268,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T21:02:54Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618657582",
+    "version": "0.5.6",
+    "elo_before": 1294,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T21:06:55Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618661020-abd1171s7rhghnbuprklksf6fy76pftpw",
+    "version": "0.5.6",
+    "elo_before": 1274,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T21:13:41Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618663419",
+    "version": "0.5.6",
+    "elo_before": 1242,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T21:19:41Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618667485",
+    "version": "0.5.6",
+    "elo_before": 1270,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T21:24:48Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618671048-4vienxgt9r9se0fy53597q4cb2g6ri8pw",
+    "version": "0.5.6",
+    "elo_before": 1295,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T21:29:07Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618674092-ql4laak7ge2xsgyjopmm62o979twdoqpw",
+    "version": "0.5.6",
+    "elo_before": 1266,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T21:36:42Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618676642",
+    "version": "0.5.6",
+    "elo_before": 1245,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T21:44:24Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618681031",
+    "version": "0.5.6",
+    "elo_before": 1277,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T21:50:30Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618685381-lkpomjkqx8rlcphoc2xcy046jyyjrdbpw",
+    "version": "0.5.6",
+    "elo_before": 1256,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T21:56:32Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618688871",
+    "version": "0.5.6",
+    "elo_before": 1237,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T22:02:13Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618692199",
+    "version": "0.5.6",
+    "elo_before": 1269,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T22:08:51Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618695373",
+    "version": "0.5.6",
+    "elo_before": 1241,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T22:13:12Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618699031",
+    "version": "0.5.6",
+    "elo_before": 1220,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T22:22:42Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618701440-kqi23hqae50i935y9msb3yjupi1xwr2pw",
+    "version": "0.5.6",
+    "elo_before": 1196,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T22:28:55Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618706657",
+    "version": "0.5.6",
+    "elo_before": 1165,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T22:33:58Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618710013",
+    "version": "0.5.6",
+    "elo_before": 1137,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T22:40:11Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618712687",
+    "version": "0.5.6",
+    "elo_before": 1158,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T22:45:20Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618715931",
+    "version": "0.5.6",
+    "elo_before": 1128,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T22:52:09Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618718665",
+    "version": "0.5.6",
+    "elo_before": 1157,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T22:57:38Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618722221-26u4dkwv4guwnwcuvqh2ai3ecu06a4cpw",
+    "version": "0.5.6",
+    "elo_before": 1183,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T23:03:12Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618725026",
+    "version": "0.5.6",
+    "elo_before": 1209,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T23:11:08Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618727870",
+    "version": "0.5.6",
+    "elo_before": 1177,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T23:16:15Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618731844",
+    "version": "0.5.6",
+    "elo_before": 1203,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T23:23:22Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618734380",
+    "version": "0.5.6",
+    "elo_before": 1226,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T23:29:17Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618737968",
+    "version": "0.5.6",
+    "elo_before": 1257,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T23:35:59Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618741034",
+    "version": "0.5.6",
+    "elo_before": 1288,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T23:41:03Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618744483",
+    "version": "0.5.6",
+    "elo_before": 1260,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-26T23:47:29Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618747052",
+    "version": "0.5.6",
+    "elo_before": 1289,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T23:53:21Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618750355",
+    "version": "0.5.6",
+    "elo_before": 1261,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-26T23:58:16Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618753295",
+    "version": "0.5.6",
+    "elo_before": 1240,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T00:03:01Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618755782",
+    "version": "0.5.6",
+    "elo_before": 1214,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T00:07:19Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618758199",
+    "version": "0.5.6",
+    "elo_before": 1190,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T00:12:25Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618760378-i28ym5i1tm1g4919fjm84umgq61l6jlpw",
+    "version": "0.5.6",
+    "elo_before": 1168,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T00:17:26Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618762955",
+    "version": "0.5.6",
+    "elo_before": 1189,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T00:22:44Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618765484",
+    "version": "0.5.6",
+    "elo_before": 1164,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T00:28:14Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618768131-q0ikqiou8n2wacm7qc9ll6r3y2s5ba7pw",
+    "version": "0.5.6",
+    "elo_before": 1134,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T00:32:52Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618770941",
+    "version": "0.5.6",
+    "elo_before": 1160,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T00:38:24Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618773310-tjpasu9jn9gid6gbwhg61v1u2sc90e1pw",
+    "version": "0.5.6",
+    "elo_before": 1178,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T00:45:03Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618776025-78t61s0yv1ln5lhgi9igr0mk9bd75y5pw",
+    "version": "0.5.6",
+    "elo_before": 1197,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T00:51:06Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618779306",
+    "version": "0.5.6",
+    "elo_before": 1220,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T00:57:31Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618782345-la1eup63d84irkek7btir7fgul9gyeipw",
+    "version": "0.5.6",
+    "elo_before": 1189,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T01:02:55Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618785637",
+    "version": "0.5.6",
+    "elo_before": 1212,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T01:10:46Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618788365",
+    "version": "0.5.6",
+    "elo_before": 1231,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T01:15:30Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618792455",
+    "version": "0.5.6",
+    "elo_before": 1213,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T01:19:37Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618794892",
+    "version": "0.5.6",
+    "elo_before": 1193,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T01:24:36Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618797035",
+    "version": "0.5.6",
+    "elo_before": 1215,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T01:31:31Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618799610",
+    "version": "0.5.6",
+    "elo_before": 1183,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T01:37:13Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618803234-osryq7ya4h03l782g3g4egb3hosi7topw",
+    "version": "0.5.6",
+    "elo_before": 1207,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T01:42:23Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618806197-vlw4uvuxaww2gwi80awxrlrdytswqe1pw",
+    "version": "0.5.6",
+    "elo_before": 1237,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T01:47:51Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618808888-xajmyon557uvla6re67v72nsuu70lc4pw",
+    "version": "0.5.6",
+    "elo_before": 1212,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T01:53:33Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618811625",
+    "version": "0.5.6",
+    "elo_before": 1232,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T01:59:16Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618814486",
+    "version": "0.5.6",
+    "elo_before": 1212,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T02:04:24Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618817376",
+    "version": "0.5.6",
+    "elo_before": 1234,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T02:09:40Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618820003",
+    "version": "0.5.6",
+    "elo_before": 1203,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T02:14:37Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618822683-72gfcdnn9pana2b4vu837u88ffnudn1pw",
+    "version": "0.5.6",
+    "elo_before": 1233,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T02:19:21Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618825102",
+    "version": "0.5.6",
+    "elo_before": 1210,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T02:26:30Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618827457-jautd14lfgf452by01lmwxmms4ctnmgpw",
+    "version": "0.5.6",
+    "elo_before": 1180,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-27T02:30:52Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618830949",
+    "version": "0.5.6",
+    "elo_before": 1198,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-27T02:38:36Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2618833079",
+    "version": "0.5.6",
+    "elo_before": 1175,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T19:42:26Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620128230",
+    "version": "0.5.6",
+    "elo_before": 1196,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T19:46:57Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620132657",
+    "version": "0.5.6",
+    "elo_before": 1171,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T19:52:26Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620135609",
+    "version": "0.5.6",
+    "elo_before": 1148,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T19:58:37Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620139147",
+    "version": "0.5.6",
+    "elo_before": 1118,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T20:07:20Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620142972",
+    "version": "0.5.6",
+    "elo_before": 1136,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T20:27:26Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620157674",
+    "version": "0.5.6",
+    "elo_before": 1115,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T20:34:20Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620160910-948k6oiif04gqbimt1jy8tykvrjkku4pw",
+    "version": "0.5.6",
+    "elo_before": 1088,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T20:39:13Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620165240",
+    "version": "0.5.6",
+    "elo_before": 1061,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T20:43:53Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620168170-sn2h123gyjrvieneejht6dbmhx8rt85pw",
+    "version": "0.5.6",
+    "elo_before": 1091,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T20:51:40Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620171056",
+    "version": "0.5.6",
+    "elo_before": 1122,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T20:57:46Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620175884",
+    "version": "0.5.6",
+    "elo_before": 1093,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T21:03:25Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620179579",
+    "version": "0.5.6",
+    "elo_before": 1123,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T21:08:13Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620182881",
+    "version": "0.5.6",
+    "elo_before": 1104,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T21:12:55Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620185659",
+    "version": "0.5.6",
+    "elo_before": 1084,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T21:17:45Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620188451",
+    "version": "0.5.6",
+    "elo_before": 1063,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T21:22:33Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620191237-y9ayy771kveagafn1sjqvlkvmgphf9rpw",
+    "version": "0.5.6",
+    "elo_before": 1097,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T21:28:55Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620194022",
+    "version": "0.5.6",
+    "elo_before": 1073,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T21:32:56Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620197657-hlgd8evr8p0nf2987ufy7voiaxv3d3ppw",
+    "version": "0.5.6",
+    "elo_before": 1108,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T21:39:29Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620199924",
+    "version": "0.5.6",
+    "elo_before": 1130,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T21:45:25Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620203715",
+    "version": "0.5.6",
+    "elo_before": 1152,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T21:50:31Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620207050",
+    "version": "0.5.6",
+    "elo_before": 1183,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T21:59:22Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620209889-fha1ukjxli1l3xe6xlifh0h9xky6smdpw",
+    "version": "0.5.6",
+    "elo_before": 1210,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T22:06:12Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620214741-yspiqktafvlnt85piao9v81i5krv0uxpw",
+    "version": "0.5.6",
+    "elo_before": 1180,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T22:10:46Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620218467",
+    "version": "0.5.6",
+    "elo_before": 1203,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T22:17:18Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620220913",
+    "version": "0.5.6",
+    "elo_before": 1225,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T22:26:55Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620224472",
+    "version": "0.5.6",
+    "elo_before": 1250,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T22:32:55Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620229314",
+    "version": "0.5.6",
+    "elo_before": 1279,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T22:41:13Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620232634",
+    "version": "0.5.6",
+    "elo_before": 1260,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T22:49:56Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620237056",
+    "version": "0.5.6",
+    "elo_before": 1289,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T22:54:30Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620241640-qnxpxheiqflte0x0nxx8wpc9fndh1xhpw",
+    "version": "0.5.6",
+    "elo_before": 1271,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T22:59:44Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620244033-0l9jy483oyv95u2e04c1yldpabv94dtpw",
+    "version": "0.5.6",
+    "elo_before": 1248,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T23:05:15Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620246677-t54jg78y6icjmmt1jnqa7rojbtgh5nrpw",
+    "version": "0.5.6",
+    "elo_before": 1267,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T23:08:42Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620249468",
+    "version": "0.5.6",
+    "elo_before": 1242,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T23:13:14Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620251168-i82nghj3lhk1sr01tdusu19upchkt56pw",
+    "version": "0.5.6",
+    "elo_before": 1263,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T23:19:47Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620253508",
+    "version": "0.5.6",
+    "elo_before": 1231,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T23:26:56Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620256737",
+    "version": "0.5.6",
+    "elo_before": 1255,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T23:32:40Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620260306",
+    "version": "0.5.6",
+    "elo_before": 1280,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T23:39:01Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620263228",
+    "version": "0.5.6",
+    "elo_before": 1254,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T23:44:10Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620266424",
+    "version": "0.5.6",
+    "elo_before": 1226,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-28T23:49:00Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620269019-tgsuphwt14w7ehwyqmkhyt2l41pmilopw",
+    "version": "0.5.6",
+    "elo_before": 1203,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-28T23:55:21Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620271522",
+    "version": "0.5.6",
+    "elo_before": 1223,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T00:00:21Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620274742",
+    "version": "0.5.6",
+    "elo_before": 1246,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T00:06:54Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620277057",
+    "version": "0.5.6",
+    "elo_before": 1266,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T00:13:20Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620280317",
+    "version": "0.5.6",
+    "elo_before": 1240,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T02:21:03Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620344959-ukro9h9r05h4cim6gwv48mpe89orfmkpw",
+    "version": "0.5.6",
+    "elo_before": 1266,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T02:27:03Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620346747",
+    "version": "0.5.6",
+    "elo_before": 1295,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T02:32:30Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620349699",
+    "version": "0.5.6",
+    "elo_before": 1266,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T02:37:09Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620352435",
+    "version": "0.5.6",
+    "elo_before": 1236,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T02:43:05Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620354680",
+    "version": "0.5.6",
+    "elo_before": 1204,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T02:49:50Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620357584",
+    "version": "0.5.6",
+    "elo_before": 1172,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T02:54:38Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620360755-htarkde3p7j6ngx9n3wdokfrlna2f9qpw",
+    "version": "0.5.6",
+    "elo_before": 1154,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T03:00:27Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620363019",
+    "version": "0.5.6",
+    "elo_before": 1178,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T03:06:11Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620365716",
+    "version": "0.5.6",
+    "elo_before": 1196,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T03:10:42Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620368378",
+    "version": "0.5.6",
+    "elo_before": 1170,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T03:15:31Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620370460",
+    "version": "0.5.6",
+    "elo_before": 1190,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T03:22:09Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620372682-h2nafkk90om3gc1jmsvwsrax4q41xaupw",
+    "version": "0.5.6",
+    "elo_before": 1210,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T03:26:55Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620375773",
+    "version": "0.5.6",
+    "elo_before": 1232,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T03:31:56Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620377910",
+    "version": "0.5.6",
+    "elo_before": 1252,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T03:40:33Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620380174",
+    "version": "0.5.6",
+    "elo_before": 1273,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T03:47:35Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620383958-mv000a8e09v56i2cwyd004s5gjgijv3pw",
+    "version": "0.5.6",
+    "elo_before": 1248,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T03:52:31Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620387041",
+    "version": "0.5.6",
+    "elo_before": 1277,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T04:00:00Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620389212",
+    "version": "0.5.6",
+    "elo_before": 1258,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T04:10:28Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620392374",
+    "version": "0.5.6",
+    "elo_before": 1237,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T04:15:43Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620396680",
+    "version": "0.5.6",
+    "elo_before": 1206,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T04:24:00Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620398829",
+    "version": "0.5.6",
+    "elo_before": 1229,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T04:30:17Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620402259",
+    "version": "0.5.6",
+    "elo_before": 1204,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T04:34:45Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620404788",
+    "version": "0.5.6",
+    "elo_before": 1173,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T04:40:32Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620406559",
+    "version": "0.5.6",
+    "elo_before": 1204,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T07:37:41Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620472018",
+    "version": "0.5.6",
+    "elo_before": 1230,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T07:41:34Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620473098",
+    "version": "0.5.6",
+    "elo_before": 1204,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T07:48:01Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620475656",
+    "version": "0.5.6",
+    "elo_before": 1228,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T07:55:06Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620478160",
+    "version": "0.5.6",
+    "elo_before": 1247,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T07:59:15Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620480873-eascuq0k3lor18t0jkrpkij1siyiaxhpw",
+    "version": "0.5.6",
+    "elo_before": 1226,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T08:04:59Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620482526-xxaabo55mrl6w8l54ko40l2kyjvu6uopw",
+    "version": "0.5.6",
+    "elo_before": 1251,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T08:10:57Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620484733",
+    "version": "0.5.6",
+    "elo_before": 1272,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T08:15:49Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620486989",
+    "version": "0.5.6",
+    "elo_before": 1290,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T08:23:34Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620488858",
+    "version": "0.5.6",
+    "elo_before": 1308,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T08:28:59Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620491915",
+    "version": "0.5.6",
+    "elo_before": 1284,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T08:36:34Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620494013-yylesxk9vq6ai7dx9j1ataoco804vkgpw",
+    "version": "0.5.6",
+    "elo_before": 1265,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T08:42:50Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620496987",
+    "version": "0.5.6",
+    "elo_before": 1284,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T08:49:36Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620499340",
+    "version": "0.5.6",
+    "elo_before": 1268,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T08:54:26Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620501995",
+    "version": "0.5.6",
+    "elo_before": 1287,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T09:01:30Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620503911-htvoocq6phwvwqmoxf8uk24aivir310pw",
+    "version": "0.5.6",
+    "elo_before": 1311,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T09:06:15Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620506607",
+    "version": "0.5.6",
+    "elo_before": 1291,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T09:11:36Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620508450-85utmjrqitu2isjbnibq8hlw9qaq4xbpw",
+    "version": "0.5.6",
+    "elo_before": 1270,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T09:18:44Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620510604",
+    "version": "0.5.6",
+    "elo_before": 1299,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T09:27:22Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620513372",
+    "version": "0.5.6",
+    "elo_before": 1325,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T09:33:30Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620516810-vyjda2msv2b4pu4deflkgufdjq86w6lpw",
+    "version": "0.5.6",
+    "elo_before": 1310,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T09:39:04Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620519269",
+    "version": "0.5.6",
+    "elo_before": 1286,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T09:45:08Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620521642",
+    "version": "0.5.6",
+    "elo_before": 1268,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T09:52:57Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620524084",
+    "version": "0.5.6",
+    "elo_before": 1235,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T09:58:06Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620527255-i504qikxa9i36xi6itom8gwria5tt46pw",
+    "version": "0.5.6",
+    "elo_before": 1205,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T10:05:24Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620529373-ty4s9462nekhwxy2isaf6juol62buffpw",
+    "version": "0.5.6",
+    "elo_before": 1176,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T10:10:57Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620532229",
+    "version": "0.5.6",
+    "elo_before": 1154,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T10:16:29Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620534563",
+    "version": "0.5.6",
+    "elo_before": 1179,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T10:22:25Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620536898",
+    "version": "0.5.6",
+    "elo_before": 1154,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T10:27:22Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620539433",
+    "version": "0.5.6",
+    "elo_before": 1176,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T10:33:40Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620541524",
+    "version": "0.5.6",
+    "elo_before": 1205,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T10:38:37Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620544133",
+    "version": "0.5.6",
+    "elo_before": 1223,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T10:48:56Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620546298",
+    "version": "0.5.6",
+    "elo_before": 1203,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T10:54:07Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620550688-ma1v7w5hnjmwmij5vxbdslsvahh7krrpw",
+    "version": "0.5.6",
+    "elo_before": 1174,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T10:59:53Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620552927-lgajp7okke8ytuexmr27sew55jarhyypw",
+    "version": "0.5.6",
+    "elo_before": 1199,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T11:07:43Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620555397",
+    "version": "0.5.6",
+    "elo_before": 1172,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T11:13:41Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620558733-ybo494gkjea0sgugo6uslnsumnjwrfepw",
+    "version": "0.5.6",
+    "elo_before": 1153,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T11:20:47Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620561341",
+    "version": "0.5.6",
+    "elo_before": 1132,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T11:25:56Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620564536",
+    "version": "0.5.6",
+    "elo_before": 1101,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T11:31:47Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620566912",
+    "version": "0.5.6",
+    "elo_before": 1132,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T11:36:20Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620569614-jg5eqwkfv1ksd8c43wyyelpe64wsdqhpw",
+    "version": "0.5.6",
+    "elo_before": 1110,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T11:40:56Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620571762-q3w037bvwl75jemhv7ksnhx2ucvpgc8pw",
+    "version": "0.5.6",
+    "elo_before": 1127,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T11:47:07Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620573934",
+    "version": "0.5.6",
+    "elo_before": 1149,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T11:52:01Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620576948",
+    "version": "0.5.6",
+    "elo_before": 1176,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T11:59:30Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620579318",
+    "version": "0.5.6",
+    "elo_before": 1194,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T12:05:37Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620582916",
+    "version": "0.5.6",
+    "elo_before": 1164,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T14:54:51Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620683795",
+    "version": "0.5.6",
+    "elo_before": 1186,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T15:00:09Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620687657",
+    "version": "0.5.6",
+    "elo_before": 1209,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T15:04:38Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620691088",
+    "version": "0.5.6",
+    "elo_before": 1227,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T15:08:42Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620693994",
+    "version": "0.5.6",
+    "elo_before": 1202,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T15:13:30Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620696654",
+    "version": "0.5.6",
+    "elo_before": 1227,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T15:18:51Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620699855-5fobb5chanaqe2w5xy8bhw8sykvlxy5pw",
+    "version": "0.5.6",
+    "elo_before": 1203,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T15:23:45Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620703437",
+    "version": "0.5.6",
+    "elo_before": 1176,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T15:29:43Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620706640",
+    "version": "0.5.6",
+    "elo_before": 1145,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T15:34:59Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620710631-q2qtee049lxiwfukegmhda3mi46utxvpw",
+    "version": "0.5.6",
+    "elo_before": 1172,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T15:40:49Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620714126",
+    "version": "0.5.6",
+    "elo_before": 1149,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T15:46:06Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620718021",
+    "version": "0.5.6",
+    "elo_before": 1171,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T15:52:26Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620721538",
+    "version": "0.5.6",
+    "elo_before": 1199,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T15:57:51Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620725738",
+    "version": "0.5.6",
+    "elo_before": 1218,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T16:03:31Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620729360-87st8e87l7kcg041n8q8gw0aqo40liopw",
+    "version": "0.5.6",
+    "elo_before": 1240,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T16:08:30Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620733111-571bav9bjschdujpw9kippvrkxqsmbopw",
+    "version": "0.5.6",
+    "elo_before": 1217,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T16:15:03Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620736460",
+    "version": "0.5.6",
+    "elo_before": 1236,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T16:19:33Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620740998",
+    "version": "0.5.6",
+    "elo_before": 1258,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T16:25:29Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620744005-5h4pvndsmyhisg0ybvh304iqc688q9cpw",
+    "version": "0.5.6",
+    "elo_before": 1230,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T16:31:40Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620747989",
+    "version": "0.5.6",
+    "elo_before": 1206,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T16:37:48Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620752192",
+    "version": "0.5.6",
+    "elo_before": 1181,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T16:42:18Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620756332",
+    "version": "0.5.6",
+    "elo_before": 1200,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T16:47:19Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620759310",
+    "version": "0.5.6",
+    "elo_before": 1175,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T16:54:32Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620762686",
+    "version": "0.5.6",
+    "elo_before": 1151,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T16:59:39Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620767535-cxaxf6o3taje2p62d8rglb70uic61d9pw",
+    "version": "0.5.6",
+    "elo_before": 1173,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T17:58:50Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620807175-0utaiy53uay1ix4n751fqit39m08ducpw",
+    "version": "0.6.5",
+    "elo_before": 1196,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T18:04:07Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620810399",
+    "version": "0.6.5",
+    "elo_before": 1175,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T18:09:18Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620813119",
+    "version": "0.6.6",
+    "elo_before": 1157,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T18:14:37Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620816886",
+    "version": "0.6.6",
+    "elo_before": 1127,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T18:36:22Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620831516",
+    "version": "0.6.6",
+    "elo_before": 1100,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T18:42:29Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620834859",
+    "version": "0.6.6",
+    "elo_before": 1128,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T18:47:41Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620838727-gey8o3cnqp2kvr1jjqj9vhwytludpbypw",
+    "version": "0.6.6",
+    "elo_before": 1154,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T18:53:54Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620842040",
+    "version": "0.6.6",
+    "elo_before": 1175,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T18:59:00Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620845897",
+    "version": "0.6.6",
+    "elo_before": 1142,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T19:04:43Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620849133",
+    "version": "0.6.6",
+    "elo_before": 1171,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T19:09:12Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620852580",
+    "version": "0.6.6",
+    "elo_before": 1193,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T19:15:09Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620855346",
+    "version": "0.6.6",
+    "elo_before": 1168,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T19:21:51Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620859008",
+    "version": "0.6.6",
+    "elo_before": 1189,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T19:26:46Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620863098-gv0gmwy95moqm9wrutuxxs2gdmlx9y8pw",
+    "version": "0.6.6",
+    "elo_before": 1212,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T19:31:11Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620866095-beggiaflccjm5yr8138sxl2bu82qexupw",
+    "version": "0.6.6",
+    "elo_before": 1231,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T19:36:28Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620868817",
+    "version": "0.6.6",
+    "elo_before": 1262,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T19:42:18Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620872045-91hjok98uhdaynswpcjy1of62stw0ctpw",
+    "version": "0.6.6",
+    "elo_before": 1291,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T19:48:08Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620875584",
+    "version": "0.6.6",
+    "elo_before": 1267,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T19:53:58Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620879194",
+    "version": "0.6.6",
+    "elo_before": 1241,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T20:00:53Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620882646",
+    "version": "0.6.6",
+    "elo_before": 1210,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T20:07:31Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620886810",
+    "version": "0.6.6",
+    "elo_before": 1235,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T20:12:24Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620890648",
+    "version": "0.6.6",
+    "elo_before": 1211,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T20:17:37Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620893538",
+    "version": "0.6.6",
+    "elo_before": 1184,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T20:23:48Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620896651-4e1xc24ett7rq6fdocj5ev7wvtcwn2bpw",
+    "version": "0.6.6",
+    "elo_before": 1167,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T20:29:23Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620900261-847dep1u2w6y46laifs2ba534ydukcupw",
+    "version": "0.6.6",
+    "elo_before": 1187,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T20:37:19Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620903418",
+    "version": "0.6.6",
+    "elo_before": 1161,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T20:41:57Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620908002",
+    "version": "0.6.6",
+    "elo_before": 1188,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T20:48:12Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620910656-hay2dcjlgwihbnvjyy92qnf47ohx81mpw",
+    "version": "0.6.6",
+    "elo_before": 1167,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T20:53:58Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620914296",
+    "version": "0.6.6",
+    "elo_before": 1196,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T21:00:07Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620917539",
+    "version": "0.6.6",
+    "elo_before": 1175,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T21:05:37Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620920948",
+    "version": "0.6.6",
+    "elo_before": 1157,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T21:11:03Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620924057",
+    "version": "0.6.6",
+    "elo_before": 1128,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T21:16:44Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620927031",
+    "version": "0.6.6",
+    "elo_before": 1106,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T21:22:12Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620930167",
+    "version": "0.6.6",
+    "elo_before": 1083,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T21:29:33Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620933120",
+    "version": "0.6.6",
+    "elo_before": 1115,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T21:35:04Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620937253",
+    "version": "0.6.6",
+    "elo_before": 1093,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T21:39:27Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620940290",
+    "version": "0.6.6",
+    "elo_before": 1122,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T21:44:23Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620942710",
+    "version": "0.6.6",
+    "elo_before": 1144,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T21:49:47Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620945438",
+    "version": "0.6.6",
+    "elo_before": 1117,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T21:54:25Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620948444",
+    "version": "0.6.6",
+    "elo_before": 1098,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T22:00:27Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620950997-mf8u4sbsoaxem8x2rm72cnuivqb5u4gpw",
+    "version": "0.6.6",
+    "elo_before": 1118,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T22:07:13Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620954136-78pmrvpvxhl84ue66odr8rixyq04xdvpw",
+    "version": "0.6.6",
+    "elo_before": 1092,
+    "outcome": "loss"
+  },
+  {
+    "timestamp": "2026-05-29T22:13:48Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620957644",
+    "version": "0.6.6",
+    "elo_before": 1073,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T22:19:24Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620961050-r5fefp0gg4eav8ic8vdr0bla208skispw",
+    "version": "0.6.6",
+    "elo_before": 1110,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T22:24:40Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620963837",
+    "version": "0.6.6",
+    "elo_before": 1133,
+    "outcome": "win"
+  },
+  {
+    "timestamp": "2026-05-29T22:31:14Z",
+    "battle_id": "battle-gen9championsvgc2026regma-2620966525",
+    "version": "0.6.6",
+    "elo_before": 1153,
+    "outcome": "loss"
+  }
+]
