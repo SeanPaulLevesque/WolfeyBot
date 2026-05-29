@@ -508,7 +508,8 @@ class TurnOrderModule(ScoringModule):
         if not others:
             return  # No other active Pokémon — nothing to estimate.
 
-        num_beat = sum(1 for other in others if will_outspeed(ours, other) > 0.5)
+        num_beat = sum(1 for other in others
+                       if will_outspeed(ours, other, trick_room=state.trick_room) > 0.5)
         # Position 1 = fastest; position len(others)+1 = slowest.
         position = len(others) - num_beat + 1
         # Clamp to [1, 4] for the multiplier table.
@@ -676,7 +677,7 @@ def _opp_neutralized_before_acting(
         our_c = _our_combatant(state, our_slot)
         if our_c is None:
             continue
-        if will_outspeed(our_c, opp_c) <= 0.5:
+        if will_outspeed(our_c, opp_c, trick_room=state.trick_room) <= 0.5:
             continue  # we don't move first → can't remove it before it acts
         if _partner_can_ohko(state, our_slot, opp):
             return True
@@ -715,7 +716,7 @@ def _ko_before_acting(state: "BattleState", slot: int) -> bool:
         # Does this opponent act before us?  (Speed, or Gale-Wings-style
         # attacking priority.)
         moves_first = (
-            will_outspeed(opp_c, our_c) > 0.5
+            will_outspeed(opp_c, our_c, trick_room=state.trick_room) > 0.5
             or _opp_has_attacking_priority(opp)
         )
         if not moves_first:
@@ -1718,7 +1719,7 @@ class FieldSetterDisruptionModule(ScoringModule):
                 if ours_cbt is None:
                     continue
                 setter_cbt = _opp_combatant(state, opp_slot)
-                if setter_cbt is None or will_outspeed(ours_cbt, setter_cbt) <= 0.5:
+                if setter_cbt is None or will_outspeed(ours_cbt, setter_cbt, trick_room=state.trick_room) <= 0.5:
                     continue
                 deniable.append((opp_slot, self.TR_DISRUPTION_FACTOR, "TR setter"))
 
@@ -1736,7 +1737,7 @@ class FieldSetterDisruptionModule(ScoringModule):
                 if ours_cbt is None:
                     continue
                 setter_cbt = _opp_combatant(state, opp_slot)
-                if setter_cbt is None or will_outspeed(ours_cbt, setter_cbt) <= 0.5:
+                if setter_cbt is None or will_outspeed(ours_cbt, setter_cbt, trick_room=state.trick_room) <= 0.5:
                     continue
                 deniable.append((opp_slot, self.TAILWIND_DISRUPTION_FACTOR, "Tailwind setter"))
 

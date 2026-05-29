@@ -2006,7 +2006,7 @@ class TestTurnOrderModule:
 
         call_count = [0]
 
-        def side_effect(a, b):
+        def side_effect(a, b, **kw):   # tolerate trick_room= kwarg
             call_count[0] += 1
             return 1.0 if call_count[0] <= 2 else 0.0   # beat first 2, lose to 3rd
 
@@ -2023,7 +2023,7 @@ class TestTurnOrderModule:
 
         call_count = [0]
 
-        def side_effect(a, b):
+        def side_effect(a, b, **kw):   # tolerate trick_room= kwarg
             call_count[0] += 1
             return 1.0 if call_count[0] <= 1 else 0.0   # beat only the first other
 
@@ -2032,6 +2032,18 @@ class TestTurnOrderModule:
             self.module.score(state, slot=0, actions=actions)
 
         assert actions[0].weight == pytest.approx(TurnOrderModule._MULTIPLIERS[3])
+
+    def test_passes_trick_room_to_will_outspeed(self):
+        """Under Trick Room the module must tell will_outspeed so a raw-fast mon
+        is correctly read as moving LAST (else it won't stall / plays wrong)."""
+        state = self._state()
+        state.trick_room = True
+        attack  = make_action("Dragon Claw", "Dragon Claw")
+        mock_ws = MagicMock(return_value=1.0)
+        with patch("decision.modules.find_member", return_value=None), \
+             patch("decision.modules.will_outspeed", mock_ws):
+            self.module.score(state, slot=0, actions=[attack])
+        assert mock_ws.call_args.kwargs.get("trick_room") is True
 
     # ── Action-type filtering ─────────────────────────────────────────────────
 
