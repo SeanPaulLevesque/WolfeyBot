@@ -466,7 +466,7 @@ def _build_choice(
 
             # Publish this slot's decision so later-slot modules (DoublingUpModule)
             # can see what target slot 0 committed to before scoring slot 1.
-            state.my_slot_decisio ns.append(action)
+            state.my_slot_decisions.append(action)
 
             # Mega evolve as soon as the server says we can, but only for the
             # Pokémon designated at team preview.  When two mega users are

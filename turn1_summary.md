@@ -87,7 +87,7 @@ Bench: Aerodactyl, Sneasler, Basculegion, Venusaur
 | 3.15 | Weavile | Garchomp | Protect → ? `22.50` | Low Kick → Weavile `7.58` |
 | 3.16 | Talonflame | Garchomp | Dragon Claw → Garchomp `3.76` | Kowtow Cleave → Talonflame `2.72` |
 | 3.17 | Charizard | Incineroar | Protect → ? `3.00` | Protect → ? `7.50` |
-| 3.18 | Rotom-Wash | Garchomp | Stomping Tantrum → Rotom-Wash `24.02` | Kowtow Cleave → Garchomp `1.46` |
+| 3.18 | Rotom-Wash | Garchomp | Dragon Claw → Garchomp `3.76` | Kowtow Cleave → Rotom-Wash `1.69` |
 | 3.19 | Glimmora | Incineroar | Stomping Tantrum → Glimmora `25.25` | Low Kick → Incineroar `1.62` |
 | 3.20 | Pelipper | Dragonite | Dragon Claw → Pelipper `5.94` | Kowtow Cleave → Pelipper `1.38` |
 
@@ -143,7 +143,7 @@ Bench: Aerodactyl, Kingambit, Sneasler, Basculegion
 | 5.15 | Weavile | Garchomp | Protect → ? `7.50` | Protect → ? `3.00` |
 | 5.16 | Talonflame | Garchomp | Dragon Claw → Garchomp `3.76` | Sludge Bomb → Talonflame `2.64` |
 | 5.17 | Charizard | Incineroar | Protect → ? `3.00` | Protect → ? `3.00` |
-| 5.18 | Rotom-Wash | Garchomp | Stomping Tantrum → Rotom-Wash `24.02` | Giga Drain → Garchomp `1.36` |
+| 5.18 | Rotom-Wash | Garchomp | Dragon Claw → Garchomp `3.76` | Giga Drain → Rotom-Wash `2.23` |
 | 5.19 | Glimmora | Incineroar | Stomping Tantrum → Glimmora `25.25` | Earth Power → Incineroar `2.01` |
 | 5.20 | Pelipper | Dragonite | Dragon Claw → Pelipper `5.94` | Sludge Bomb → Pelipper `1.56` |
 

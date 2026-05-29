@@ -245,6 +245,20 @@ def test_outgoing_damage_credits_ko_on_weakened_opponent():
     assert chip.is_ohko              # 62% of full ≈ 151% of a 41% bar — guaranteed KO
 
 
+def test_ability_type_immunity_zeroes_damage():
+    """Ability-based immunities (Levitate→Ground, Dry Skin→Water) zero the move
+    so the engine never picks it into an immune target."""
+    from damage import outgoing_damage
+    v = find_member("Venusaur"); vs = v.mega_stats or v.stats
+    ep = outgoing_damage("Venusaur", vs, ["Earth Power"], "Chimecho",
+                         our_ability=v.ability, our_item=v.item, opp_ability="Levitate")[0]
+    assert ep.damage_avg == 0 and ep.effectiveness == 0   # Levitate → Ground immune
+    b = find_member("Basculegion")
+    wc = outgoing_damage("Basculegion", b.stats, ["Wave Crash"], "Heliolisk",
+                         our_ability=b.ability, our_item=b.item, opp_ability="Dry Skin")[0]
+    assert wc.damage_avg == 0                              # Dry Skin → Water immune
+
+
 def test_summary_header_matches_version():
     """turn1_summary.md must be regenerated after a version bump.
 
@@ -348,7 +362,7 @@ def test_section2(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
     ("Weavile", "Garchomp", "Protect → ?", 22.50, "Low Kick → Weavile", 7.58),
     ("Talonflame", "Garchomp", "Dragon Claw → Garchomp", 3.76, "Kowtow Cleave → Talonflame", 2.72),
     ("Charizard", "Incineroar", "Protect → ?", 3.00, "Protect → ?", 7.50),
-    ("Rotom-Wash", "Garchomp", "Stomping Tantrum → Rotom-Wash", 24.02, "Kowtow Cleave → Garchomp", 1.46),
+    ("Rotom-Wash", "Garchomp", "Dragon Claw → Garchomp", 3.76, "Kowtow Cleave → Rotom-Wash", 1.69),
     ("Glimmora", "Incineroar", "Stomping Tantrum → Glimmora", 25.25, "Low Kick → Incineroar", 1.62),
     ("Pelipper", "Dragonite", "Dragon Claw → Pelipper", 5.94, "Kowtow Cleave → Pelipper", 1.38),
 ], ids=[f"3.{i}" for i in range(1, 21)])
@@ -412,7 +426,7 @@ def test_section4(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
     ("Weavile", "Garchomp", "Protect → ?", 7.50, "Protect → ?", 3.00),
     ("Talonflame", "Garchomp", "Dragon Claw → Garchomp", 3.76, "Sludge Bomb → Talonflame", 2.64),
     ("Charizard", "Incineroar", "Protect → ?", 3.00, "Protect → ?", 3.00),
-    ("Rotom-Wash", "Garchomp", "Stomping Tantrum → Rotom-Wash", 24.02, "Giga Drain → Garchomp", 1.36),
+    ("Rotom-Wash", "Garchomp", "Dragon Claw → Garchomp", 3.76, "Giga Drain → Rotom-Wash", 2.23),
     ("Glimmora", "Incineroar", "Stomping Tantrum → Glimmora", 25.25, "Earth Power → Incineroar", 2.01),
     ("Pelipper", "Dragonite", "Dragon Claw → Pelipper", 5.94, "Sludge Bomb → Pelipper", 1.56),
 ], ids=[f"5.{i}" for i in range(1, 21)])

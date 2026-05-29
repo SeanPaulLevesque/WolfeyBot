@@ -530,6 +530,16 @@ def calc_damage(
     return (damage_min, damage_max, damage_avg)
 
 
+# Abilities that grant full immunity to an entire move type (damage → 0).
+_ABILITY_TYPE_IMMUNITY: dict[str, str] = {
+    "Levitate": "Ground", "Earth Eater": "Ground",
+    "Flash Fire": "Fire", "Well-Baked Body": "Fire",
+    "Water Absorb": "Water", "Dry Skin": "Water", "Storm Drain": "Water",
+    "Volt Absorb": "Electric", "Lightning Rod": "Electric", "Motor Drive": "Electric",
+    "Sap Sipper": "Grass",
+}
+
+
 # ── High-level interface ──────────────────────────────────────────────────────
 
 def full_damage_calc(
@@ -623,6 +633,12 @@ def full_damage_calc(
     # ── Multipliers ───────────────────────────────────────────────────────────
     stab  = stab_multiplier(eff_type, atk_types, attacker_ability)
     eff   = type_effectiveness(eff_type, def_types)
+    # Ability-based type immunity (Levitate→Ground, Dry Skin→Water, Flash Fire→
+    # Fire, Volt Absorb→Electric, Sap Sipper→Grass, …): the defender's ability
+    # nullifies the move entirely.  (Mould Breaker would bypass this, but our
+    # attackers don't carry it, so that exception isn't modelled.)
+    if eff > 0 and _ABILITY_TYPE_IMMUNITY.get(defender_ability) == eff_type:
+        eff = 0.0
     wthr  = weather_modifier(eff_type, weather)
     is_spread = is_spread_move(move_name)
 
