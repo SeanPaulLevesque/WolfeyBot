@@ -136,6 +136,13 @@ best = ranked[0]                              # Action with .move_name / .switch
 
 - **Task #3** — Audit switch-in order logic after a faint
 - **Task #4** — Build lead selection framework
+- **Task #5** — Stat-aware mega selection. `select_mega` ranks candidates by
+  *defensive type-delta* (mega typing vs base), which is always 0 for our team
+  (Aerodactyl & Venusaur keep their typing on mega), so it never discriminates
+  and falls through to the type-based offensive score — ignoring the mega STAT
+  jump and stat-abilities (Mega Venusaur bulk + Thick Fat, Mega Aerodactyl
+  speed/power). Replace the delta with a stat-aware mega-vs-base value
+  comparison. Only matters when two stone-holders are brought together.
 - **Ongoing** — Investigate weight issues surfaced by `turn1_summary.md`
   (FakeOut ×0.5 discount may be too aggressive; double-Protect scenarios
   where neither slot has a good attack warrant review)
