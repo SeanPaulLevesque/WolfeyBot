@@ -259,6 +259,21 @@ def test_ability_type_immunity_zeroes_damage():
     assert wc.damage_avg == 0                              # Dry Skin → Water immune
 
 
+def test_opponent_screen_reduces_outgoing_damage():
+    """An opponent's Aurora Veil cuts our damage to 2/3 (doubles); crits bypass
+    screens, and Light Screen doesn't touch physical damage."""
+    from damage import outgoing_damage, screen_modifier
+    b = find_member("Basculegion")
+    plain = outgoing_damage("Basculegion", b.stats, ["Wave Crash"], "Garchomp",
+                            our_ability=b.ability, our_item=b.item)[0]
+    veil  = outgoing_damage("Basculegion", b.stats, ["Wave Crash"], "Garchomp",
+                            our_ability=b.ability, our_item=b.item,
+                            opp_screens={"auroraveil"})[0]
+    assert veil.damage_avg == pytest.approx(plain.damage_avg * 2 / 3, rel=0.02)
+    assert screen_modifier("Special", {"auroraveil"}, crit=True) == 1.0   # crit bypasses
+    assert screen_modifier("Physical", {"lightscreen"}) == 1.0            # wrong category
+
+
 def test_summary_header_matches_version():
     """turn1_summary.md must be regenerated after a version bump.
 

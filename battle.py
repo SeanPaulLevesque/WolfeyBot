@@ -348,6 +348,13 @@ class BattleParser:
             else:
                 self.state.opp_tailwind = True
                 self.state.opp_tailwind_turns_left = 4
+        for kw, name in (("aurora veil", "auroraveil"),
+                         ("light screen", "lightscreen"), ("reflect", "reflect")):
+            if kw in condition:
+                target = (self.state.my_screens if side == self.state.my_side
+                          else self.state.opp_screens)
+                target.add(name)
+                break
 
     async def _on_sideend(self, args: list[str]):
         # Same format as _on_sidestart — condition is in args[1].
@@ -365,6 +372,13 @@ class BattleParser:
             else:
                 self.state.opp_tailwind = False
                 self.state.opp_tailwind_turns_left = 0
+        for kw, name in (("aurora veil", "auroraveil"),
+                         ("light screen", "lightscreen"), ("reflect", "reflect")):
+            if kw in condition:
+                target = (self.state.my_screens if side == self.state.my_side
+                          else self.state.opp_screens)
+                target.discard(name)
+                break
 
     async def _on_fieldstart(self, args: list[str]):
         condition = args[0] if args else ""

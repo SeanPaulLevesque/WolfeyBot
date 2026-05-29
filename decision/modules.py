@@ -260,6 +260,7 @@ class DamageOutputModule(ScoringModule):
                     ally_faint_count=ally_faints,
                     opp_current_hp=cur_hp,
                     opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
+                    opp_screens=getattr(state, "opp_screens", None),
                     attacker_boosts=mon.boosts,
                     defender_boosts=opp.boosts,
                 )
@@ -352,6 +353,7 @@ class ThreatEliminationModule(ScoringModule):
                     ally_faint_count=ally_faints,
                     opp_current_hp=cur_hp,
                     opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
+                    opp_screens=getattr(state, "opp_screens", None),
                     attacker_boosts=mon.boosts,
                     defender_boosts=opp.boosts,
                 )
@@ -1765,6 +1767,7 @@ class FieldSetterDisruptionModule(ScoringModule):
                     ally_faint_count=ally_faints,
                     opp_current_hp=cur_hp,
                     opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
+                    opp_screens=getattr(state, "opp_screens", None),
                     attacker_boosts=mon.boosts,
                     defender_boosts=opp.boosts,
                 )

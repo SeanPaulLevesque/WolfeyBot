@@ -106,6 +106,11 @@ class BattleState:
     # Side conditions
     my_tailwind:  bool = False   # Tailwind active on our side
     opp_tailwind: bool = False   # Tailwind active on opponent's side
+    # Damage-reducing screens active per side, as a set of canonical names:
+    # {"reflect", "lightscreen", "auroraveil"}.  In doubles each reduces the
+    # matching damage category to 2/3 (crits bypass; Aurora Veil covers both).
+    my_screens:  set = field(default_factory=set)
+    opp_screens: set = field(default_factory=set)
     # Turns remaining for each field condition (0 = not active).
     # Set when the condition starts; decremented each turn; zeroed when it ends.
     # Tailwind lasts 4 turns (including the turn it is used).

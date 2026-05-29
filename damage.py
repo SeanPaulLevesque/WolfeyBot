@@ -540,6 +540,24 @@ _ABILITY_TYPE_IMMUNITY: dict[str, str] = {
 }
 
 
+def screen_modifier(category: str, screens, crit: bool = False) -> float:
+    """Doubles light-screen damage reduction (×2/3).
+
+    Reflect halves physical, Light Screen halves special, Aurora Veil both —
+    each reduces damage to 2/3 in doubles (½ in singles; we play doubles).
+    Critical hits bypass screens entirely.
+    """
+    if crit or not screens:
+        return 1.0
+    if "auroraveil" in screens:
+        return 2.0 / 3.0
+    if category == "Physical" and "reflect" in screens:
+        return 2.0 / 3.0
+    if category == "Special" and "lightscreen" in screens:
+        return 2.0 / 3.0
+    return 1.0
+
+
 # ── High-level interface ──────────────────────────────────────────────────────
 
 def full_damage_calc(
@@ -559,6 +577,7 @@ def full_damage_calc(
         crit: bool = False,
         defender_is_full_hp: bool = True,
         ally_faint_count: int = 0,
+        defender_screens=None,
 ) -> DamageResult:
     """
     Compute a full damage result for *move_name* from *attacker_species*
@@ -677,6 +696,14 @@ def full_damage_calc(
         atk_mod=atk_m, def_mod=def_m,
         burn=burn,
     )
+
+    # Opponent screen (Reflect / Light Screen / Aurora Veil) reduces our damage
+    # to 2/3 in doubles, unless this hit is a critical (crits bypass screens).
+    scr = screen_modifier(category, defender_screens, crit)
+    if scr != 1.0:
+        dmg_min = math.floor(dmg_min * scr)
+        dmg_max = math.floor(dmg_max * scr)
+        dmg_avg = dmg_avg * scr
 
     return DamageResult(
         move=move_name, power=power, category=category,
@@ -863,6 +890,7 @@ def outgoing_damage(
         ally_faint_count: int = 0,
         opp_current_hp: Optional[int] = None,
         opp_hp_percent: Optional[float] = None,
+        opp_screens=None,
         attacker_boosts: Optional[dict[str, int]] = None,
         defender_boosts: Optional[dict[str, int]] = None,
 ) -> list[DamageResult]:
@@ -922,6 +950,7 @@ def outgoing_damage(
             weather=weather,
             defender_is_full_hp=opp_is_full_hp,
             ally_faint_count=ally_faint_count,
+            defender_screens=opp_screens,
             attacker_boosts=attacker_boosts,
             defender_boosts=defender_boosts,
         )
