@@ -1,5 +1,30 @@
 # WolfeyBot Changelog
 
+## 0.6.7 — 2026-05-29
+
+### Battle-feedback fixes (from the 0.6.6 review)
+
+- **Ability-based type immunities** (#1, #2): the damage calc now zeroes a move
+  the defender's ability nullifies — Levitate/Earth Eater→Ground, Dry Skin/
+  Water Absorb/Storm Drain→Water, Flash Fire/Well-Baked Body→Fire, Volt Absorb/
+  Lightning Rod/Motor Drive→Electric, Sap Sipper→Grass. Fixes Earth Power into
+  Levitate Chimecho and Water moves into Dry Skin Heliolisk.
+- **Opponent light screens** (#3): Reflect / Light Screen / Aurora Veil are
+  tracked per side; our outgoing damage drops to 2/3 (doubles) when the
+  defender has the matching screen — crits bypass, Aurora Veil covers both
+  categories. (Our-screen→incoming direction deferred; team has no setters.)
+- **Trick Room speed awareness** (#4): every engine speed check (TurnOrder,
+  `_ko_before_acting`, `_opp_neutralized_before_acting`, FieldSetterDisruption)
+  now passes `trick_room` to `will_outspeed`. Previously TR was ignored, so a
+  fast mon read as moving first under opponent TR and attacks out-scored the
+  stall Protect; now it correctly Protects / reads move order.
+- Fixed a stray-space syntax typo in `main.py` (`my_slot_decisions`) that broke
+  the force-switch tests.
+
+#5 (stat-aware mega selection) is backlogged as Task #5. #6 (Aegislash immune to
+Sludge Bomb) was **not a bug** — the type immunity works and the bot targeted
+Sylveon (Poison ×2), not Aegislash. Tests: 593.
+
 ## 0.6.6 — 2026-05-29
 
 ### Credit KOs on weakened opponents

@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.6.6 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.6.7 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Slot A is scored first.**  
 > **Slot B sees Slot A's committed action** — DoublingUp can redirect or penalise.
