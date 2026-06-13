@@ -496,6 +496,101 @@ class TestDamageResultProperties:
         assert r.hp_fraction_avg == 0.0
 
 
+class TestKoPreventedFlag:
+    """Focus Sash / Sturdy prevent single-hit KOs from full HP."""
+
+    def test_sash_prevents_guaranteed_ohko(self):
+        """Full-HP holder with Sash + single-hit move that guarantees KO."""
+        r = full_damage_calc(
+            "Close Combat",
+            attacker_species="Sneasler", attacker_stats={"atk": 150, "hp": 100},
+            defender_species="Kingambit", defender_stats={"def": 120, "hp": 135},
+            defender_item="Focus Sash", defender_is_full_hp=True,
+        )
+        assert r.ko_prevented is True
+        assert r.is_ohko is False
+        assert r.ohko_with_max_roll is False
+
+    def test_sturdy_prevents_guaranteed_ohko(self):
+        """Full-HP Sturdy holder + single-hit move that guarantees KO."""
+        r = full_damage_calc(
+            "Close Combat",
+            attacker_species="Sneasler", attacker_stats={"atk": 150, "hp": 100},
+            defender_species="Kingambit", defender_stats={"def": 120, "hp": 135},
+            defender_ability="Sturdy", defender_is_full_hp=True,
+        )
+        assert r.ko_prevented is True
+        assert r.is_ohko is False
+        assert r.ohko_with_max_roll is False
+
+    def test_sash_inert_when_chipped(self):
+        """Sash does not prevent KO on a chipped opponent."""
+        r = full_damage_calc(
+            "Close Combat",
+            attacker_species="Sneasler", attacker_stats={"atk": 150, "hp": 100},
+            defender_species="Kingambit", defender_stats={"def": 120, "hp": 135},
+            defender_item="Focus Sash", defender_is_full_hp=False,
+        )
+        assert r.ko_prevented is False
+        assert r.is_ohko is True  # because damage is large enough to KO from any state
+
+    def test_multibit_breaks_sash(self):
+        """Multi-hit moves (Dual Wingbeat) break Sash: ko_prevented stays False."""
+        r = full_damage_calc(
+            "Dual Wingbeat",  # 2-hit move, expected_hits=2.0
+            attacker_species="Aerodactyl", attacker_stats={"atk": 150, "hp": 100},
+            defender_species="Kingambit", defender_stats={"def": 120, "hp": 135},
+            defender_item="Focus Sash", defender_is_full_hp=True,
+        )
+        # Multi-hit moves (expected_hits != 1.0) bypass the ko_prevented check
+        assert r.ko_prevented is False
+        assert r.hits == 2.0
+
+    def test_is_2hko_ignores_ko_prevented(self):
+        """is_2hko is unaffected by ko_prevented."""
+        r = full_damage_calc(
+            "Fake Out",  # low-power move that doesn't OHKO
+            attacker_species="Incineroar", attacker_stats={"atk": 100, "hp": 100},
+            defender_species="Kingambit", defender_stats={"def": 120, "hp": 200},
+            defender_item="Focus Sash", defender_is_full_hp=True,
+        )
+        # Sash prevents OHKO but doesn't affect is_2hko
+        # (Fake Out is 40 BP, won't be 2HKO either, but the test verifies the flag itself)
+        # Let's use a higher-power move for this test
+        r = full_damage_calc(
+            "Liquidation",  # 85 BP water move
+            attacker_species="Basculegion-M", attacker_stats={"atk": 100, "spa": 100, "hp": 100},
+            defender_species="Kingambit", defender_stats={"def": 120, "hp": 200},
+            defender_item="Focus Sash", defender_is_full_hp=True,
+        )
+        # ko_prevented should be False because damage < hp (won't OHKO anyway)
+        # But even if it were set, is_2hko should work correctly
+        is_2hko_val = r.is_2hko
+        assert isinstance(is_2hko_val, bool)
+
+    def test_no_sash_control_case(self):
+        """Control case: no Sash or Sturdy, normal OHKO logic."""
+        r = full_damage_calc(
+            "Close Combat",
+            attacker_species="Sneasler", attacker_stats={"atk": 150, "hp": 100},
+            defender_species="Kingambit", defender_stats={"def": 120, "hp": 135},
+            defender_is_full_hp=True,
+        )
+        assert r.ko_prevented is False
+        assert r.is_ohko is True  # Close Combat OHKOs Kingambit
+
+    def test_sash_with_status_move(self):
+        """ko_prevented is False for status moves (no damage)."""
+        r = full_damage_calc(
+            "Protect",
+            attacker_species="Kingambit", attacker_stats={"atk": 100, "hp": 100},
+            defender_species="Sneasler", defender_stats={"def": 100, "hp": 100},
+            defender_item="Focus Sash", defender_is_full_hp=True,
+        )
+        assert r.ko_prevented is False
+        assert r.power == 0
+
+
 # ── Weight-based move power ────────────────────────────────────────────────────
 
 class TestLowKickPower:

@@ -25,6 +25,7 @@ from data import (
     types_of, base_stats as get_base_stats,
     spread_distribution, parse_spread,
     calc_all_stats, get_weight,
+    note_gap,
 )
 
 
@@ -103,6 +104,10 @@ _ALWAYS_CRIT_MOVES: frozenset[str] = frozenset({
     "Storm Throw",    # Fight  60 BP Physical
 })
 
+# Items/abilities that prevent a one-hit KO from full HP (single-hit moves only).
+_KO_PREVENTING_ITEMS: frozenset[str] = frozenset({"Focus Sash"})
+_KO_PREVENTING_ABILITIES: frozenset[str] = frozenset({"Sturdy"})
+
 
 def _low_kick_power(target_weight_kg: float) -> int:
     """Return Low Kick / Grass Knot power from target weight (kg)."""
@@ -149,6 +154,8 @@ class DamageResult:
     damage_avg:      float
 
     defender_hp:     int = 0
+    hits:            float = 1.0
+    ko_prevented:    bool = False
 
     @property
     def hp_fraction_min(self) -> float:
@@ -165,12 +172,14 @@ class DamageResult:
     @property
     def is_ohko(self) -> bool:
         """True if the minimum damage roll knocks out the defender."""
-        return self.defender_hp > 0 and self.damage_min >= self.defender_hp
+        return (self.defender_hp > 0 and self.damage_min >= self.defender_hp
+                and not self.ko_prevented)
 
     @property
     def ohko_with_max_roll(self) -> bool:
         """True if the maximum damage roll knocks out the defender."""
-        return self.defender_hp > 0 and self.damage_max >= self.defender_hp
+        return (self.defender_hp > 0 and self.damage_max >= self.defender_hp
+                and not self.ko_prevented)
 
     @property
     def is_2hko(self) -> bool:
@@ -598,6 +607,7 @@ def full_damage_calc(
             attacker=attacker_species, defender=defender_species,
             stab=1.0, effectiveness=1.0, atk_modifier=1.0, def_modifier=1.0,
             damage_min=0, damage_max=0, damage_avg=0.0,
+            hits=1.0, ko_prevented=False,
         )
 
     power    = move_data.get("power") or 0
@@ -640,6 +650,7 @@ def full_damage_calc(
             attacker=attacker_species, defender=defender_species,
             stab=1.0, effectiveness=1.0, atk_modifier=1.0, def_modifier=1.0,
             damage_min=0, damage_max=0, damage_avg=0.0,
+            hits=1.0, ko_prevented=False,
         )
 
     # ── Effective type (ability type changes) ─────────────────────────────────
@@ -648,6 +659,12 @@ def full_damage_calc(
     # ── Types ─────────────────────────────────────────────────────────────────
     atk_types = types_of(attacker_species) or []
     def_types  = types_of(defender_species) or []
+    # Missing types make every matchup neutral (×1.0) — the Aegislash-Blade
+    # class of bug.  Flag it so the battle log surfaces the gap.
+    if not atk_types:
+        note_gap("types", attacker_species)
+    if not def_types:
+        note_gap("types", defender_species)
 
     # ── Multipliers ───────────────────────────────────────────────────────────
     stab  = stab_multiplier(eff_type, atk_types, attacker_ability)
@@ -705,6 +722,14 @@ def full_damage_calc(
         dmg_max = math.floor(dmg_max * scr)
         dmg_avg = dmg_avg * scr
 
+    n_hits = expected_hits(move_name)
+    ko_prevented = (
+        defender_is_full_hp
+        and n_hits == 1.0                       # multi-hit moves break Sash/Sturdy
+        and (defender_item in _KO_PREVENTING_ITEMS
+             or defender_ability in _KO_PREVENTING_ABILITIES)
+    )
+
     return DamageResult(
         move=move_name, power=power, category=category,
         effective_type=eff_type,
@@ -713,6 +738,7 @@ def full_damage_calc(
         atk_modifier=atk_m, def_modifier=def_m,
         damage_min=dmg_min, damage_max=dmg_max, damage_avg=dmg_avg,
         defender_hp=defender_hp,
+        hits=n_hits, ko_prevented=ko_prevented,
     )
 
 
@@ -745,6 +771,9 @@ def _most_common_stats(species: str) -> Optional[dict[str, int]]:
                     species, base,
                 )
     if bs is None:
+        # No stats at all: the caller returns [] and the mon scores as
+        # harmless / invisible — flag it in the battle log.
+        note_gap("stats", species)
         return None
 
     spreads = spread_distribution(species)
@@ -850,6 +879,7 @@ def incoming_damage(
         # No usage data for this species (rare mon / type-shifted forme) — fall
         # back to representative STAB moves so the opponent still registers a
         # threat instead of being treated as harmless.
+        note_gap("moves", opp_species)
         moves = _synthetic_stab_moves(opp_species, opp_stats)
 
     results: list[DamageResult] = []

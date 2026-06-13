@@ -26,6 +26,10 @@ from data import (
     WEATHER_SPEED_ABILITIES,
     types_of,
     get_species,
+    assumed_forme,
+    mega_stones,
+    note_gap,
+    drain_gaps,
 )
 from damage import type_effectiveness
 
@@ -85,9 +89,12 @@ class TestUpdateSpeedBelief:
 
     def test_observation_reduces_number_of_outcomes(self):
         dist = speed_distribution("Garchomp")
-        # Use a threshold above Garchomp's minimum spread (≥135) to ensure
-        # at least some outcomes are filtered out.
-        updated = update_speed_belief(dist, observed_faster_than=140)
+        # Threshold must sit above Garchomp's slowest non-scarfed outcome so the
+        # filter removes at least one.  Under the corrected SP→stat mapping
+        # (0.8.0, 32 SP = 252 EV) Garchomp's speeds rose — its slowest outcome
+        # is now 147 — so the old 140 threshold filtered nothing.  150 sits
+        # between the 147 and 154 outcomes and still exercises the filter.
+        updated = update_speed_belief(dist, observed_faster_than=150)
         assert len(updated) < len(dist)
 
 
@@ -223,6 +230,187 @@ class TestFormAliases:
         entry = get_species("Aegislash-Blade")
         assert entry is not None
         assert entry["types"] == ["Steel", "Ghost"]
+
+    def test_bare_meowstic_resolves_to_male_entry(self):
+        """Showdown's species string for male Meowstic is the bare name; the
+        slim DB only has gendered entries.  Caught live by data_gaps (0.7.6
+        run): an opposing Meowstic had no stats/types — invisible to the
+        engine in both damage directions."""
+        assert types_of("Meowstic") == ["Psychic"]
+        from data import base_stats
+        assert base_stats("Meowstic") is not None
+
+
+class TestCosmeticFormeFallback:
+    """Progressive suffix stripping resolves decoration formes Showdown
+    reports verbatim (caught live: stats:/sets:Alcremie-Rainbow-Swirl made an
+    opposing Alcremie invisible during the 0.7.7 run)."""
+
+    def test_two_level_cosmetic_forme_resolves_in_species_db(self):
+        from data import base_stats
+        assert types_of("Alcremie-Rainbow-Swirl") == ["Fairy"]
+        assert base_stats("Alcremie-Rainbow-Swirl") is not None
+
+    def test_two_level_cosmetic_forme_resolves_in_sets_db(self):
+        from data import move_distribution, get_sets
+        assert get_sets("Alcremie-Rainbow-Swirl") is not None
+        assert move_distribution("Alcremie-Rainbow-Swirl") == move_distribution("Alcremie")
+
+    def test_unknown_species_still_fails_and_flags(self):
+        """The fallback must not invent data: a fully unknown dashed name
+        resolves nowhere and still records a stats gap."""
+        from data import base_stats, get_sets
+        from damage import _most_common_stats
+        drain_gaps()
+        assert base_stats("Fakemon-Foo-Bar") is None
+        assert get_sets("Fakemon-Foo-Bar") is None
+        assert _most_common_stats("Fakemon-Foo-Bar") is None
+        assert any(g.startswith("stats:Fakemon") for g in drain_gaps())
+
+    def test_exact_and_mega_resolution_unchanged(self):
+        """The strip is a LAST resort — exact entries and the Lopunny-Mega
+        fallback keep winning first."""
+        assert assumed_forme("Charizard") == "Charizard-Mega-Y"
+        from data import get_sets
+        assert get_sets("Lopunny")["items"][0][0] == "Lopunnite"
+
+    def test_distinct_forme_suffixes_never_stripped(self):
+        """Type-shifted formes must NOT resolve to their base entry.
+        Stunfisk-Galar has its own species entry (Ground/Steel — must not
+        collapse to base Stunfisk's Ground/Electric), and in the sets layer,
+        where it has no entry, it must stay unresolved (synthetic fallback +
+        data_gaps) rather than inherit base Stunfisk's moveset."""
+        from data import get_sets
+        assert types_of("Stunfisk-Galar") == ["Ground", "Steel"]
+        assert get_sets("Stunfisk-Galar") is None
+
+
+class TestSetsFormeAliases:
+    """Mid-battle forme changes must keep their usage data (sets layer).
+
+    The species DB already aliased these for types/stats, but the sets layer
+    did not — the engine lost move/set data the moment a |detailschange|
+    fired (data_gaps caught Mimikyu-Busted, Aegislash-Blade and Palafin-Hero
+    live during the 0.7.6 hundred-game run)."""
+
+    @pytest.mark.parametrize("forme,base", [
+        ("Aegislash-Blade", "Aegislash"),
+        ("Aegislash-Shield", "Aegislash"),
+        ("Mimikyu-Busted", "Mimikyu"),
+        ("Palafin-Hero", "Palafin"),
+        ("Morpeko-Hangry", "Morpeko"),
+        ("Greninja-Ash", "Greninja"),
+    ])
+    def test_forme_resolves_to_base_usage_data(self, forme, base):
+        from data import move_distribution, get_sets
+        assert get_sets(forme) is not None, f"{forme} has no sets data"
+        assert move_distribution(forme) == move_distribution(base)
+        assert len(move_distribution(forme)) > 0
+
+
+# ── assumed_forme / mega_stones (population-weighted forme inference) ─────────
+
+class TestAssumedForme:
+    """assumed_forme picks the most-likely forme by usage raw counts.
+
+    The usage stats file mega formes as separate entries; if the mega entries
+    together outnumber the base entry, the highest-count mega forme wins.
+    """
+
+    def test_majority_mega_with_xy_split_picks_dominant(self):
+        """Charizard is 99% mega; Mega-Y (81%) outnumbers Mega-X (18%)."""
+        assert assumed_forme("Charizard") == "Charizard-Mega-Y"
+
+    def test_minority_mega_stays_base(self):
+        """Aerodactyl is only ~22% mega — base forme wins."""
+        assert assumed_forme("Aerodactyl") == "Aerodactyl"
+
+    def test_marginal_majority_goes_mega(self):
+        """Medicham megas at 51.0% — just over the line."""
+        assert assumed_forme("Medicham") == "Medicham-Mega"
+
+    def test_marginal_minority_stays_base(self):
+        """Gyarados megas at 49.0% — just under the line."""
+        assert assumed_forme("Gyarados") == "Gyarados"
+
+    def test_no_base_entry_resolves_to_mega(self):
+        """Base Lopunny has no usage entry at all (100% mega population)."""
+        assert assumed_forme("Lopunny") == "Lopunny-Mega"
+
+    def test_no_mega_entries_resolves_to_self(self):
+        assert assumed_forme("Kingambit") == "Kingambit"
+
+    def test_unknown_species_resolves_to_self(self):
+        assert assumed_forme("Fakemon") == "Fakemon"
+
+
+class TestMegaStones:
+    """mega_stones() is derived from the data (every -Mega entry's top item),
+    not from a name-suffix heuristic."""
+
+    def test_contains_real_stones(self):
+        stones = mega_stones()
+        for stone in ("Charizardite Y", "Charizardite X", "Lopunnite",
+                      "Glimmoranite", "Dragoninite"):
+            assert stone in stones
+
+    def test_no_suffix_false_positives(self):
+        """Eviolite ends in -ite but is not a mega stone; Focus Sash obviously
+        isn't either.  (Guards against regressing to a suffix check.)"""
+        stones = mega_stones()
+        assert "Eviolite" not in stones
+        assert "Focus Sash" not in stones
+
+    def test_nonempty_and_frozen(self):
+        stones = mega_stones()
+        assert len(stones) > 30
+        assert isinstance(stones, frozenset)
+
+
+# ── Data-gap diagnostics (battle-log "data_gaps" flags) ──────────────────────
+
+class TestDataGapDiagnostics:
+    """note_gap/drain_gaps collect failed data lookups, deduped, for the
+    battle log — they fire only when a lookup actually failed."""
+
+    def test_note_drain_dedupes_and_clears(self):
+        drain_gaps()  # isolate from other tests
+        note_gap("types", "Fakemon")
+        note_gap("types", "Fakemon")          # duplicate — collapsed
+        note_gap("stats", "Othermon")
+        assert drain_gaps() == ["stats:Othermon", "types:Fakemon"]
+        assert drain_gaps() == []             # drained = cleared
+
+    def test_unknown_species_stats_lookup_records_gap(self):
+        from damage import _most_common_stats
+        drain_gaps()
+        assert _most_common_stats("Fakemon123") is None
+        assert "stats:Fakemon123" in drain_gaps()
+
+    def test_missing_types_in_damage_calc_records_gap(self):
+        from damage import full_damage_calc
+        drain_gaps()
+        full_damage_calc(
+            "Close Combat",
+            attacker_species="Fakemon123", defender_species="Kingambit",
+            attacker_stats={"atk": 100, "hp": 100},
+            defender_stats={"def": 100, "hp": 100},
+        )
+        gaps = drain_gaps()
+        assert "types:Fakemon123" in gaps          # attacker unknown
+        assert "types:Kingambit" not in gaps       # defender fine
+
+    def test_known_species_record_nothing(self):
+        from damage import full_damage_calc, _most_common_stats
+        drain_gaps()
+        _most_common_stats("Kingambit")
+        full_damage_calc(
+            "Close Combat",
+            attacker_species="Sneasler", defender_species="Kingambit",
+            attacker_stats={"atk": 100, "hp": 100},
+            defender_stats={"def": 100, "hp": 100},
+        )
+        assert drain_gaps() == []
 
 
 # ── Aegislash-Blade immunity regression ──────────────────────────────────────

@@ -93,12 +93,12 @@ def run_lead(our_a, our_b, opp_a, opp_b, designated_mega):
     s.my_encored_moves = [None, None]
     s.designated_mega = designated_mega
 
-    ranked_a = engine.scored_actions(s, 0)
-    best_a = ranked_a[0]
-    s.my_slot_decisions[0] = best_a
-
-    ranked_b = engine.scored_actions(s, 1)
-    best_b = ranked_b[0]
+    # Mirror main.py's turn flow exactly: phase-1 scores each slot's (move,target)
+    # candidates in isolation, then coordinate() picks the best joint pair (the
+    # only place doubling / overkill / gratuitous-Protect / fake-out effects act).
+    chosen, _ = engine.coordinate(s)
+    best_a = chosen.get(0)
+    best_b = chosen.get(1)
 
     def fmt(act, opp_a, opp_b):
         if act.move_name:
@@ -120,10 +120,19 @@ lines.append("# Turn 1 First-Turn Decision Summary")
 lines.append("")
 lines.append(f"Engine v{__version__} | Turn 1 opening, 100% HP, no field effects, no revealed moves")
 lines.append("")
-lines.append("> **Slot A is scored first.**  ")
-lines.append("> **Slot B sees Slot A's committed action** — DoublingUp can redirect or penalise.")
+lines.append("> **Joint selection.** Each slot's `(move, target)` candidates are scored")
+lines.append("> independently (phase 1); `DecisionEngine.coordinate` then picks the")
+lines.append("> highest-value **pair** of actions (phase 2).")
 lines.append("> All opponent HP treated as percentage (engine uses typical-spread stats for damage calcs).")
 lines.append("> Mega evolution is resolved at turn start — the designated mega uses mega stats/ability.")
+lines.append(">")
+lines.append("> The phase-2 **joint adjusters** are the only cross-slot effects: *doubling* "
+             "(both attack the same target → ×0.40–0.70, or ×0.05 overkill when one slot "
+             "already confirms the OHKO, so the pair that spreads wins); *coordination* "
+             "(a gratuitous lone Protect beside an attacking partner → ×0.5, favouring "
+             "double-attack); *fake-out* (the slot absorbing a Fake Out frees its partner); "
+             "and *switch-collision* (both switching to the same mon → ×0). These cells "
+             "reflect actual in-game behaviour.")
 lines.append("")
 
 for section, (our_a, our_b, designated_mega) in enumerate(OUR_LEADS, start=1):

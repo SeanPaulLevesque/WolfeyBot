@@ -36,12 +36,15 @@ from .species import (
 
 # Sets / usage data
 from .sets import (
-    get_sets,
+    get_sets, assumed_forme, mega_stones,
     spread_distribution, item_distribution,
     ability_distribution, move_distribution,
     teammate_distribution,
     parse_spread, scarf_probability, all_pokemon,
 )
+
+# Data-gap diagnostics (battle-log "data_gaps" flags)
+from .diagnostics import note_gap, drain_gaps
 
 # Metagame
 from .usage import (
@@ -88,10 +91,13 @@ __all__ = [
     "get_species", "base_stats", "base_spe", "types_of", "ability_of",
     "all_species", "is_legal", "get_weight",
     # sets
-    "get_sets", "spread_distribution", "item_distribution",
+    "get_sets", "assumed_forme", "mega_stones",
+    "spread_distribution", "item_distribution",
     "ability_distribution", "move_distribution",
     "teammate_distribution",
     "parse_spread", "scarf_probability", "all_pokemon",
+    # diagnostics
+    "note_gap", "drain_gaps",
     # usage
     "archetype_usage", "all_archetypes",
     # moves

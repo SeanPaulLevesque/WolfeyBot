@@ -10,7 +10,16 @@
       "Bash(.venv/Scripts/pytest *)",
       "Bash(.venv/Scripts/python.exe -m pytest)",
       "Bash(.venv/Scripts/python.exe -m pytest *)",
-      "Bash(.venv/Scripts/python.exe _gen_turn1_summary.py)"
+      "Bash(.venv/Scripts/python.exe _gen_turn1_summary.py)",
+      "Bash(.venv/Scripts/python.exe -m py_compile *)",
+      "PowerShell(.venv\\Scripts\\pytest)",
+      "PowerShell(.venv\\Scripts\\pytest *)",
+      "PowerShell(.venv\\Scripts\\python.exe -m pytest)",
+      "PowerShell(.venv\\Scripts\\python.exe -m pytest *)",
+      "PowerShell(.venv\\Scripts\\python.exe _gen_turn1_summary.py)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Compare-Object *)",
+      "PowerShell(Copy-Item turn1_summary.md _pre.md)"
     ]
   }
 }

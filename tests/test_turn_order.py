@@ -9,7 +9,6 @@ from turn_order import (
     _apply_modifiers,
     priority_bracket,
     will_outspeed,
-    estimate_turn_order,
     Combatant,
 )
 
@@ -152,39 +151,3 @@ class TestWillOutspeed:
         own = make_own(100, paralyzed=True)  # 100 × 0.5 = 50 effective
         opp = make_opp(60)
         assert will_outspeed(own, opp) == 0.0
-
-
-# ── estimate_turn_order ───────────────────────────────────────────────────────
-
-class TestEstimateTurnOrder:
-    def test_faster_mon_gets_rank_1(self):
-        fast = make_own(200)
-        slow = make_opp(100)
-        order = estimate_turn_order([fast, slow], ["Dragon Claw", "Earthquake"])
-        assert order[0].name == "OwnMon"
-        assert order[0].rank == 1
-
-    def test_priority_move_ranks_first(self):
-        slow_own = make_own(50)
-        fast_opp = make_opp(300)
-        order = estimate_turn_order(
-            [slow_own, fast_opp],
-            ["Fake Out", "Earthquake"],
-        )
-        # Fake Out (prio 3) should outrank Earthquake (prio 0)
-        assert order[0].move == "Fake Out"
-
-    def test_trick_room_slower_ranks_first(self):
-        fast = make_own(200)
-        slow = make_opp(50)
-        order = estimate_turn_order([fast, slow], ["Dragon Claw", "Earthquake"],
-                                    trick_room=True)
-        # Under TR, slower goes first
-        assert order[0].name == "OppMon"
-
-    def test_ranks_numbered_from_1(self):
-        c1 = make_own(200)
-        c2 = make_opp(100)
-        order = estimate_turn_order([c1, c2], ["", ""])
-        ranks = [e.rank for e in order]
-        assert ranks == [1, 2]

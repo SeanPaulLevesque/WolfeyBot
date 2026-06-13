@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Optional
 
 import websockets
+from websockets.exceptions import WebSocketException
 import aiohttp
 
 from battle import BattleParser, BattleState
@@ -50,10 +51,18 @@ for _stream in (sys.stdout, sys.stderr):
 # ─── Config ──────────────────────────────────────────────────────────────────
 
 import os as _os
-# Credentials are read from the environment so they never live in the repo.
-# Set PS_USERNAME / PS_PASSWORD in your shell (leave unset for guest mode).
-USERNAME       = _os.environ.get("PS_USERNAME", "")   # ← registered Showdown username (or blank for guest)
-PASSWORD       = _os.environ.get("PS_PASSWORD", "")   # ← registered Showdown password (or blank for guest)
+# Credentials, in priority order: env vars (PS_USERNAME / PS_PASSWORD), then a
+# local git-ignored bot_secrets.py.  This keeps the password out of the repo
+# while still logging in automatically.  Blank on both → guest mode.
+USERNAME       = _os.environ.get("PS_USERNAME", "")
+PASSWORD       = _os.environ.get("PS_PASSWORD", "")
+if not (USERNAME and PASSWORD):
+    try:
+        import bot_secrets as _secrets        # local only — listed in .gitignore
+        USERNAME = USERNAME or getattr(_secrets, "USERNAME", "")
+        PASSWORD = PASSWORD or getattr(_secrets, "PASSWORD", "")
+    except ImportError:
+        pass
 BATTLE_FORMAT  = "gen9championsvgc2026regma"  # ← Champions 2026 Reg M-A format slug
 WS_URL         = "wss://sim3.psim.us/showdown/websocket"
 LOGIN_URL      = "https://play.pokemonshowdown.com/api/login"
@@ -62,7 +71,13 @@ LOGIN_URL      = "https://play.pokemonshowdown.com/api/login"
 # Loaded automatically from team.txt — no manual export step needed.
 PACKED_TEAM: str = to_packed()
 
-REQUEUE_DELAY  = 180                  # seconds to wait between battles before searching again
+REQUEUE_DELAY  = 20                    # seconds to wait between battles before searching again
+
+# Reconnect backoff: a transient network/DNS blip should not kill the bot.
+# run() retries connect() with exponential backoff between these bounds and
+# reconnects automatically if an established stream drops.
+RECONNECT_DELAY_INITIAL = 5            # seconds before the first reconnect attempt
+RECONNECT_DELAY_MAX     = 300          # cap on the exponential backoff
 
 from version import __version__ as VERSION   # single source of truth (see version.py)
 # VERSION drives the Battle Data/<version>/ log folder and the elo_log version field
@@ -268,6 +283,10 @@ _NO_TARGET_TYPES = frozenset({
     "allAdjacentFoes",
     "scripted",
     "allies",
+    # Server picks the target (Struggle, Outrage-style lock-ins, Metronome
+    # results).  Showdown REJECTS an explicit target for these: "[Invalid
+    # choice] Can't move: You can't choose a target for Struggle".
+    "randomNormal",
 })
 
 
@@ -411,15 +430,24 @@ def _build_choice(
         # ── Force-switch phase ────────────────────────────────────────────────
         # Use the decision engine so SwitchModule scores type matchup, OHKO
         # safety, and partner coordination — not just team order.
+        claimed_targets: set[str] = set()
         for slot_idx, needs_switch in enumerate(state.force_switch):
             if not needs_switch:
                 continue
             ranked = _engine.scored_actions(state, slot_idx)
             # During a force switch the server only accepts "switch N" — filter
             # to switch actions only (moves / Struggle are not legal here).
-            switch_ranked = [a for a in ranked if a.is_switch and a.weight > 0]
+            # Targets claimed by an earlier forced slot are excluded: on a
+            # double KO the per-slot rankings are independent (coordinate()'s
+            # SwitchCollisionAdjuster never runs here), so both slots would
+            # otherwise pick the same bench mon — an illegal choice the server
+            # rejects ("/choose switch 3, switch 3").
+            switch_ranked = [a for a in ranked
+                             if a.is_switch and a.weight > 0
+                             and a.switch_target not in claimed_targets]
             if switch_ranked:
                 action = switch_ranked[0]
+                claimed_targets.add(action.switch_target)
                 state.my_slot_decisions.append(action)
                 token = _action_to_choice(action, state, slot_idx, False, is_doubles)
                 choices.append(token)
@@ -432,41 +460,37 @@ def _build_choice(
                 log.warning("DECISION  slot %d force-switch but no available mons", slot_idx)
 
     else:
-        # ── Normal turn: run the decision engine for each slot ────────────────
+        # ── Normal turn: phase-1 scoring + joint coordinate() ─────────────────
+        # Phase 1 scores each slot's (move, target) candidates in isolation;
+        # coordinate() then selects the best *joint pair*, resolving every cross-
+        # slot effect (doubling / overkill, gratuitous-Protect, fake-out freeing,
+        # switch collision) at once — no scoring-order blind spot, no re-pass.
+        # It writes the chosen action per slot into state.my_slot_decisions and
+        # returns the chosen action + phase-1 ranked list for each decided slot.
+        chosen, ranked_by_slot = _engine.coordinate(state)
+
         for slot_idx in range(len(state.moves_per_slot)):
-            # Guard: Showdown sometimes keeps a fainted slot in the active array
-            # (doubles endgame with no bench replacements).  Skip it rather than
-            # generating nonsense choices — Showdown silently accepts the omission.
-            active_mon = (state.my_actives[slot_idx]
-                          if slot_idx < len(state.my_actives) else None)
-            if active_mon is not None and active_mon.fainted:
-                log.warning(
-                    "DECISION  slot %d: %s is fainted — skipping choice for this slot",
-                    slot_idx, active_mon.species,
-                )
-                state.my_slot_decisions.append(None)
+            action = chosen.get(slot_idx)
+            if action is None:
+                # Fainted / empty slot coordinate() skipped (Showdown sometimes
+                # keeps a fainted slot in the active array) — emit no token; the
+                # server silently accepts the omission.
+                active_mon = (state.my_actives[slot_idx]
+                              if slot_idx < len(state.my_actives) else None)
+                if active_mon is not None and active_mon.fainted:
+                    log.warning(
+                        "DECISION  slot %d: %s is fainted — skipping choice for this slot",
+                        slot_idx, active_mon.species,
+                    )
                 continue
 
-            # scored_actions returns the full ranked list; we pick the winner here
-            # so that we can also hand the list to the recorder without running
-            # the scoring pipeline twice.
-            ranked = _engine.scored_actions(state, slot_idx)
-            if not ranked:
-                action = Action(label="Struggle", move_name="Struggle")
-                ranked = [action]
-            else:
-                action = next((a for a in ranked if a.weight > 0), ranked[0])
-
-            # Record this slot's decision (ranked list) for offline analysis.
+            slot_ranked = ranked_by_slot.get(slot_idx) or [action]
+            # Record this slot's (final) decision for offline analysis.
             if recorder is not None:
                 try:
-                    recorder.record_decision(state, slot_idx, ranked)
+                    recorder.record_decision(state, slot_idx, slot_ranked)
                 except Exception:
                     log.warning("Recorder failed to capture slot %d decision", slot_idx)
-
-            # Publish this slot's decision so later-slot modules (DoublingUpModule)
-            # can see what target slot 0 committed to before scoring slot 1.
-            state.my_slot_decisions.append(action)
 
             # Mega evolve as soon as the server says we can, but only for the
             # Pokémon designated at team preview.  When two mega users are
@@ -492,9 +516,17 @@ def _build_choice(
 
             slot_label   = chr(ord('A') + slot_idx)
             mega_tag     = " [MEGA]" if mega else ""
+            # Show who this slot is attacking (resolve target_slot -> species).
+            target_str   = ""
+            tslot = action.target_slot
+            if tslot is not None and tslot < len(state.opp_actives):
+                opp_t = state.opp_actives[tslot]
+                if opp_t is not None:
+                    target_str = f" -> {opp_t.species}"
             reasons_str  = " | ".join(action.reasons) if action.reasons else "no modifiers"
-            log.info("   [%s]  %-32s  x%-5.2f  %s",
-                     slot_label, action.label + mega_tag, action.weight, reasons_str)
+            log.info("   [%s]  %-40s  x%-5.2f  %s",
+                     slot_label, action.label + target_str + mega_tag,
+                     action.weight, reasons_str)
 
     if not choices:
         log.warning("DECISION  empty choice list — defaulting to move 1")
@@ -518,6 +550,7 @@ class ShowdownClient:
         self._requeue_task: Optional[asyncio.Task] = None  # pending delayed-requeue task
         self._recorders: dict[str, BattleRecorder] = {}    # one recorder per active battle
         self._elo: EloTracker = EloTracker()               # persists ELO across sessions
+        self._stopping: bool = False                       # set by shutdown() to break the reconnect loop
 
     # ── Connection / Auth ─────────────────────────────────────────────────────
 
@@ -602,15 +635,66 @@ class ShowdownClient:
     # ── Main Loop ─────────────────────────────────────────────────────────────
 
     async def run(self):
-        await self.connect()
+        """Connect and process messages, reconnecting with exponential backoff
+        on any network failure so a transient outage (DNS blip, dropped stream,
+        refused connection) doesn't kill the bot.
 
-        async for raw in self.ws:
-            self.log.debug("RECV  %r", raw)
+        The reconnect is self-healing: after each successful reconnect the
+        server sends a fresh ``challstr``, which re-drives login and
+        matchmaking through the normal global-message handlers — no special
+        resume logic needed.  Active battles are abandoned on a disconnect
+        (Showdown forfeits them server-side), so per-connection state is reset
+        before reconnecting.
+        """
+        delay = RECONNECT_DELAY_INITIAL
+        while not self._stopping:
+            try:
+                await self.connect()
+            except (OSError, WebSocketException, asyncio.TimeoutError) as exc:
+                if self._stopping:
+                    break
+                self.log.warning("Connect failed (%s) — retrying in %ds", exc, delay)
+                await asyncio.sleep(delay)
+                delay = min(delay * 2, RECONNECT_DELAY_MAX)
+                continue
 
-            if raw.startswith(">battle-"):
-                await self._route_battle_message(raw)
+            delay = RECONNECT_DELAY_INITIAL   # connected — reset the backoff
+
+            try:
+                async for raw in self.ws:
+                    self.log.debug("RECV  %r", raw)
+
+                    if raw.startswith(">battle-"):
+                        await self._route_battle_message(raw)
+                    else:
+                        await self._handle_global(raw)
+            except (OSError, WebSocketException) as exc:
+                self.log.warning("Connection dropped (%s) — reconnecting", exc)
             else:
-                await self._handle_global(raw)
+                if self._stopping:
+                    break
+                self.log.warning("WebSocket stream ended — reconnecting")
+
+            if not self._stopping:
+                self._reset_connection_state()
+
+    def _reset_connection_state(self):
+        """Drop per-connection state before a reconnect.
+
+        Battles in progress are abandoned when the socket drops (the server
+        forfeits them), so their parsers/recorders are cleared rather than
+        carried across; the fresh ``challstr`` after reconnect starts a clean
+        login + search cycle.  Cross-session state (``_elo``) is preserved.
+        """
+        if self._requeue_task and not self._requeue_task.done():
+            self._requeue_task.cancel()
+        self._requeue_task = None
+        self._requeue_pending = False
+        self.parsers.clear()
+        self._joining_battles.clear()
+        self.finished_battles.clear()
+        self._recorders.clear()
+        self.ws = None
 
     async def _route_battle_message(self, raw: str):
         """Create a BattleParser for new battles; feed all battle messages into it."""
@@ -799,6 +883,7 @@ class ShowdownClient:
 
     async def shutdown(self):
         """Forfeit all active battles, cancel any pending requeue, then close the WebSocket."""
+        self._stopping = True   # break the reconnect loop in run()
         if self._requeue_task and not self._requeue_task.done():
             self._requeue_task.cancel()
 
@@ -908,7 +993,7 @@ async def main():
         await client.run()
     except (KeyboardInterrupt, asyncio.CancelledError):
         log.info("Interrupted - closing")
-    except websockets.exceptions.ConnectionClosed as e:
+    except WebSocketException as e:
         log.error("WebSocket closed: %s", e)
     except Exception:
         log.exception("Unhandled error")

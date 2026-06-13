@@ -11,6 +11,9 @@ venv/
 # Personal/local Claude settings (keep the shared .claude/settings.json)
 .claude/settings.local.json
 
+# Local Showdown credentials (never commit)
+bot_secrets.py
+
 # Runtime logs (may contain session data / credentials)
 *.log
 bot.log

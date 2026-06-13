@@ -1,5 +1,575 @@
 # WolfeyBot Changelog
 
+## 0.8.0 — 2026-06-13
+
+### SP→stat formula correction (major) + Choice Scarf Garchomp
+
+**Stat-calc bug fix — the biggest correctness change in the project.**
+The Champions format replaced EVs with Stat Points (66 total, 32/stat cap).
+`data/stat_calc.py:sp_to_ev_quarter` used an unverified placeholder mapping
+(`1 SP = 1 floor(EV/4) unit`), which undercounted every invested stat by
+roughly half — for **both our team and all opponents**, since the same
+chokepoint feeds team.txt and the usage-data spreads.
+
+- **Correct mapping (confirmed three ways): `32 SP = 252 EV`**, i.e.
+  `1 SP = 7.875 EV`, so the formula's `floor(EV/4)` term is
+  `floor(SP × 7.875 / 4) = floor(SP × 1.96875)` (a maxed stat → term 63, as
+  252 EVs gave in the base game).  Confirmed by: (1) multiple Champions web
+  sources, (2) the format's stat reference, and (3) an **empirical match
+  against Showdown's own HP values** for all six of our mons (the old code
+  produced 163/191/171/211/171/190; real values are 171/206/187/227/187/197 —
+  the fix reproduces all six exactly).
+- One-line change in `sp_to_ev_quarter`; the whole stat / damage / speed /
+  turn-order pipeline inherits it.  No other stat math exists in the engine
+  (single chokepoint, audited).
+- **Test fallout (all reviewed):** turn-1 table re-priced (110 cells changed,
+  ~13 true decision flips); `TestUpdateSpeedBelief` threshold 140→150 (Garchomp
+  speeds rose, old threshold filtered nothing); `test_ko_before_acting_blocks_
+  undeliverable_kill` pins Soft Sand on Garchomp to keep its doom-gate scenario
+  valid (the new Scarf set outspeeds Weavile).
+
+**Team change: Garchomp → Jolly Choice Scarf, Protect → Rock Tomb.**
+Garchomp was the worst performer over the pooled 195-game sample (48.5% when
+brought vs 54.3% without) and the team's worst archetype is rain/Tailwind —
+opposing speed control.  Scarf (Garchomp → 211 spe) flips most of the rain
+core (outspeeds Archaludon, rain Pelipper, rain Dragonite) and Rock Tomb adds
+a 4× answer to Talonflame/Charizard.  Protect dropped because the engine does
+not model Choice lock-in (open backlog item) and could otherwise lock into
+Protect.  Keeps the Electro Shot immunity that walls Archaludon's rain STAB.
+
+## 0.7.9 — 2026-06-13
+
+### Self-healing reconnect loop (network resilience)
+
+- **`run()` now retries `connect()` with exponential backoff and reconnects
+  automatically when an established stream drops.**  Three transient DNS
+  outages during the 0.7.x ladder runs (`socket.gaierror: getaddrinfo
+  failed`) each killed the process — the bot had no retry, so a supervising
+  wrapper had to restart it.  Now a network blip (DNS failure, refused
+  connection, dropped websocket) is weathered: backoff runs
+  `RECONNECT_DELAY_INITIAL` (5s) → ×2 → `RECONNECT_DELAY_MAX` (300s cap),
+  resetting to 5s after any successful connect.
+- **Self-healing resume:** after each reconnect the server sends a fresh
+  `challstr`, which re-drives login + matchmaking through the existing
+  global-message handlers — no special resume path.  `_reset_connection_state`
+  drops per-connection state (parsers, recorders, requeue task, joining/
+  finished sets) before reconnecting since active battles are forfeited
+  server-side on a disconnect; cross-session ELO state is preserved.
+- `shutdown()` sets a `_stopping` flag so Ctrl-C / forfeit cleanly breaks the
+  loop.  `websockets.exceptions` is now imported explicitly
+  (`from websockets.exceptions import WebSocketException`) — the lazy shim in
+  this websockets version raised `AttributeError` when referenced in an
+  `except` clause.
+- New `tests/test_reconnect.py` (6 tests): backoff schedule + cap, reconnect
+  after a stream drop, backoff reset after a good connect, state-reset
+  clearing, ELO preserved, shutdown flag.  Pure-runtime change — turn-1 table
+  unaffected.
+
+## 0.7.8 — 2026-06-13
+
+### Cosmetic-forme name resolution (data_gaps catch from the 0.7.7 run)
+
+- **Progressive suffix-strip fallback in both name resolvers**
+  (`data/species.py:get_species`, `data/sets.py:_resolve_name`).  Showdown
+  reports decoration formes verbatim (`Alcremie-Rainbow-Swirl` flagged live —
+  the mon was invisible in both damage directions); enumerating every
+  cosmetic variant is hopeless, so unresolved names now strip `-Suffix`
+  segments until an entry (or alias) matches.
+- **Guarded by `_DISTINCT_FORME_SUFFIXES`:** the strip never crosses suffixes
+  denoting a competitively distinct Pokémon (Galar/Alola/Hisui/Paldea,
+  Therian/Origin/Bloodmoon/Crowned, Mega/X/Y, F) — `Stunfisk-Galar`
+  (Ground/Steel) must not inherit base Stunfisk's (Ground/Electric) sets;
+  an honest miss with a `data_gaps` flag beats silently wrong data.  The
+  pre-existing `test_unresolvable_returns_none` guard caught exactly this
+  during development.
+
+## 0.7.7 — 2026-06-12
+
+### Post-run fixes from the 0.7.6 hundred-game shakedown (48W-52L)
+
+Every item below was caught live by the new `data_gaps` flags or the error
+monitor during the 100-game ladder run — none affect the turn-1 table.
+
+- **Struggle no longer sent with a target.**  `"randomNormal"` (Struggle,
+  Outrage-style lock-ins, Metronome results — the server picks the target)
+  was missing from `_NO_TARGET_TYPES`, so Struggle was emitted as e.g.
+  `move 1 1` and rejected: *"You can't choose a target for Struggle"* — the
+  slot then ran on the battle timer for the rest of the game (battle
+  2630349715, a converted loss).  Fixed mid-run but never live (zero
+  restarts), so the whole 0.7.6 sample played without it.
+- **Bare `Meowstic` aliased in the species DB** (`Meowstic → Meowstic-M`).
+  Showdown's species string for the male is the bare name; the slim DB only
+  has gendered entries, so an opposing Meowstic had **no stats or types at
+  all** — invisible to the engine in both damage directions
+  (`stats:Meowstic` flagged in battle 2630372888).
+- **Lead selector v2 (Task #4) — pair-based, initiative-aware.**
+  `select_leads` now scores all C(n,2) lead *pairs*: combined type-matchup
+  score vs the predicted opponent leads (unchanged v1 base) × initiative
+  rows.  `_SLOW_LEAD_FACTOR` (×0.85) per pair member slower than both
+  predicted leads with no attacking priority move — waived when the opponent
+  roster has a Trick Room setter (slow IS fast under TR); `_TW_EXPOSED_FACTOR`
+  (extra ×0.85) on a double-slow pair vs an undeniable priority Tailwind
+  setter (Gale Wings / Prankster).  Magnitudes grounded in the 0.7.6 sample:
+  Kingambit won 41.3% led vs 50.9% from the back; TW rosters were the worst
+  archetype (45.9%).  With no rows firing the choice equals the old top-2
+  ranking.  The priority check is move-data driven, so giving Kingambit
+  Sucker Punch would automatically restore its lead eligibility.
+- **Mid-battle forme changes keep their usage data.**  Added to the sets
+  layer's `_FORME_ALIASES`: Aegislash-Blade/-Shield, Mimikyu-Busted,
+  Palafin-Hero, Morpeko-Hangry, Greninja-Ash → their base entries.  The
+  species DB already aliased these for types/stats, but the sets layer did
+  not — after a `|detailschange|` the engine fell back to synthetic STAB
+  guesses and blind ability inference (`moves:`/`sets:` gaps flagged for
+  Mimikyu-Busted, Aegislash-Blade and Palafin-Hero during the run).
+
+## 0.7.6 — 2026-06-11
+
+### Sash/Sturdy KO-prevention + opponent item & forme inference
+
+One release, three layers — each makes the *facts* smarter while every module
+and adjuster stays untouched.
+
+- **`DamageResult.ko_prevented` (damage layer).**  New fields `hits` and
+  `ko_prevented` on `DamageResult`; `is_ohko` / `ohko_with_max_roll` now gate
+  on `not ko_prevented`.  Computed in `full_damage_calc`: a full-HP defender
+  holding a `_KO_PREVENTING_ITEMS` item (Focus Sash) or with a
+  `_KO_PREVENTING_ABILITIES` ability (Sturdy) cannot be one-hit KO'd by a
+  single-hit move.  Multi-hit moves (`expected_hits != 1.0`) break Sash —
+  the engine routes Dual Wingbeat at Sash holders with no module rule.
+  *Known approximation:* multi-hit damage is aggregated (power ×
+  expected_hits) before the calc, so "2 hits whose total KOs" counts as
+  breaking Sash even if no single hit would have.
+- **Latent bug fix:** `build_turn_context`'s outgoing fact loop never passed
+  `opp_is_full_hp` — chipped opponents were treated as full-HP for defensive
+  modifiers and would have been treated as Sash-intact.
+- **Opponent item inference (`_effective_item`).**  Revealed item >
+  consumed (`item_consumed` → None) > usage-stats guess: `_assumed_item`
+  returns the species' top item when its usage ≥ `_ASSUMED_ITEM_MIN_PCT`
+  (40%).  Feeds **all** damage math (scope (b)): assumed Sash blocks our
+  kill credit, assumed Chople Berry halves Close Combat into Kingambit, etc.
+- **Opponent forme inference (`_assumed_species` / `data.assumed_forme`).**
+  The usage stats file megas as separate entries, so base-entry items/stats
+  describe only the non-mega minority (Charizard base = 1% of all
+  Charizards).  `assumed_forme` resolves a pre-mega species to its
+  population-dominant forme by raw count (Charizard → Charizard-Mega-Y,
+  Glimmora → Glimmora-Mega, Dragonite → Dragonite-Mega; Aerodactyl at 22%
+  mega stays base).  A revealed mega forme always wins; a revealed non-stone
+  item demotes to base (`data.mega_stones()` is derived from the data — the
+  top item of every -Mega entry — never a name-suffix check).  Routed through
+  both fact loops, DamageOutput, SwitchModule, `_opp_combatant` (speed),
+  `_effective_ability` (unrevealed Charizard is assumed Drought) and
+  `_effective_item` (assumed item becomes the inert stone, not base-forme
+  Sash).
+- **Fixed a Lopunny stats mismatch** surfaced by the wiring: data lookups
+  already resolved Lopunny → Lopunny-Mega, but damage stats used base-forme
+  Atk 76 instead of Mega 136 — opposing Lopunny was drastically
+  under-threatened.
+- **51 turn-1 cells changed** (all user-reviewed): Sash-break redirects onto
+  Whimsicott (Dual Wingbeat over single-hit kill shots: 1.2, 1.9, 1.10, 4.2,
+  4.9), kill-credit weight drops on assumed-Sash/Chople targets, Glimmora
+  cells re-anchored on the mega (2.19 attacks again), Charizard cells respect
+  Mega-Y Drought (3.17, 5.17, 6.17), Pelipper/Dragonite redirects (1.20,
+  2.20, 5.20), Lopunny threat respected (3.14, 6.14).  Known acceptable
+  passivity: Chople-Kingambit double-Protect cluster (1.5, 2.5, 4.5, 3.12,
+  6.12) — facts correct, little to lose vs non-setup teams.
+- `test_opp_neutralized_before_acting_detects_faster_ally_ko` pins a revealed
+  non-berry item on the target Kingambit (the unrevealed assumption is now
+  Chople, which correctly suppresses the OHKO fact).
+- **Our consumed items now drop out of the incoming facts.**  The incoming
+  fact loop read the defender item from static team.txt (`tm.item`), so a
+  popped Chople Berry kept halving incoming Fighting damage in the facts —
+  underestimating a second Close Combat into a berry-spent Kingambit.  Now
+  `our_item = None if mon.item_consumed else (mon.item or tm.item)`.
+  Turn-1 table byte-identical (nothing is consumed on turn 1).
+- **Double-KO force-switch crash fixed (backlog).**  When both actives
+  fainted, `_build_choice`'s force-switch loop ranked each slot independently
+  and both picked the same bench mon (`/choose switch 3, switch 3`) — an
+  illegal choice the server rejected, leaving the bot stuck.  Root cause: the
+  old phase-1 partner-veto moved into `coordinate()`'s
+  `SwitchCollisionAdjuster` in 0.7.0, and `coordinate()` never runs on a
+  force switch.  The loop now excludes targets claimed by an earlier forced
+  slot; with one bench mon left the second slot correctly emits `pass`.
+  Real-engine regression tests in `TestDoubleKoForceSwitch` (the old test
+  mocked `scored_actions`, which is exactly what hid the regression).
+- **Battle-log `data_gaps` flags (backlog).**  Silent data-lookup failures —
+  no base stats (mon scored harmless), no types (matchups neutral), no usage
+  moves (synthetic STAB fallback), no sets entry (inference blind),
+  `find_member` failing for our own mon (slot skipped) — are now collected
+  per battle (`data/diagnostics.py`, deduped `note_gap`/`drain_gaps`) and
+  written as an optional top-level `"data_gaps"` array in the battle log,
+  plus a WARNING at save.  Present only when something actually failed;
+  clean battles are untouched.  Schema documented in BATTLE_LOG_SCHEMA.md.
+- **Bench mons now evaluated with live item state (backlog).**
+  `SwitchModule` read the bench item from static team.txt, so a Chople/Sitrus
+  eaten during an earlier field stint kept counting in switch-in safety and
+  offense estimates.  Bench candidates now use the live tracked item
+  (`None` once consumed, revealed item wins, team.txt as fallback) — same
+  rule as the actives' incoming fact loop.  Turn-1 table byte-identical.
+- **Setter/Fake-Out list audit (backlog).**  Re-derived all three frozensets
+  from usage data at their documented thresholds.  One real gap fixed:
+  plain `"Meowstic"` (Showdown's species string for the male; 62% Fake Out)
+  was missing from `_FAKE_OUT_USERS` — only the `-M`/`-F` variants were
+  listed.  Gengar-Mega's absence from the TR setters is *correct* (base
+  Gengar 47% TR, Mega 0%).  Known threshold asymmetries left as-is pending a
+  design call: `Gardevoir` (base 15% TR, but 81% of the population are
+  Mega-holders at 55% TR) and `Gallade-Mega` (19%) sit in the TR set below
+  the raw per-forme threshold.
+
+## 0.7.5 — 2026-06-11
+
+### Merge IncomingOHKOModule + ProtectModule → ProtectValueModule
+
+- **Replaced the two separate Protect-scoring modules (IncomingOHKOModule at
+  position 3 and ProtectModule at position 9) with a single `ProtectValueModule`
+  (position 3).** Module count goes 12 → 11.
+- **Four multiplicative rows in one pass:** ×2.5 when threatened; ×3.0 when a
+  partner can guaranteed-OHKO any threat; ×0.4 in 1v1 endgame; ×0.4 in 2v1
+  numerical advantage.  Both reason prefixes (`"incoming_ohko:"` and
+  `"protect:"`) are preserved — `_protect_is_justified` in the phase-2
+  CoordinationAdjuster keys on them.
+- **Behavior change (2v1 + partner clearing a threat):** old code suppressed
+  the ×3.0 entirely in a 2v1 (giving 2.5×0.4=1.0); merged rows give
+  2.5×3.0×0.4=3.0.  Turn-1 table is unaffected (always 2v2).
+- No turn-1 cell changes.
+
+## 0.7.4 — 2026-06-11
+
+### FakeOut: remove partner-threat gate, tune PROTECT_BOOST to ×2.0
+
+- **Removed the `PARTNER_THREAT_THRESHOLD` gate from `build_turn_context`.**
+  Previously `ctx.fake_out[slot]` only fired when a non-FO opponent also
+  threatened ≥30% damage to our active — meaning boards with weak FO partners
+  (Farigiraf, Sneasler-as-setup, etc.) silently skipped the Fake-Out discount.
+  Now `fake_out[slot] = fo_live` unconditionally: the signal fires whenever a
+  fresh Fake Out user is on field, full stop.
+- **Reduced `PROTECT_BOOST` from 3.0 → 2.0** to rebalance after the gate
+  removal.  ×3.0 over-protected on boards where the FO user's partner posed
+  little threat; ×2.0 Protects where IncomingOHKO genuinely demands it
+  (e.g. Weavile/Garchomp, Inc/Garchomp boards with OHKO'd mons) and attacks
+  elsewhere.
+- **32 turn-1 cells changed** (19 decision flips + 13 weight-only):
+  - *Flips:* 1.3, 1.5[B], 1.14, 1.15, 2.3, 2.5[A], 2.6, 3.15[B], 3.17[B],
+    4.3, 4.19, 5.5, 5.17, 6.7, 6.11[A], 6.17[B], 6.19 — all Protect → attack/switch
+  - *Weight-only:* 1.1, 2.1, 2.14, 2.15, 3.1, 3.3, 3.14, 4.1, 5.1, 5.3, 5.14, 5.15, 6.1, 6.3, 6.6
+
+## 0.7.3 — 2026-06-11
+
+### SwitchModule: pure multiplicative rows
+
+- **Replaced the additive escape formula with four stacking multiplicative
+  rows.**  Old formula: `TEMPO × (1 + gain×2×UNFORCED_PIVOT) + ESCAPE_BONUS`
+  (additive escape bonus of +3.0, unforced pivots penalised by ×0.5 on the
+  gain term).  New formula: `TEMPO × (1+g) × ESCAPE_FACTOR × safety` — four
+  clean multipliers with no additive mixing and no `UNFORCED_PIVOT` gate.
+  `ESCAPE_BONUS` (3.0) deleted; replaced by `ESCAPE_FACTOR = 4.0`.
+- **Behavioral impact:** only the escape regime changes — unforced pivots
+  (not escaping an OHKO) and danger pivots (switch-in itself OHKO'd) are
+  numerically identical to before.  Escape pivots with offense gain are
+  heavier (was `2.4 + 1.2g`, now `2.4(1+g)`), meaning escapes with a
+  meaningful switch-in now beat Protect or mid-weight attacks they previously
+  lost to.  11 turn-1 cells changed (4 decision flips, 7 weight-only):
+  1.1 weight (+1.3), 1.6 flip (Protect+Switch → Attack+Switch, Venusaur
+  already leaving), 1.10 flip (Dual Wingbeat → Switch→Sneasler, Aerodactyl
+  escapes Kingambit Iron Head), 2.10 weight (+1.38), 4.6 flip (same as 1.6),
+  4.7 flip (Close Combat → Switch→Basculegion, Sneasler escapes opp Sneasler),
+  4.11/4.13/6.1/6.7/6.12 weight-only.
+
+## 0.7.2 — 2026-06-10
+
+### Symmetric Fake-Out adjuster + shared threat facts
+
+- **FakeOutAdjuster is now symmetric — a pair pays the Fake-Out adjustment
+  exactly once.**  Previously only the *lower* slot attacking freed the partner
+  (a ported artifact of the old greedy scoring order), so mirror pairs scored
+  3× apart by slot index alone: "Protect slot 0 + attack slot 1" kept both the
+  Protect ×3 and the attack ×0.5, while the mirror got stripped.  Now *either*
+  slot's attack divides the partner's `_fakeout_mult` back out (attack
+  un-halved, Protect un-boosted); when both attack, one discount is kept.
+  Double-Protect pairs are untouched (both keep ×3) — two Protects into a
+  Fake Out give up no ground.  Six turn-1 cells changed, reviewed individually:
+  two weight-only (2.19, 6.6 — Protect kept on its own justification at 7.5),
+  two flips to double-attack (6.4 Close Combat → Incineroar on the Fake-Out+TR
+  board; 6.15 Close Combat → Weavile, a guaranteed KO), one to double-Protect
+  (3.15 — gives up no ground vs Weavile/Garchomp), and one to a pivot
+  (6.7 Kingambit → Basculegion, which beats both the likely Close Combat and
+  Fake Out into that slot).
+- **Shared "can they kill me?" facts in `TurnContext`** (behaviour-preserving,
+  verified byte-identical turn-1 table): `incoming_ohko[slot]` + 
+  `neutralized[opp_slot]` are computed once per turn and read by IncomingOHKO,
+  Protect and Switch, replacing three verbatim copies of the same
+  `incoming_damage` threat loop (~90 lines).  `_opp_neutralized_before_acting`
+  now runs once per opponent instead of once per slot×opponent×module.
+
+### Tier-1 simplification pass (behaviour-preserving, byte-identical turn-1)
+
+- **All yes/no damage facts now come from one place.**  `build_turn_context`
+  is the only function that runs damage calcs for facts: the guaranteed-OHKO
+  matrix (now also excluding Disabled moves, matching `_build_actions`), the
+  incoming max-roll/min-roll threat matrices, `neutralized`, `doomed`, the
+  Fake-Out per-slot condition, and the 1v1/2v1 board counts.
+  `_partner_can_ohko` / `_opp_neutralized_before_acting` / `_ko_before_acting`
+  became thin fact readers (still patchable seams for tests).  Side effect of
+  unification: the partner-clears check now respects opponent screens and
+  percentage HP like every other OHKO check (it previously passed neither —
+  a mid-battle parameter drift; turn 1 unaffected).
+- **TR/TW disruption split into single-purpose modules.**
+  `SetterUrgencyModule` (one boost per turn, TR ×2.0 first, else TW ×1.5 —
+  exclusivity by if/elif instead of cross-module recomputation) and
+  `SetterDenialModule` (TR ×2.0 / TW ×1.5 on confirmed setter-kills, TR claim
+  wins per action).  The `_denial_claimed` per-action tag is gone.
+- **`_fakeout_mult` side-channel removed.**  `ctx.fake_out[slot]` holds the
+  fact (fresh FO user + non-FO partner threatens ≥30%, computed in the same
+  incoming-threat loop); the FakeOutAdjuster derives the partner's multiplier
+  from the action itself (Protect ×3 / move ×0.5).  Actions no longer carry
+  hidden mutable tags.
+- **ThreatElimination's doom gate is now a ×0.2 cancelling row** (×5 × 0.2 =
+  ×1.0) — code matches the doc's two-row form; no early-return gate.
+- **Dead code removed:** `build_combatants` / `estimate_turn_order` /
+  `TurnEntry` in `turn_order.py` (never called by the bot; `build_combatants`
+  was a mega-unaware duplicate of `_our_combatant`), plus their tests.
+
+## 0.7.1 — 2026-06-10
+
+### More discrete decision rules
+
+Two follow-up refactors to make individual rules cleaner and less
+conditional-branchy.  Both are behaviour-preserving.
+
+- **IncomingOHKO 1v1/2v1 suppression → two discrete ×0.4 rows.**  Instead of an
+  early-return that skips the ×2.5 Protect boost in a 1v1 endgame or a 2v1
+  numerical advantage, the module now always applies ×2.5 and then multiplies
+  Protect by ×0.4 for each of those board states (they're mutually exclusive, so
+  the net is ×1.0 — the old suppressed value).  Behaviour-preserving; turn-1 is
+  always 2v2 so the table is unaffected.
+- **TurnOrder doc fix (no code change).**  The position is our *rank* in the
+  4-mon turn order (pos 1 = we act before all three other active mons), not "the
+  number of foes we outspeed".
+
+(An earlier attempt also folded the TR/TW *urgency* boost into denial; that was
+reverted — urgency wasn't redundant, it's the weight that keeps attacking ahead
+of a passive double-Protect on a setter lead.  TR/TW disruption keeps its
+separate urgency (×2 / ×1.5 on all attacks) and denial (×2 / ×1.5 on the
+setter-kill).)
+
+## 0.7.0 — 2026-06-09
+
+### Phase-2 refactor — `(move, target)` actions + joint `coordinate()`
+
+The engine moves from **greedy-sequential + a `recoordinate` patch** to a clean
+two-phase design: per-slot scoring of first-class `(move, target)` candidates,
+then a single joint selection over candidate *pairs*.  This is the control-object
+work's Stage 2 (Stage 1 was `TurnContext` in 0.6.10).  **Behaviour changes** (it
+is not a behaviour-preserving refactor): the turn-1 table and decision-module
+tests were regenerated against the new engine and re-validated.
+
+- **`(move, target)` actions.** `_build_actions` now emits one candidate per live
+  opponent for every single-target move, with `target_slot` fixed at build time.
+  Targeting is part of an action's identity instead of a field modules pick and
+  overwrite.  DamageOutput / ThreatElimination / the TR-TW denial / OppProtectRecency
+  now score a candidate's *own* target — the `target_hp_fractions` redirect cache
+  is gone, and so are all in-module target overwrites.
+- **Two phases.** Phase 1 is 12 per-slot modules run in isolation (blind to the
+  partner).  Phase 2 is `DecisionEngine.coordinate`, which picks the pair
+  maximising `(w0·factor_a)·(w1·factor_b)` over both slots' candidates.  With the
+  joint factors inert this is exactly each slot's independent best, so coordination
+  only moves a choice when a real cross-slot effect makes another pair better.
+- **`JointAdjuster`s replace the cross-slot modules + `recoordinate`.** Four pure
+  pair-scorers are the *only* place cross-slot effects live:
+  - **Doubling** — both attack the same target → ×0.40–0.70; if one slot already
+    confirms the OHKO, a ×0.05 overkill near-veto on the *non-killer*, so the pair
+    that **spreads** onto the survivor wins (the old explicit "redirect", now
+    emergent from argmax).
+  - **Coordination** — a gratuitous lone Protect beside an attacking partner →
+    ×0.5 (favour double-attack); justified/double Protects untouched.
+  - **FakeOut (free)** — when the lower slot attacks (absorbs the Fake Out), the
+    partner's phase-1 Fake-Out multiplier is divided back out.  Replaces the old
+    scoring-order "slot-1 exemption".
+  - **SwitchCollision** — both slots switching to the same bench mon → ×0.
+  The chosen pair's per-slot factors are baked into the final weights, so a
+  decision's weight reflects the joint effects (logs/recorder stay meaningful).
+- **No more order-induced blind spot.** Slot 0 is never committed before slot 1 is
+  seen, so `recoordinate` (and `needs_overkill_recoordination` /
+  `needs_decoordination_repair` / `_committed_is_confirmed_ohko`) are deleted;
+  `main.py` runs phase-1 score-all → `coordinate` → record/mega/emit.
+- **Notable behaviour shift:** with a Fake Out lead *and* a removable fast threat
+  (e.g. Incineroar + opposing Aerodactyl), the joint pass can now prefer the safe
+  **double-Protect** — it weighs that the remover itself might be Fake-Out-flinched.
+  Both that line and the old attack line are sound; the "neutralized threat → don't
+  over-protect" principle is still guarded (now via a non-Fake-Out board in
+  `test_neutralized_threat_does_not_force_protect` and the unit test on
+  `_opp_neutralized_before_acting`).
+- Tests: 622.  `TestDoublingUpModule`/`TestCoordinationModule`/`TestRecoordinate`
+  → `TestDoublingAdjuster`/`TestCoordinationAdjuster`/`TestFakeOutAdjuster`/
+  `TestSwitchCollisionAdjuster`/`TestCoordinate`; turn-1 tables regenerated.
+
+## 0.6.10 — 2026-06-09
+
+### TurnContext — facts, not reason strings (control-object refactor, Stage 1)
+
+The kill/death logic had become *load-bearing on reason strings*: modules signalled
+"this is a confirmed kill" by appending a `threat_elimination:` reason and reading
+it back elsewhere (DoublingUp, the recoordinate overkill redirect), and the "will I
+die first?" withhold was an apply-then-cancel dance (`DeathBeforeActingModule` ×5
+then ÷5, removing the reason and reverting the KO-target). Reasons are meant to be
+*log output*, not a control channel — and apply-then-cancel is harder to read than a
+gate. **Behaviour is identical** (every turn-1 cell and decision-module test holds);
+this is a structural cleanup.
+
+- **New `TurnContext`** (`decision/modules.py`) — per-turn facts computed **once**:
+  `doomed[slot]` (KO'd before acting) and `ohko` (set of `(slot, move, opp_slot)`
+  guaranteed-OHKO triples). Built by `build_turn_context` (mirrors
+  ThreatElimination's exact damage call) and cached via `_ensure_turn_ctx(state)`
+  (keyed on `state.turn`; reused across both slots' scoring **and** the recoordinate
+  re-pass — board facts don't change within a turn).
+- **`DeathBeforeActingModule` removed** — its job is now a **gate** inside
+  ThreatEliminationModule: if `ctx.is_doomed(slot)` the ×5 is *never applied*
+  (vs the old add-then-undo). Same outcome — an undeliverable kill earns no credit.
+- **DoublingUp + the recoordinate overkill redirect** now read
+  `ctx.guarantees_ohko(...)` / `ctx.is_doomed(...)` instead of sniffing the partner's
+  reason string. New `_committed_is_confirmed_ohko(ctx, slot, action)` (engine.py)
+  centralises the "confirmed kill?" test, falling back to `weight ≥ 15.0` when no
+  ctx is present (direct unit tests).
+- Pipeline is now **14 modules** (was 15); the 0.6.9 atomic-question split of the
+  kill/death pair is preserved at the *question* level (ThreatElim still answers both
+  "can I kill?" and "will I die first?") without a second module. The TR/TW splits
+  are untouched.
+- Deliberately **deferred to a follow-up**: CoordinationModule's
+  `_protect_is_justified` still reads reason-string prefixes (migrating it would
+  re-derive three modules' firing conditions and risk drift). Left as-is for Stage 1.
+- Tests: 624 (−3 DeathBeforeActing apply/cancel tests removed; +2 TurnContext fact
+  tests; ThreatElim integration retargeted to the gate). Turn-1 summary unchanged.
+
+## 0.6.9 — 2026-06-08
+
+### One-mega-per-battle aware team selection
+
+A week of 0.6.8 play (1,606 games, 798–808 = **49.7%**, up from 0.6.7's 47.6%)
+confirmed the focus-fire fix held — overkill-doubling fell to **0.0%** of turns
+(from 9.7% in losses) with spread up to 93–95% — and surfaced the next lever in
+the win-rate-by-bring data:
+
+- Bringing **both** mega-stone holders (Aerodactyl + Venusaur) happened in
+  **511 / 1,606 games (32%)** and won only **44.8%**, versus **51.9%** with one
+  stone — a 7-point hole. Only one mega is allowed per battle, so the second
+  stone holder plays with a **dead item** at base stats.
+
+`select_team` valued every stone holder at its *mega* strength, over-bringing the
+pair. **Fix:** selection is now greedy and one-mega-aware — the first stone
+holder keeps mega value; any further stone holder is re-valued at its base form:
+base typing/ability **and** base stats (scaled by its own `base_BST / mega_BST`).
+The stat scaling is essential and generic — a mega whose typing is unchanged
+(e.g. Aerodactyl, a speed/power mega) wouldn't be demoted by type scoring alone.
+Keys off `member.mega_name` and the member's own stat sheet — **no species names**,
+so it survives a team change. This is the stat-aware mega-vs-base comparison
+backlogged as Task #5, applied at bring time.
+
+- Replayed over all 1,606 historical previews: double-stone brings drop
+  **31.8% → 4.6%**; the best stone is always kept at full mega value.
+- Tests: 613 (+4 team-preview): second stone demoted by type *or* by stats when
+  typing is unchanged; second stone still brought when its base form genuinely
+  beats the alternatives; lone stone unaffected.
+
+### Coordination re-pass — protect less, favour double-attack
+
+A deep dive on the 0.6.8 set found opponent setup is the biggest loss correlate
+(59.8% of losses vs 44.5% of wins involve a setup move) — largely a team gap (no
+disruption/speed-control), but it also exposed an engine bias: the bot reaches
+for Protect in spots where a coordinated **double-attack** is better. Turn-1 vs a
+Fake Out lead, attacking both slots won 54% vs 45% for protecting (38% for
+double-Protect). A first mechanistic theory (that Protect doesn't block Fake Out)
+was **wrong** — moves are simultaneous; Protect (+4) does block Fake Out (+3).
+The sound framing is coordination: a double-attack or a deliberate double-Protect
+is usually right; a *lone* Protect beside an attacking partner is the exception,
+correct only when that mon must genuinely shield.
+
+- **New `CoordinationModule` (#14)** — when a partner has committed to an attack,
+  a **gratuitous** Protect (no `incoming_ohko` / `protect:` / `field_condition`
+  reason — e.g. only a FakeOut nudge) is penalised ×0.5 so the slot attacks too.
+  *Justified* Protects (real OHKO incoming, partner-clears, TR/TW stall) are never
+  touched, and a double-Protect (no attacking partner) is never penalised.
+- **`recoordinate` gains a de-coordination repair** — slot 0 is scored before
+  slot 1, so its FakeOut-driven Protect is decided blind; once slot 1's attack is
+  known, slot 0 is re-scored and the module flips its gratuitous Protect to an
+  attack. Symmetric with the existing overkill redirect.
+- The FakeOut multipliers are deliberately **left unchanged** — over-protection
+  is addressed through coordination, not by re-tuning a discount on shaky data.
+- 7 turn-1 cells shift (all verified): a FakeOut-driven lone Protect → a real
+  attack (Rock Tomb / Stomping Tantrum / Ice Fang→Garchomp 4×). No justified
+  Protect was flipped.
+- Tests: 621 (+8): CoordinationModule (penalise/skip/no-op cases) and the
+  recoordinate de-coordination repair.
+
+### Decision pipeline — atomic-question refactor (no behaviour change)
+
+Two compound modules were split so each answers a single question and the weight
+tables in `DECISION_ARCHITECTURE.md` read cleanly. **Behaviour is identical** —
+every turn-1 cell and decision-module test is unchanged (the splits only multiply
+the same factors in a new order, which commutes).
+
+- **ThreatEliminationModule** is now *pure* — "can I guarantee a kill?" (×5). The
+  "withhold if KO'd before acting" half moved into a new **DeathBeforeActingModule**
+  ("will I die before I act?") that cancels the kill credit (÷5, reverts the
+  KO-target override) when undeliverable.
+- **SetterPresenceModule + FieldSetterDisruptionModule** → **TrickRoomDisruptionModule**
+  + **TailwindDisruptionModule**, each answering its setter's present? / active?
+  (urgency) / deniable? (denial) in order. TR keeps priority over TW for the single
+  urgency boost and the per-action denial (via a `_denial_claimed` flag).
+- Pipeline is now 15 modules; the generic weight table is 19 atomic rows. Tests: 625.
+
+## 0.6.8 — 2026-05-30
+
+### Focus-fire coordination re-pass (endgame attrition)
+
+A full-folder review of the 189 0.6.7 games (90W–99L, 48%) found switching is
+**well-calibrated** — when the bot switches the switch-in survives 97% of the
+time, and ~90% of stays on an OHKO-threatened mon are correct; only 17/2181
+(0.8%) decisions are genuine switch-misses, most of them defensible damage
+trades. So switching was **not** re-tuned (a blunt buff would regress the
+correct stays). Losses are close grinds (avg 6.8 turns vs 5.4 for wins, fought
+down to the last mon), so the lever is the back-half exchanges, not the lead.
+
+The real, quantified flaw was **overkill doubling**: 9.7% of loss turns (vs 6.8%
+of win turns) had both actives attack the same opponent while one already
+guaranteed its OHKO — and in 20 loss-turns the *second* attacker dumped a strong
+hit (up to 413%) into the dying target while a 30–98% option on the surviving
+opponent sat unused. Root cause: **slot 0 is scored before slot 1, so it commits
+its best attack without knowing slot 1 will OHKO that target.** `DoublingUpModule`
+only redirects the *later* slot off an *earlier* slot's kill, never the reverse.
+
+- **`DecisionEngine.recoordinate()`** — after every active slot has a committed
+  decision, any slot whose move doubles a target a *different* slot will
+  confirm-OHKO is re-scored with the partner's decision visible, so the existing
+  (order-agnostic) DoublingUp redirect sends its otherwise-wasted action at the
+  surviving opponent. Gated on a confirmed kill (ThreatElimination fired, or
+  weight ≥ 15) and a second live opponent to redirect onto — no module changes.
+- **`main.py`** normal-turn loop is now three phases: decide all slots → run the
+  coordination re-pass → record/mega/emit. The recorder logs the *final*
+  (post-redirect) decision, so future battle data shows the redirect.
+- Verified against the real battle `2621134956` t2 (Venusaur Giga Drain into a
+  Basculegion that Kingambit OHKO'd): the re-pass now sends Venusaur's Sludge
+  Bomb at the untouched Talonflame instead.
+- `turn1_summary.md` and its test ground truth (`test_turn1_decisions.py`) now
+  run the re-pass too, so they reflect actual in-game behaviour. Four turn-1
+  cells changed, all replacing a wasted overkill attack: Aero+Venusaur *(mega
+  Venusaur)* vs Whimsicott+Garchomp → **Ice Fang→Garchomp** (4×); vs
+  Incineroar+Whimsicott → **Protect**; vs Whimsicott+Kingambit → **Switch
+  Sneasler**; Aero+Sneasler *(mega Aero)* vs Weavile+Garchomp → **Protect**.
+
+### Target visibility in logs
+
+Both logs now show *who* each slot is attacking instead of leaving it to be
+inferred from a numeric target slot:
+
+- **`bot.log`** decision lines read `[A]  Kowtow Cleave -> Basculegion  x10.45 …`
+  (target_slot resolved to the opponent species; omitted for Protect/switch).
+- **Battle-data JSON** now names targets two ways: a decision-level **`ct`**
+  (the chosen action's target species) and a per-action **`tg`** on every
+  candidate in `acts` (each option's target species). Both resolve `ts` against
+  the turn's `opp` list and are omitted when there's no opponent target. The
+  numeric per-action `ts` is unchanged, so existing analysis keeps working.
+
+Tests: 609 (+16).
+
 ## 0.6.7 — 2026-05-29
 
 ### Battle-feedback fixes (from the 0.6.6 review)

@@ -80,6 +80,23 @@ class TestCompactAction:
         d = _compact_action(self._make(target_slot=None))
         assert "ts" not in d
 
+    def test_target_species_resolved_when_opp_list_given(self):
+        d = _compact_action(self._make(target_slot=1),
+                            opp_species=["Garchomp", "Incineroar"])
+        assert d["ts"] == 1
+        assert d["tg"] == "Incineroar"
+
+    def test_target_species_omitted_without_opp_list(self):
+        d = _compact_action(self._make(target_slot=0))
+        assert d["ts"] == 0
+        assert "tg" not in d
+
+    def test_target_species_omitted_when_slot_has_no_opp(self):
+        # opp slot 1 fainted/empty -> no species to resolve
+        d = _compact_action(self._make(target_slot=1),
+                            opp_species=["Garchomp", None])
+        assert "tg" not in d
+
     def test_switch_target_included_when_set(self):
         a = Action(label="Switch Sylveon", move_name="", switch_target="Sylveon",
                    weight=2.0)
@@ -193,6 +210,59 @@ def _make_actions():
     ]
 
 
+class TestDataGapsInLog:
+    """The optional top-level "data_gaps" field: present only when a data
+    lookup failed during the battle, absent on a clean battle."""
+
+    def test_gaps_written_when_lookup_failed(self):
+        from data import note_gap
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                rec = BattleRecorder("battle-gaps-test", "0.7.6")  # init clears
+                note_gap("types", "Fakemon-Forme")
+                state = _make_mock_state(turn=1)
+                rec.record_decision(state, slot=0, ranked_actions=_make_actions())
+                rec.record_outcome(won=True)
+
+                path = os.path.join(tmpdir, "Battle Data", "0.7.6",
+                                    "battle-gaps-test.json")
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                assert data["data_gaps"] == ["types:Fakemon-Forme"]
+
+    def test_no_gaps_key_on_clean_battle(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                rec = BattleRecorder("battle-clean-test", "0.7.6")
+                state = _make_mock_state(turn=1)
+                rec.record_decision(state, slot=0, ranked_actions=_make_actions())
+                rec.record_outcome(won=True)
+
+                path = os.path.join(tmpdir, "Battle Data", "0.7.6",
+                                    "battle-clean-test.json")
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                assert "data_gaps" not in data
+
+    def test_init_discards_stale_gaps_from_previous_battle(self):
+        from data import note_gap
+
+        note_gap("stats", "Stale-Leftover")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                rec = BattleRecorder("battle-stale-test", "0.7.6")  # clears it
+                state = _make_mock_state(turn=1)
+                rec.record_decision(state, slot=0, ranked_actions=_make_actions())
+                rec.record_outcome(won=True)
+
+                path = os.path.join(tmpdir, "Battle Data", "0.7.6",
+                                    "battle-stale-test.json")
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                assert "data_gaps" not in data
+
+
 class TestBattleRecorder:
     def test_save_creates_json_file(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -243,6 +313,49 @@ class TestBattleRecorder:
                 assert "dec" in turn
                 assert "my" in turn
                 assert "opp" in turn
+
+    def test_chosen_target_species_recorded_as_ct(self):
+        """dec.ct resolves the chosen action's target_slot to the opp species."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                rec = BattleRecorder("battle-ct-test", "0.3.5")
+                state = _make_mock_state(turn=1)
+                # _make_actions()[0] (Salt Cure, w=8.5) is chosen, target_slot=0,
+                # and opp slot 0 is Garchomp.
+                rec.record_decision(state, slot=0, ranked_actions=_make_actions())
+                rec.record_outcome(won=True)
+
+                path = os.path.join(tmpdir, "Battle Data", "0.3.5",
+                                    "battle-ct-test.json")
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+
+                dec = data["turns"][0]["dec"][0]
+                assert dec["ct"] == "Garchomp"
+
+    def test_ct_omitted_when_chosen_action_has_no_target(self):
+        """A chosen Protect / switch (target_slot=None) records no ct field."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                rec = BattleRecorder("battle-ct-none-test", "0.3.5")
+                state = _make_mock_state(turn=1)
+                # Highest-weight action has no target_slot.
+                actions = [
+                    Action(label="Protect", move_name="Protect", weight=9.0),
+                    Action(label="Salt Cure", move_name="Salt Cure", weight=3.0,
+                           target_slot=0),
+                ]
+                rec.record_decision(state, slot=0, ranked_actions=actions)
+                rec.record_outcome(won=True)
+
+                path = os.path.join(tmpdir, "Battle Data", "0.3.5",
+                                    "battle-ct-none-test.json")
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+
+                dec = data["turns"][0]["dec"][0]
+                assert dec["ch"] == "Protect"
+                assert "ct" not in dec
 
     def test_decision_uses_abbreviated_action_keys(self):
         """v2 format uses lb/w not label/weight."""

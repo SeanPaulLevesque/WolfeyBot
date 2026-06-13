@@ -17,6 +17,7 @@ Adding a module::
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 
 from data import (
@@ -24,14 +25,19 @@ from data import (
     get_species as _get_species,
     WEATHER_SPEED_ABILITIES as _WEATHER_SPEED_ABILITIES,
     ability_distribution as _ability_distribution,
+    item_distribution as _item_distribution,
+    assumed_forme as _assumed_forme,
+    mega_stones as _mega_stones,
+    note_gap as _note_gap,
 )
 from team import find_member
 from damage import outgoing_damage, incoming_damage, type_effectiveness
 from turn_order import Combatant, will_outspeed
 
 from decision.engine import (
-    Action, ScoringModule, DecisionEngine,
+    Action, ScoringModule, JointAdjuster, DecisionEngine,
     _PROTECT_MOVES, _FAKE_OUT_USERS,
+    _protect_is_justified, _is_attack,
 )
 
 if TYPE_CHECKING:
@@ -98,7 +104,7 @@ def _opp_combatant(state: "BattleState", opp_slot: int) -> Optional[Combatant]:
                     inferred_ability = ab
                     break
     return Combatant(
-        name=mon.species, side="opp", slot=opp_slot,
+        name=_assumed_species(mon), side="opp", slot=opp_slot,
         exact_speed=None,
         item=mon.item, ability=inferred_ability,
         speed_stage=mon.boosts.get("spe", 0),
@@ -174,7 +180,53 @@ def _assumed_ability(species: str) -> Optional[str]:
     Returns None when the species has no usage data (e.g. obscure/illegal mon).
     """
     dist = _ability_distribution(species)
-    return dist[0][0] if dist else None
+    if not dist:
+        # No usage sets at all — ability/item/spread inference is flying blind
+        # for this species; flag it in the battle log.
+        _note_gap("sets", species)
+        return None
+    return dist[0][0]
+
+
+_ASSUMED_ITEM_MIN_PCT = 40.0  # only assume an item this common
+
+
+def _assumed_item(species: str) -> Optional[str]:
+    """Highest-usage item for *species* if its usage ≥ threshold, else None."""
+    dist = _item_distribution(species)
+    if dist and dist[0][1] >= _ASSUMED_ITEM_MIN_PCT:
+        return dist[0][0]
+    return None
+
+
+def _assumed_species(mon: "Pokemon") -> str:
+    """Forme to assume for *mon* in all damage / data inference.
+
+    Revealed mega (``|detailschange|`` already rewrote ``mon.species``) wins.
+    A revealed non-stone item means it cannot mega → base forme.  Otherwise
+    the population-weighted likely forme (``assumed_forme``) — the usage data
+    files megas as separate entries, so a pre-mega "Charizard" is 99% likely
+    a stone holder and should be modelled as Charizard-Mega-Y.
+
+    (``item_consumed`` needs no special case: a consumed item leaves
+    ``mon.item is None``, and a mon that popped a berry/Sash was never a
+    stone holder — its forme assumption simply stays population-weighted,
+    an acceptable approximation.)
+    """
+    if "-Mega" in mon.species:
+        return mon.species
+    if mon.item and mon.item not in _mega_stones():
+        return mon.species
+    return _assumed_forme(mon.species)
+
+
+def _effective_item(mon: "Pokemon") -> Optional[str]:
+    """Item to assume for *mon*: revealed > consumed(None) > usage-stats guess."""
+    if mon.item:
+        return mon.item
+    if mon.item_consumed:          # Sash popped / berry eaten / Knocked Off
+        return None
+    return _assumed_item(_assumed_species(mon))
 
 
 def _effective_ability(mon: "Pokemon") -> Optional[str]:
@@ -182,14 +234,14 @@ def _effective_ability(mon: "Pokemon") -> Optional[str]:
 
     If the ability has been revealed in battle (``mon.ability is not None``),
     return it directly.  Otherwise fall back to the highest-usage-rate ability
-    from the Champions sets data so that modules make informed decisions even
-    before the ability is explicitly confirmed.
+    of the *assumed forme* (mega-holders are assumed pre-mega, so an
+    unrevealed Charizard is assumed Drought, not Solar Power).
 
     Returns None only for species not present in the usage data.
     """
     if mon.ability is not None:
         return mon.ability
-    return _assumed_ability(mon.species)
+    return _assumed_ability(_assumed_species(mon))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -230,56 +282,48 @@ class DamageOutputModule(ScoringModule):
 
         ally_faints = sum(1 for p in state.my_team if p.fainted)
 
+        def _frac(move_name: str, opp_slot: int) -> float:
+            """Average damage fraction of *move_name* against opponent *opp_slot*."""
+            opp = (state.opp_actives[opp_slot]
+                   if 0 <= opp_slot < len(state.opp_actives) else None)
+            if opp is None or opp.fainted:
+                return 0.0
+            # Pass the observed current HP so KO thresholds use actual HP, not the
+            # typical-spread max HP estimate.  Skip the override when HP is a
+            # percentage (opp.hp would then be e.g. 60 meaning "60%", not absolute).
+            cur_hp = (opp.hp if (not opp.hp_is_percentage and opp.hp > 0) else None)
+            results = outgoing_damage(
+                our_species=mon.species, our_stats=stats, our_moves=[move_name],
+                opp_species=_assumed_species(opp), our_ability=tm.ability, our_item=tm.item,
+                opp_ability=_effective_ability(opp) or "", opp_item=_effective_item(opp),
+                weather=state.weather, ally_faint_count=ally_faints, opp_current_hp=cur_hp,
+                opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
+                opp_screens=getattr(state, "opp_screens", None),
+                attacker_boosts=mon.boosts, defender_boosts=opp.boosts,
+            )
+            return results[0].hp_fraction_avg if results else 0.0
+
+        live = [i for i, o in enumerate(state.opp_actives)
+                if o is not None and not o.fainted]
+
         for action in actions:
             if not action.is_move:
                 continue
+            ts = action.target_slot
+            if ts is not None:
+                # Fixed-target candidate — score against its own target only.
+                fraction = _frac(action.move_name, ts)
+            else:
+                # Spread / status move (no chosen target): credit the best foe it
+                # could hit (0% for a status move that deals no damage).
+                fraction = max((_frac(action.move_name, i) for i in live), default=0.0)
 
-            best_fraction = 0.0
-            best_opp_slot: Optional[int] = None
-
-            for opp_slot, opp in enumerate(state.opp_actives):
-                if opp is None or opp.fainted:
-                    continue
-                # Pass the observed current HP so KO thresholds use actual HP,
-                # not the typical-spread max HP estimate.  Skip the override when
-                # HP is stored as a percentage (hp_is_percentage=True) because
-                # opp.hp would then be e.g. 60 meaning "60%", not 60 absolute HP.
-                cur_hp = (opp.hp
-                          if (not opp.hp_is_percentage and opp.hp > 0)
-                          else None)
-                results = outgoing_damage(
-                    our_species=mon.species,
-                    our_stats=stats,
-                    our_moves=[action.move_name],
-                    opp_species=opp.species,
-                    our_ability=tm.ability,
-                    our_item=tm.item,
-                    opp_ability=_effective_ability(opp) or "",
-                    opp_item=opp.item,
-                    weather=state.weather,
-                    ally_faint_count=ally_faints,
-                    opp_current_hp=cur_hp,
-                    opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
-                    opp_screens=getattr(state, "opp_screens", None),
-                    attacker_boosts=mon.boosts,
-                    defender_boosts=opp.boosts,
-                )
-                if results:
-                    frac_avg = results[0].hp_fraction_avg
-                    frac_min = results[0].hp_fraction_min
-                    action.target_hp_fractions[opp_slot] = (frac_avg, frac_min)
-                    if frac_avg > best_fraction:
-                        best_fraction = frac_avg
-                        best_opp_slot = opp_slot
-
-            if best_fraction > 0:
-                factor = 1.0 + best_fraction * 2.0
+            if fraction > 0:
+                factor = 1.0 + fraction * 2.0
                 action.weight *= factor
                 action.reasons.append(
-                    f"{self.name}: {best_fraction:.0%} HP -> x{factor:.2f}"
+                    f"{self.name}: {fraction:.0%} HP -> x{factor:.2f}"
                 )
-                if best_opp_slot is not None:
-                    action.target_slot = best_opp_slot
 
 
 class ThreatEliminationModule(ScoringModule):
@@ -294,175 +338,132 @@ class ThreatEliminationModule(ScoringModule):
     signals (max-roll OHKO, 2HKO) are intentionally excluded — damage
     output alone already rewards high-damage moves via DamageOutputModule.
 
-    **Offensive speed gate:** the bonus is withheld entirely when this slot will
-    be KO'd before it can act (a faster opponent OHKOs us first — see
-    :func:`_ko_before_acting`).  A "guaranteed" kill we never live to deliver is
-    not guaranteed, and crediting it makes a doomed attack out-score Protect /
-    switching.  This is the offensive mirror of the defensive
-    :func:`_opp_neutralized_before_acting` check.
+    Two rows, both answered from the precomputed :class:`TurnContext`:
+
+    * *"Can I guarantee a kill?"* — any move that ``ctx`` flags as a guaranteed
+      OHKO on its target gets ×5.0.
+    * *"Will I die before I act?"* — if ``ctx.is_doomed(slot)`` (a faster/priority
+      opponent min-roll-OHKOs us first, not removed before it acts) the kill is
+      undeliverable: the same candidate gets ×0.2, cancelling the credit
+      (5.0 × 0.2 = 1.0).  Non-kill attacks are untouched.
     """
 
     name = "threat_elimination"
 
     GUARANTEED_OHKO = 5.0
+    DOOMED_CANCEL   = 0.2   # cancels the kill credit (5.0 × 0.2 = 1.0)
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         mon = state.my_actives[slot] if slot < len(state.my_actives) else None
         if mon is None:
             return
-        tm = find_member(mon.species)
-        stats = _our_stats(state, slot)
-        if tm is None or stats is None:
-            return
-
         if not any(o is not None for o in state.opp_actives):
             return
 
-        # If we are KO'd before we can act, no kill we line up is deliverable —
-        # withhold the guaranteed-OHKO bonus so a wasted attack stops out-scoring
-        # Protect / switching.
-        if _ko_before_acting(state, slot):
-            return
+        ctx = _ensure_turn_ctx(state)
+        doomed = ctx.is_doomed(slot)
 
-        ally_faints = sum(1 for p in state.my_team if p.fainted)
+        live = [i for i, o in enumerate(state.opp_actives)
+                if o is not None and not o.fainted]
 
         for action in actions:
             if not action.is_move:
                 continue
-
-            best_factor = 1.0
-            best_reason = ""
-            best_opp_slot: Optional[int] = None
-
-            for opp_slot, opp in enumerate(state.opp_actives):
+            # A fixed-target candidate checks only its own target; a spread/status
+            # move (target_slot=None) counts if it OHKOs any live foe.
+            targets = [action.target_slot] if action.target_slot is not None else live
+            for opp_slot in targets:
+                opp = (state.opp_actives[opp_slot]
+                       if 0 <= opp_slot < len(state.opp_actives) else None)
                 if opp is None or opp.fainted:
                     continue
-                cur_hp = (opp.hp
-                          if (not opp.hp_is_percentage and opp.hp > 0)
-                          else None)
-                results = outgoing_damage(
-                    our_species=mon.species,
-                    our_stats=stats,
-                    our_moves=[action.move_name],
-                    opp_species=opp.species,
-                    our_ability=tm.ability,
-                    our_item=tm.item,
-                    opp_ability=_effective_ability(opp) or "",
-                    opp_item=opp.item,
-                    weather=state.weather,
-                    ally_faint_count=ally_faints,
-                    opp_current_hp=cur_hp,
-                    opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
-                    opp_screens=getattr(state, "opp_screens", None),
-                    attacker_boosts=mon.boosts,
-                    defender_boosts=opp.boosts,
-                )
-                if not results:
-                    continue
-                r = results[0]
-
-                if r.is_ohko and self.GUARANTEED_OHKO > best_factor:
-                    best_factor = self.GUARANTEED_OHKO
-                    best_reason = f"guaranteed OHKO on {opp.species}"
-                    best_opp_slot = opp_slot
-
-            if best_factor > 1.0:
-                action.weight *= best_factor
-                action.reasons.append(
-                    f"{self.name}: {best_reason} -> x{best_factor}"
-                )
-                if best_opp_slot is not None:
-                    # KO target takes priority over the damage-output target
-                    action.target_slot = best_opp_slot
+                if ctx.guarantees_ohko(slot, action.move_name, opp_slot):
+                    action.weight *= self.GUARANTEED_OHKO
+                    action.reasons.append(
+                        f"{self.name}: guaranteed OHKO on {opp.species}"
+                        f" -> x{self.GUARANTEED_OHKO}"
+                    )
+                    if doomed:
+                        action.weight *= self.DOOMED_CANCEL
+                        action.reasons.append(
+                            f"{self.name}: KO'd before acting — undeliverable"
+                            f" kill -> x{self.DOOMED_CANCEL}"
+                        )
+                    break   # first guaranteed-OHKO target
 
 
-
-
-class IncomingOHKOModule(ScoringModule):
+class ProtectValueModule(ScoringModule):
     """
-    Boosts Protect-family moves when an opponent can one-hit KO this slot.
+    Scores Protect-family moves when a connecting OHKO threat is present.
 
-    "Can they knock me out this turn?"
+    Four multiplicative rows, applied only when `ctx.is_threatened(slot)`:
 
-    When any active opponent's **maximum** damage roll exceeds our current HP,
-    Protect-family moves gain ×2.5.  Protecting guarantees survival for this
-    turn while the partner continues to act freely.
+    1. ×2.5 — a connecting OHKO exists (basic incoming-threat boost).
+       reason: ``"incoming_ohko: OHKO threat -> x2.5"``
+    2. ×3.0 — a live partner can guarantee an OHKO on one of the threats
+       (Protecting resolves the board: we survive while the partner removes
+       a threat this same turn).
+       reason: ``"protect: unavoidable OHKO incoming + partner clears a threat -> x3.0"``
+    3. ×0.4 — 1v1 endgame (cancels the ×2.5; Protect only delays).
+    4. ×0.4 — 2v1 numerical advantage (cancels the ×2.5; Protecting can't
+       improve the outcome).  Rows 3 and 4 are mutually exclusive.
 
-    Suppressed (no boost) when Protect cannot improve the outcome:
-    * 1v1 endgame — our last mon vs their last mon; Protect only delays.
-    * Numerical advantage (2v1) — Protecting cannot improve either outcome.
+    The two reason prefixes (``"incoming_ohko:"`` and ``"protect:"``) are
+    consumed by ``_protect_is_justified`` in the phase-2 CoordinationAdjuster
+    to distinguish justified Protects from gratuitous ones — keep them exact.
     """
 
-    name = "incoming_ohko"
+    name = "protect"
 
-    THREATENED_FACTOR = 2.5
+    THREATENED_FACTOR    = 2.5
+    PARTNER_KO_FACTOR    = 3.0
+    ENDGAME_1V1_FACTOR   = 0.4
+    ADVANTAGE_2V1_FACTOR = 0.4
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
-        mon = state.my_actives[slot] if slot < len(state.my_actives) else None
-        if mon is None:
-            return
-        tm    = find_member(mon.species)
-        stats = _our_stats(state, slot)
-        if tm is None or stats is None:
+        ctx = _ensure_turn_ctx(state)
+        if not ctx.is_threatened(slot):
             return
 
-        # Suppress in 1v1 endgame and 2v1 — Protect can't help.
-        bench_alive   = len(state.available_switches)
-        partner_alive = any(
-            p is not None and not p.fainted
-            for i, p in enumerate(state.my_actives)
-            if i != slot
-        )
-        our_active_count = sum(
-            1 for p in state.my_actives if p is not None and not p.fainted
-        )
-        active_opp_count = sum(
-            1 for o in state.opp_actives if o is not None and not o.fainted
-        )
-        is_1v1_endgame      = (bench_alive == 0 and not partner_alive and active_opp_count == 1)
-        numerical_advantage = (our_active_count > active_opp_count > 0)
-        if is_1v1_endgame or numerical_advantage:
-            return
+        is_1v1_endgame      = ctx.is_1v1_endgame(slot)
+        numerical_advantage = ctx.has_numerical_advantage()
 
-        # Check if any opponent can OHKO us on their max damage roll AND will
-        # survive to land that hit.  Speed awareness: an attacker that a faster
-        # ally is guaranteed to OHKO this turn dies before it can act, so it is
-        # not a real OHKO threat and should not push us toward Protect.
-        at_full    = (mon.hp >= mon.max_hp) or (mon.hp_is_percentage and mon.hp >= 99)
-        threatened = False
-        for opp_slot, opp in enumerate(state.opp_actives):
-            if opp is None or opp.fainted:
-                continue
-            threats = incoming_damage(
-                opp_species=opp.species,
-                our_species=mon.species,
-                our_stats=stats,
-                opp_ability=_effective_ability(opp) or "",
-                opp_item=opp.item,
-                our_ability=_our_ability_for_damage(tm, mon, state.designated_mega),
-                our_item=tm.item,
-                weather=state.weather,
-                our_defender_is_full_hp=at_full,
-                opp_boosts=opp.boosts,
-                our_boosts=mon.boosts,
-            )
-            if not any(t.ohko_with_max_roll for t in threats):
-                continue
-            if _opp_neutralized_before_acting(state, opp_slot, opp):
-                continue  # dies before acting → not a live OHKO threat this turn
-            threatened = True
-            break
-
-        if not threatened:
-            return
+        ohko_threats = [(os, state.opp_actives[os]) for os in ctx.ohko_threats(slot)]
+        partner_slots = [
+            i for i, p in enumerate(state.my_actives)
+            if i != slot and p is not None and not p.fainted
+        ]
+        partner_clears = bool(ohko_threats) and any(
+            _partner_can_ohko(state, ps, opp)
+            for ps in partner_slots
+            for (_, opp) in ohko_threats
+        )
 
         for action in actions:
             if action.move_name not in _PROTECT_MOVES:
                 continue
             action.weight *= self.THREATENED_FACTOR
             action.reasons.append(
-                f"{self.name}: OHKO threat -> x{self.THREATENED_FACTOR}"
+                f"incoming_ohko: OHKO threat -> x{self.THREATENED_FACTOR}"
             )
+            if partner_clears:
+                action.weight *= self.PARTNER_KO_FACTOR
+                action.reasons.append(
+                    f"protect: unavoidable OHKO incoming + partner clears a threat"
+                    f" -> x{self.PARTNER_KO_FACTOR}"
+                )
+            if is_1v1_endgame:
+                action.weight *= self.ENDGAME_1V1_FACTOR
+                action.reasons.append(
+                    f"incoming_ohko: 1v1 endgame, Protect only delays"
+                    f" -> x{self.ENDGAME_1V1_FACTOR}"
+                )
+            if numerical_advantage:
+                action.weight *= self.ADVANTAGE_2V1_FACTOR
+                action.reasons.append(
+                    f"incoming_ohko: 2v1 advantage, Protect can't improve the outcome"
+                    f" -> x{self.ADVANTAGE_2V1_FACTOR}"
+                )
 
 
 class TurnOrderModule(ScoringModule):
@@ -566,65 +567,25 @@ def _partner_can_ohko(
     state: "BattleState",
     partner_slot: int,
     opp: "Pokemon",
+    ctx: Optional["TurnContext"] = None,
 ) -> bool:
     """Return True if any available partner move guarantees an OHKO on *opp*.
 
-    Used by :class:`ProtectModule` to verify that surviving via Protect
-    leads to the threat being eliminated this turn by the partner.
-    A move is skipped if it is flagged disabled in ``moves_per_slot`` or
-    listed in ``my_disabled_moves``.
+    A pure read of the :class:`TurnContext` OHKO matrix — the single damage
+    computation lives in :func:`build_turn_context`, so this always agrees with
+    ThreatEliminationModule and the setter-denial check.  *ctx* is passed
+    explicitly while the context is being built; otherwise the cached turn
+    context is used.
     """
-    partner = (
-        state.my_actives[partner_slot]
-        if partner_slot < len(state.my_actives) else None
+    ctx = ctx if ctx is not None else _ensure_turn_ctx(state)
+    opp_slot = next(
+        (i for i, o in enumerate(state.opp_actives) if o is opp), None
     )
-    if partner is None or partner.fainted:
+    if opp_slot is None:
         return False
-    partner_tm    = find_member(partner.species)
-    partner_stats = _our_stats(state, partner_slot)
-    if partner_tm is None or partner_stats is None:
-        return False
-    if partner_slot >= len(state.moves_per_slot):
-        return False
-
-    disabled_list = getattr(state, "my_disabled_moves", [])
-    disabled = (
-        disabled_list[partner_slot]
-        if partner_slot < len(disabled_list) else None
+    return any(
+        s == partner_slot and os == opp_slot for (s, _m, os) in ctx.ohko
     )
-    # For a percentage-HP opponent we do NOT know its true max HP (``max_hp`` is
-    # a placeholder, typically 100), so passing ``max_hp * pct / 100`` as an
-    # absolute current-HP value makes every move look like a guaranteed OHKO
-    # (e.g. a 97%-avg hit "OHKOs" a phantom 100-HP bar).  Mirror
-    # DamageOutputModule/ThreatEliminationModule: pass None and let the damage
-    # layer use typical-spread stats so KO detection matches the rest of the engine.
-    opp_hp = (opp.hp if (not opp.hp_is_percentage and opp.hp > 0) else None)
-    ally_faints = sum(1 for p in state.my_team if p is not None and p.fainted)
-
-    for move in state.moves_per_slot[partner_slot]:
-        move_name = move.get("move", "")
-        if not move_name or move.get("disabled"):
-            continue
-        if disabled and move_name == disabled:
-            continue
-        results = outgoing_damage(
-            our_species=partner.species,
-            our_stats=partner_stats,
-            our_moves=[move_name],
-            our_ability=partner_tm.ability or "",
-            our_item=partner_tm.item,
-            opp_species=opp.species,
-            opp_ability=_effective_ability(opp) or "",
-            opp_item=opp.item,
-            weather=state.weather,
-            ally_faint_count=ally_faints,
-            opp_current_hp=opp_hp,
-            attacker_boosts=partner.boosts,
-            defender_boosts=opp.boosts,
-        )
-        if results and results[0].is_ohko:
-            return True
-    return False
 
 
 def _opp_has_attacking_priority(opp: "Pokemon") -> bool:
@@ -652,20 +613,27 @@ def _opp_neutralized_before_acting(
     state: "BattleState",
     opp_slot: int,
     opp: "Pokemon",
+    ctx: Optional["TurnContext"] = None,
 ) -> bool:
     """Return True if *opp* will be KO'd before it can act this turn.
 
     This holds when one of our active Pokémon both (a) outspeeds *opp* and
-    (b) has a move that guarantees an OHKO on it.  In that case *opp* faints
-    before landing its hit, so Protecting in order to survive that hit buys
-    nothing — we (or our partner) should simply attack.
+    (b) has a move that guarantees an OHKO on it (read from the
+    :class:`TurnContext` OHKO matrix).  In that case *opp* faints before
+    landing its hit, so Protecting in order to survive that hit buys nothing —
+    we (or our partner) should simply attack.
 
     Exception — **priority attackers** (see ``_opp_has_attacking_priority``):
     a Gale Wings Talonflame's Brave Bird strikes before our normal-priority KO
     move, so it gets its hit off even when we are faster.  Such an attacker is
     never treated as neutralised.  Other move-based priority (Prankster status,
     Fake Out, Sucker Punch, etc.) is still not modelled.
+
+    Without an explicit *ctx* this reads the cached per-turn fact; *ctx* is
+    passed explicitly only while :func:`build_turn_context` computes that fact.
     """
+    if ctx is None:
+        return _ensure_turn_ctx(state).neutralized.get(opp_slot, False)
     if _opp_has_attacking_priority(opp):
         return False
     opp_c = _opp_combatant(state, opp_slot)
@@ -679,35 +647,42 @@ def _opp_neutralized_before_acting(
             continue
         if will_outspeed(our_c, opp_c, trick_room=state.trick_room) <= 0.5:
             continue  # we don't move first → can't remove it before it acts
-        if _partner_can_ohko(state, our_slot, opp):
+        if _partner_can_ohko(state, our_slot, opp, ctx):
             return True
     return False
 
 
-def _ko_before_acting(state: "BattleState", slot: int) -> bool:
+def _ko_before_acting(
+    state: "BattleState", slot: int, ctx: Optional["TurnContext"] = None,
+) -> bool:
     """Return True if our slot will (very likely) be KO'd before it can act.
 
     Offensive mirror of :func:`_opp_neutralized_before_acting`: an active
     opponent (a) moves before us — it outspeeds us, or has move-based attacking
-    priority — (b) can OHKO us on its max roll, and (c) is *not* itself removed
-    before it acts (so a partner that kills the threat first cancels this).
+    priority — (b) **guarantees** an OHKO on us (min roll — if we might survive,
+    attacking for the kill is a legitimate gamble), and (c) is *not* itself
+    removed before it acts.  The damage fact comes from the
+    :class:`TurnContext` ``incoming_certain`` matrix.
 
     When this holds, any "guaranteed OHKO" we line up is not actually
     deliverable — we faint first — so ThreatEliminationModule must not credit
-    the kill.  Used to gate the ×5.0 KO bonus, the same way the defensive
-    modules gate their threat checks on whether a hit will connect.
+    the kill.
+
+    Without an explicit *ctx* this reads the cached per-turn fact; *ctx* is
+    passed explicitly only while :func:`build_turn_context` computes that fact.
     """
+    if ctx is None:
+        return _ensure_turn_ctx(state).is_doomed(slot)
     mon = state.my_actives[slot] if slot < len(state.my_actives) else None
     if mon is None:
         return False
-    tm    = find_member(mon.species)
-    stats = _our_stats(state, slot)
     our_c = _our_combatant(state, slot)
-    if tm is None or stats is None or our_c is None:
+    if our_c is None:
         return False
 
-    at_full = (mon.hp >= mon.max_hp) or (mon.hp_is_percentage and mon.hp >= 99)
-    for opp_slot, opp in enumerate(state.opp_actives):
+    for opp_slot in ctx.incoming_certain.get(slot, []):
+        opp = (state.opp_actives[opp_slot]
+               if opp_slot < len(state.opp_actives) else None)
         if opp is None or opp.fainted:
             continue
         opp_c = _opp_combatant(state, opp_slot)
@@ -722,151 +697,221 @@ def _ko_before_acting(state: "BattleState", slot: int) -> bool:
         if not moves_first:
             continue
         # If a faster ally removes this opponent first, it never lands its hit.
-        if _opp_neutralized_before_acting(state, opp_slot, opp):
+        if ctx.neutralized.get(opp_slot, False):
             continue
-        threats = incoming_damage(
-            opp_species=opp.species,
-            our_species=mon.species,
-            our_stats=stats,
-            opp_ability=_effective_ability(opp) or "",
-            opp_item=opp.item,
-            our_ability=_our_ability_for_damage(tm, mon, state.designated_mega),
-            our_item=tm.item,
-            weather=state.weather,
-            our_defender_is_full_hp=at_full,
-            opp_boosts=opp.boosts,
-            our_boosts=mon.boosts,
-        )
-        # Require a *guaranteed* OHKO (min roll), not just a max-roll one: only
-        # cancel our kill credit when we are certain to faint first.  If we might
-        # survive the roll, attacking for the kill is a legitimate gamble — this
-        # mirrors _opp_neutralized_before_acting requiring a guaranteed ally KO.
-        if any(t.is_ohko for t in threats):
-            return True
+        return True
     return False
 
 
-class ProtectModule(ScoringModule):
+# ── Turn context (precomputed facts) ──────────────────────────────────────────
+
+@dataclass
+class TurnContext:
+    """Board facts computed once per turn, so modules read *facts* instead of
+    re-deriving them or sniffing each other's reason strings.
+
+    * ``doomed[slot]`` — this slot will be KO'd before it can act
+      (:func:`_ko_before_acting`).  Gates the guaranteed-kill credit.
+    * ``ohko`` — set of ``(slot, move_name, opp_slot)`` triples that are a
+      *guaranteed* OHKO (every damage roll ≥ the target's HP).  The single source
+      of truth for "is this a confirmed kill?", read by ThreatEliminationModule,
+      the setter-denial check, :func:`_partner_can_ohko` and the
+      DoublingAdjuster.
+    * ``incoming_ohko[slot]`` — opponent slots whose **max** damage roll OHKOs
+      our *slot*.  Single source of truth for "can they kill me this turn?",
+      read by IncomingOHKOModule, ProtectModule, SwitchModule and the
+      DoublingAdjuster.
+    * ``incoming_certain[slot]`` — the stricter min-roll subset: opponents whose
+      *every* roll OHKOs us.  Feeds the doomed computation.
+    * ``neutralized[opp_slot]`` — that opponent is KO'd before it can act this
+      turn (:func:`_opp_neutralized_before_acting`), so its threats never land.
+    * ``fake_out[slot]`` — a fresh Fake Out user threatens the field *and* its
+      non-Fake-Out partner meaningfully threatens our *slot* — the condition
+      under which FakeOutModule adjusts that slot (and the FakeOutAdjuster
+      knows the multiplier it applied).
+    * ``bench_alive`` / ``alive_slots`` / ``opp_alive`` — board-state counts
+      behind the 1v1-endgame and 2v1-advantage rows.
     """
-    Boosts Protect when an unavoidable OHKO is coming in this turn AND a
-    partner clears one of the threats the same turn.
+    doomed: dict[int, bool] = field(default_factory=dict)
+    ohko:   set = field(default_factory=set)
+    incoming_ohko:    dict[int, list[int]] = field(default_factory=dict)
+    incoming_certain: dict[int, list[int]] = field(default_factory=dict)
+    neutralized:   dict[int, bool] = field(default_factory=dict)
+    fake_out:      dict[int, bool] = field(default_factory=dict)
+    fake_out_live: bool = False   # a fresh Fake Out user is on the field
+    bench_alive: int = 0
+    alive_slots: frozenset = frozenset()   # our active slots that are alive
+    opp_alive:   int = 0
 
-    "Will I get knocked out this turn anyway, and is Protecting worth it?"
+    def is_doomed(self, slot: int) -> bool:
+        return self.doomed.get(slot, False)
 
-    The ×3.0 boost fires only when ALL of the following hold:
+    def guarantees_ohko(self, slot: int, move_name: str, opp_slot: int) -> bool:
+        return (slot, move_name, opp_slot) in self.ohko
 
-    1. At least one active opponent can OHKO this slot on its max damage roll.
-    2. **Speed awareness** — at least one of those OHKO threats will actually
-       connect: it is NOT killed before it can act.  A threat that a faster
-       ally is guaranteed to OHKO this turn dies first, so Protecting to
-       survive *that* hit is pointless.  This covers both faster attackers and
-       slower attackers we cannot remove — either way the hit lands unless we
-       Protect.
-    3. A partner has a non-disabled move that guarantees an OHKO on one of the
-       OHKO threats, so Protecting resolves the board: we survive the
-       unavoidable hit and a threat falls the same turn, leaving us ahead and
-       free to act next turn.
+    def ohko_threats(self, slot: int) -> list[int]:
+        """Opponent slots whose max roll OHKOs *slot* (neutralized ones included)."""
+        return self.incoming_ohko.get(slot, [])
 
-    Condition 2's "killed before acting" test is mostly Speed-based, but a Gale
-    Wings Talonflame (priority Brave Bird at full HP) is treated as always
-    connecting — see ``_opp_has_attacking_priority``.  Other move-based priority
-    (Prankster status, Fake Out, Sucker Punch) is still not modelled.
+    def connecting_threats(self, slot: int) -> list[int]:
+        """The subset of :meth:`ohko_threats` not KO'd before they act."""
+        return [os for os in self.ohko_threats(slot)
+                if not self.neutralized.get(os, False)]
 
-    Suppressed (no boost) in 1v1 endgame (no partner) and 2v1 numerical
-    advantage (battle outcome is already decided this turn by the partner).
+    def is_threatened(self, slot: int) -> bool:
+        """True when at least one OHKO threat on *slot* actually connects."""
+        return bool(self.connecting_threats(slot))
+
+    def fake_out_fired(self, slot: int) -> bool:
+        """True when the Fake-Out adjustment applies to *slot* this turn.
+
+        A slot with no computed entry (unknown mon) falls back to "is a fresh
+        Fake Out user on the field at all" — conservative, like the partner-
+        threat check it feeds."""
+        return self.fake_out.get(slot, self.fake_out_live)
+
+    def is_1v1_endgame(self, slot: int) -> bool:
+        """Our last mon vs their last mon (no bench, no partner, one foe)."""
+        partner_alive = any(s != slot for s in self.alive_slots)
+        return self.bench_alive == 0 and not partner_alive and self.opp_alive == 1
+
+    def has_numerical_advantage(self) -> bool:
+        """We have strictly more live actives than the opponent (2v1)."""
+        return len(self.alive_slots) > self.opp_alive > 0
+
+
+def build_turn_context(state: "BattleState") -> TurnContext:
+    """Compute the per-turn fact context once — the **only** place the engine
+    runs damage calculations for yes/no facts.
+
+    Build order matters: the OHKO matrix first (pure damage), then
+    ``neutralized`` (matrix + speed), then the incoming-threat matrices (pure
+    damage), then ``doomed`` (incoming + neutralized + speed).  Each later fact
+    is computed by its public helper with this partially-built context passed
+    explicitly, so tests can still patch the helper functions as seams.
+
+    The OHKO matrix mirrors :class:`ThreatEliminationModule`'s damage call exactly
+    (same species/stats/ability/item/weather/boosts/screens/HP-percent), so the
+    fact and the kill credit it gates always agree.  Disabled moves are excluded
+    (matching ``_build_actions``), so a Disabled kill move never counts as a
+    partner-clear or a neutralizer.
     """
+    ctx = TurnContext()
+    ally_faints = sum(1 for p in state.my_team if p is not None and p.fainted)
 
-    name = "protect"
+    # ── Board-state counts (1v1 endgame / 2v1 advantage rows) ─────────────────
+    ctx.bench_alive = len(state.available_switches)
+    ctx.alive_slots = frozenset(
+        i for i, p in enumerate(state.my_actives)
+        if p is not None and not p.fainted
+    )
+    ctx.opp_alive = sum(
+        1 for o in state.opp_actives if o is not None and not o.fainted
+    )
 
-    PARTNER_KO_FACTOR = 3.0
+    disabled_list = getattr(state, "my_disabled_moves", [])
 
-    def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
-        mon = state.my_actives[slot] if slot < len(state.my_actives) else None
-        if mon is None:
-            return
+    # ── 1. Guaranteed-OHKO matrix (the one outgoing_damage fact loop) ─────────
+    for slot in ctx.alive_slots:
+        mon   = state.my_actives[slot]
         tm    = find_member(mon.species)
         stats = _our_stats(state, slot)
         if tm is None or stats is None:
-            return
+            # Our own mon missing from team data: the whole slot is skipped —
+            # no kill facts, no threat facts.  Flag it in the battle log.
+            _note_gap("team_member", mon.species)
+            continue
+        disabled = disabled_list[slot] if slot < len(disabled_list) else None
+        moves = [
+            md.get("move", "")
+            for md in (state.moves_per_slot[slot]
+                       if slot < len(state.moves_per_slot) else [])
+            if md.get("move") and not md.get("disabled", False)
+            and md.get("move", "") != disabled
+        ]
+        for move in moves:
+            for opp_slot, opp in enumerate(state.opp_actives):
+                if opp is None or opp.fainted:
+                    continue
+                cur_hp = (opp.hp if (not opp.hp_is_percentage and opp.hp > 0) else None)
+                opp_at_full = (opp.hp >= opp.max_hp) or (opp.hp_is_percentage and opp.hp >= 100)
+                results = outgoing_damage(
+                    our_species=mon.species, our_stats=stats, our_moves=[move],
+                    opp_species=_assumed_species(opp), our_ability=tm.ability, our_item=tm.item,
+                    opp_ability=_effective_ability(opp) or "", opp_item=_effective_item(opp),
+                    weather=state.weather, ally_faint_count=ally_faints, opp_current_hp=cur_hp,
+                    opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
+                    opp_is_full_hp=opp_at_full,
+                    opp_screens=getattr(state, "opp_screens", None),
+                    attacker_boosts=mon.boosts, defender_boosts=opp.boosts,
+                )
+                if results and results[0].is_ohko:
+                    ctx.ohko.add((slot, move, opp_slot))
 
-        # ── Suppress states ───────────────────────────────────────────────────
-        bench_alive   = len(state.available_switches)
-        partner_alive = any(
-            p is not None and not p.fainted
-            for i, p in enumerate(state.my_actives)
-            if i != slot
-        )
-        our_active_count = sum(
-            1 for p in state.my_actives if p is not None and not p.fainted
-        )
-        active_opp_count = sum(
-            1 for o in state.opp_actives if o is not None and not o.fainted
-        )
-        is_1v1_endgame      = (bench_alive == 0 and not partner_alive and active_opp_count == 1)
-        numerical_advantage = (our_active_count > active_opp_count > 0)
-        if is_1v1_endgame or numerical_advantage:
-            return
+    # ── 2. Opponents removed before they act (matrix + speed) ─────────────────
+    for opp_slot, opp in enumerate(state.opp_actives):
+        if opp is None or opp.fainted:
+            continue
+        ctx.neutralized[opp_slot] = _opp_neutralized_before_acting(
+            state, opp_slot, opp, ctx)
 
+    # ── 3. Incoming threats (the one incoming_damage fact loop) ───────────────
+    fo_live = _fake_out_threatened(state)
+    ctx.fake_out_live = fo_live
+    for slot in ctx.alive_slots:
+        mon   = state.my_actives[slot]
+        tm    = find_member(mon.species)
+        stats = _our_stats(state, slot)
+        ctx.fake_out[slot] = fo_live
+        if tm is None or stats is None:
+            _note_gap("team_member", mon.species)
+            continue
         at_full = (mon.hp >= mon.max_hp) or (mon.hp_is_percentage and mon.hp >= 99)
-
-        # ── Every opponent that can OHKO us this turn (max roll) ──────────────
-        ohko_threats: list[tuple[int, "Pokemon"]] = []
+        # Consumption-aware defender item: a popped Chople/Sitrus must not keep
+        # halving incoming damage in the facts.  Falls back to the team.txt item
+        # when the battle state hasn't tracked one (tests, fresh leads).
+        our_item = None if mon.item_consumed else (mon.item or tm.item)
+        max_roll_kills: list[int] = []
+        min_roll_kills: list[int] = []
         for opp_slot, opp in enumerate(state.opp_actives):
             if opp is None or opp.fainted:
                 continue
             threats = incoming_damage(
-                opp_species=opp.species,
+                opp_species=_assumed_species(opp),
                 our_species=mon.species,
                 our_stats=stats,
                 opp_ability=_effective_ability(opp) or "",
-                opp_item=opp.item,
+                opp_item=_effective_item(opp),
                 our_ability=_our_ability_for_damage(tm, mon, state.designated_mega),
-                our_item=tm.item,
+                our_item=our_item,
                 weather=state.weather,
                 our_defender_is_full_hp=at_full,
                 opp_boosts=opp.boosts,
                 our_boosts=mon.boosts,
             )
             if any(t.ohko_with_max_roll for t in threats):
-                ohko_threats.append((opp_slot, opp))
+                max_roll_kills.append(opp_slot)
+            if any(t.is_ohko for t in threats):
+                min_roll_kills.append(opp_slot)
+        ctx.incoming_ohko[slot]    = max_roll_kills
+        ctx.incoming_certain[slot] = min_roll_kills
 
-        if not ohko_threats:
-            return
+    # ── 4. Doomed (incoming_certain + neutralized + speed) ────────────────────
+    for slot in ctx.alive_slots:
+        ctx.doomed[slot] = _ko_before_acting(state, slot, ctx)
 
-        # ── Speed awareness: at least one threat must actually connect ────────
-        # A threat a faster ally is guaranteed to OHKO dies before it acts, so
-        # Protecting to survive *that* hit is pointless.  Only Protect when a
-        # threat will still land its OHKO on us this turn.
-        threats_that_connect = [
-            (os, op) for (os, op) in ohko_threats
-            if not _opp_neutralized_before_acting(state, os, op)
-        ]
-        if not threats_that_connect:
-            return
+    return ctx
 
-        # ── A partner must clear one of those threats this turn ───────────────
-        # The ×3.0 is for the case where Protecting resolves the board: we
-        # survive the unavoidable hit and a partner removes a threat the same
-        # turn, so we enter next turn ahead and at full freedom.
-        partner_slots = [
-            i for i, p in enumerate(state.my_actives)
-            if i != slot and p is not None and not p.fainted
-        ]
-        if not any(
-            _partner_can_ohko(state, ps, opp)
-            for ps in partner_slots
-            for (_, opp) in ohko_threats
-        ):
-            return
 
-        for action in actions:
-            if action.move_name not in _PROTECT_MOVES:
-                continue
-            action.weight *= self.PARTNER_KO_FACTOR
-            action.reasons.append(
-                f"{self.name}: unavoidable OHKO incoming + partner clears a threat"
-                f" -> x{self.PARTNER_KO_FACTOR}"
-            )
+def _ensure_turn_ctx(state: "BattleState") -> TurnContext:
+    """Return the turn's :class:`TurnContext`, building and caching it on *state*
+    once per turn (board facts don't change between phase-1 scoring and the
+    phase-2 coordinate pass within a turn)."""
+    if (getattr(state, "_turn_ctx", None) is None
+            or getattr(state, "_turn_ctx_turn", None) != getattr(state, "turn", None)):
+        state._turn_ctx = build_turn_context(state)
+        state._turn_ctx_turn = getattr(state, "turn", None)
+    return state._turn_ctx
 
 
 class SwitchModule(ScoringModule):
@@ -875,22 +920,12 @@ class SwitchModule(ScoringModule):
     lookahead — so a switch competes on the same scale as an attack instead of a
     type-matchup multiplier capped at ×4.0.
 
-    For each legal switch, weight = TEMPO × (offense_term + avoided) × safety:
+    Four multiplicative rows:
 
-      * offense_term = 1.0 + max(0, switch_in_offense − current_offense) × 2.0.
-        Uses the *gain* in best-damage from pivoting (same 0..2 scale
-        DamageOutputModule uses for moves), so a switch is only rewarded when the
-        incoming mon threatens meaningfully more than staying does.  The current
-        mon's Struggle is ignored when measuring "staying" offense, so a mon that
-        can only Struggle is correctly seen as contributing nothing.
-      * avoided = ESCAPE_BONUS when the current mon is OHKO-threatened (by a
-        threat that will actually connect — speed-aware) and the switch-in
-        survives every active opponent's max roll: the value of not losing the
-        current mon for free.
-      * safety = 1.0 if the switch-in survives, else DANGER_FACTOR (don't pivot
-        into another OHKO).
-      * TEMPO discounts for giving up this turn's action and conceding a free
-        hit on the switch-in.
+      1. TEMPO_FACTOR (0.6) — forfeiting this turn + conceding a free hit.
+      2. (1 + g) where g = max(0, bench_offense − cur_offense) — offense gain.
+      3. ESCAPE_FACTOR (4.0) — escaping a connecting OHKO into a surviving switch-in.
+      4. DANGER_FACTOR (0.3) — the switch-in is itself OHKO'd by an active opponent.
 
     A switch the partner already committed to (same bench target) is vetoed (×0).
 
@@ -901,35 +936,20 @@ class SwitchModule(ScoringModule):
 
     name = "switch_eval"
 
-    TEMPO_FACTOR    = 0.6   # switching forfeits this turn + concedes a free hit
-    ESCAPE_BONUS    = 3.0   # value of dodging an otherwise-certain KO
-    DANGER_FACTOR   = 0.3   # switching into a mon that is itself OHKO'd
-    UNFORCED_PIVOT  = 0.5   # extra discount on a pure-offense pivot (not escaping):
-                            # an unforced switch concedes initiative — the opponent
-                            # gets a free turn and need not stay in.
+    TEMPO_FACTOR  = 0.6   # switching forfeits this turn + concedes a free hit
+    ESCAPE_FACTOR = 4.0   # escaping a connecting OHKO into a surviving switch-in
+    DANGER_FACTOR = 0.3   # switching into a mon that is itself OHKO'd
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         mon = state.my_actives[slot] if slot < len(state.my_actives) else None
         if mon is None:
             return
 
-        # ── Cross-slot coordination: veto switches already committed by a partner ─
-        already_switching: set[str] = set()
-        for prior in state.my_slot_decisions:
-            if prior is not None and prior.is_switch:
-                already_switching.add(prior.switch_target)
-        for action in actions:
-            if action.is_switch and action.switch_target in already_switching:
-                action.weight = 0.0
-                action.reasons.append(
-                    f"{self.name}: partner already switching to"
-                    f" {action.switch_target} -> x0"
-                )
-
-        live_switches = [
-            a for a in actions
-            if a.is_switch and a.switch_target not in already_switching
-        ]
+        # Cross-slot coordination (two slots switching to the *same* bench mon)
+        # is no longer handled here — it is resolved jointly by
+        # DecisionEngine.coordinate (the switch-same-mon veto), which sees both
+        # slots' candidate lists at once rather than relying on scoring order.
+        live_switches = [a for a in actions if a.is_switch]
         if not live_switches:
             return
 
@@ -950,31 +970,10 @@ class SwitchModule(ScoringModule):
             tm.ability if tm else None, tm.item if tm else None, cur_moves,
         )
 
-        cur_threatened = False
-        if tm and stats:
-            at_full = (mon.hp >= mon.max_hp) or (mon.hp_is_percentage and mon.hp >= 99)
-            for opp_slot, opp in enumerate(state.opp_actives):
-                if opp is None or opp.fainted:
-                    continue
-                threats = incoming_damage(
-                    opp_species=opp.species,
-                    our_species=mon.species,
-                    our_stats=stats,
-                    opp_ability=_effective_ability(opp) or "",
-                    opp_item=opp.item,
-                    our_ability=_our_ability_for_damage(tm, mon, state.designated_mega),
-                    our_item=tm.item,
-                    weather=state.weather,
-                    our_defender_is_full_hp=at_full,
-                    opp_boosts=opp.boosts,
-                    our_boosts=mon.boosts,
-                )
-                if not any(t.ohko_with_max_roll for t in threats):
-                    continue
-                if _opp_neutralized_before_acting(state, opp_slot, opp):
-                    continue
-                cur_threatened = True
-                break
+        # Is the current mon OHKO-threatened by a threat that actually connects?
+        # Precomputed once per turn in TurnContext (shared with IncomingOHKO /
+        # Protect).
+        cur_threatened = _ensure_turn_ctx(state).is_threatened(slot)
 
         # ── Score each live switch by resulting board value ───────────────────
         for action in live_switches:
@@ -982,33 +981,46 @@ class SwitchModule(ScoringModule):
             if bench_tm is None or not getattr(bench_tm, "stats", None):
                 continue  # unknown bench mon — leave neutral (×1.0)
 
+            # Live bench item, consumption-aware: a berry eaten during an
+            # earlier field stint must not keep shielding (or arming) the
+            # switch-in — same rule as the actives' incoming fact loop.
+            bench_mon = next(
+                (p for p in state.available_switches
+                 if p is not None and p.species == action.switch_target), None)
+            bench_item = bench_tm.item
+            if bench_mon is not None:
+                bench_item = (None if bench_mon.item_consumed
+                              else (bench_mon.item or bench_tm.item))
+
             bench_moves = [m for m in bench_tm.moves if m not in _PROTECT_MOVES]
             offense  = self._best_offense(
                 state, action.switch_target, bench_tm.stats,
-                bench_tm.ability, bench_tm.item, bench_moves,
+                bench_tm.ability, bench_item, bench_moves,
             )
-            survives = self._switch_in_survives(state, action.switch_target, bench_tm)
+            survives = self._switch_in_survives(
+                state, action.switch_target, bench_tm, bench_item)
 
-            gain        = max(0.0, offense - cur_offense)
-            gain_term   = gain * 2.0
-            # An unforced pivot (we are not escaping a KO) concedes initiative,
-            # so its offensive upside is worth less than a forced/escape pivot.
-            if not (cur_threatened and survives):
-                gain_term *= self.UNFORCED_PIVOT
-            offense_term = 1.0 + gain_term
-            avoided_term = self.ESCAPE_BONUS if (cur_threatened and survives) else 0.0
-            safety       = 1.0 if survives else self.DANGER_FACTOR
-            value        = self.TEMPO_FACTOR * (offense_term + avoided_term) * safety
+            g      = max(0.0, offense - cur_offense)
+            escape = cur_threatened and survives
 
-            action.weight *= value
-            notes = [f"+{gain:.0%} offense vs staying"]
-            if cur_threatened and survives:
-                notes.append("escapes OHKO")
-            if not survives:
-                notes.append("switch-in OHKO'd")
+            action.weight *= self.TEMPO_FACTOR
             action.reasons.append(
-                f"{self.name}: board value ({', '.join(notes)}) -> x{value:.2f}"
+                f"{self.name}: tempo -> x{self.TEMPO_FACTOR}"
             )
+            action.weight *= (1.0 + g)
+            action.reasons.append(
+                f"{self.name}: +{g:.0%} offense gain -> x{1.0 + g:.2f}"
+            )
+            if escape:
+                action.weight *= self.ESCAPE_FACTOR
+                action.reasons.append(
+                    f"{self.name}: escapes OHKO -> x{self.ESCAPE_FACTOR}"
+                )
+            if not survives:
+                action.weight *= self.DANGER_FACTOR
+                action.reasons.append(
+                    f"{self.name}: switch-in OHKO'd -> x{self.DANGER_FACTOR}"
+                )
 
     def _best_offense(
         self, state: "BattleState", species: str,
@@ -1028,8 +1040,8 @@ class SwitchModule(ScoringModule):
                 results = outgoing_damage(
                     our_species=species, our_stats=stats, our_moves=[mv],
                     our_ability=ability or "", our_item=item,
-                    opp_species=opp.species, opp_ability=_effective_ability(opp) or "",
-                    opp_item=opp.item, weather=state.weather,
+                    opp_species=_assumed_species(opp), opp_ability=_effective_ability(opp) or "",
+                    opp_item=_effective_item(opp), weather=state.weather,
                     ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                 )
                 if results:
@@ -1038,16 +1050,21 @@ class SwitchModule(ScoringModule):
 
     def _switch_in_survives(
         self, state: "BattleState", species: str, bench_tm,
+        bench_item: Optional[str],
     ) -> bool:
-        """True if no active opponent OHKOs the switch-in on its max roll."""
+        """True if no active opponent OHKOs the switch-in on its max roll.
+
+        *bench_item* is the consumption-aware item (None once consumed), not
+        the static team.txt item — a spent Chople must not soak the hit.
+        """
         for opp in state.opp_actives:
             if opp is None or opp.fainted:
                 continue
             threats = incoming_damage(
-                opp_species=opp.species, our_species=species,
+                opp_species=_assumed_species(opp), our_species=species,
                 our_stats=bench_tm.stats, opp_ability=_effective_ability(opp) or "",
-                opp_item=opp.item, our_ability=bench_tm.ability or "",
-                our_item=bench_tm.item, weather=state.weather,
+                opp_item=_effective_item(opp), our_ability=bench_tm.ability or "",
+                our_item=bench_item, weather=state.weather,
                 our_defender_is_full_hp=True,
             )
             if any(t.ohko_with_max_roll for t in threats):
@@ -1093,232 +1110,189 @@ class SwitchModule(ScoringModule):
         return worst
 
 
-class DoublingUpModule(ScoringModule):
+def _other_opp_threatens(
+    state: "BattleState", our_slots: list[int], ignored_opp_slot: int
+) -> bool:
+    """True if any opponent other than *ignored_opp_slot* max-roll-OHKOs any of
+    our active mons at *our_slots* — a read of ``ctx.incoming_ohko``.
+
+    If no slot has a computed threat entry, conservatively assume the other
+    opponent *is* threatening, which makes doubling-up more costly (biasing
+    toward spreading damage)."""
+    ctx = _ensure_turn_ctx(state)
+    known = [s for s in our_slots if s in ctx.incoming_ohko]
+    if not known:
+        return True   # nothing computable → assume the other opp is threatening
+    return any(
+        os != ignored_opp_slot
+        for s in known
+        for os in ctx.incoming_ohko[s]
+    )
+
+
+class DoublingAdjuster(JointAdjuster):
     """
-    Adjusts weights when both active Pokémon would target the same opponent.
+    Penalises a pair where **both slots attack the same opponent** — doubling up.
 
-    Doubling up is costly if the target uses Protect — both moves are wasted.
-    The penalty is reduced in two situations:
+    Doubling is costly when the target Protects (both moves wasted) or is already
+    dead (the partner confirm-OHKOs it).  The base penalty is *reduced* when:
 
-    * The target used Protect last turn — they are unlikely to spam it again,
-      so doubling up carries less risk.
-    * The OTHER opponent is not threatening — since we are not giving up much
-      by ignoring them, the opportunity cost of doubling up is low.
+    * the target used Protect last turn (unlikely to spam it again), or
+    * the OTHER opponent is not threatening (low opportunity cost of ignoring it).
 
-    Only fires for slot 1+ (slot 0 has no prior partner decision to compare).
+    When one slot already **guarantees** the OHKO on the shared target, the
+    other's attack there is wasted, so a near-veto factor (×0.05) stacks on the
+    base — which is what makes the joint argmax pick the pair that **spreads**
+    onto the survivor (the old explicit "redirect", now emergent).  With only one
+    live foe there is nothing to spread to, so no penalty applies (forced double).
 
-    Penalty schedule (multiplicative, applied to the doubling-up move):
-        Both conditions favour doubling up:        ×0.70
-        One condition favours doubling up:         ×0.55
-        Neither condition — riskiest double up:    ×0.40
+    Base schedule — (target_protected_last_turn, other_not_threatening):
+        (True,  True):  ×0.70
+        (True,  False) / (False, True): ×0.55
+        (False, False): ×0.40   (riskiest)
     """
 
     name = "doubling_up"
 
-    # (target_protected_last_turn, other_not_threatening) → weight multiplier
     _FACTORS = {
         (True,  True):  0.70,
         (True,  False): 0.55,
         (False, True):  0.55,
         (False, False): 0.40,
     }
+    CONFIRMED_OHKO_FACTOR = 0.05   # one slot already guarantees the kill (overkill)
 
-    # Extra redirect when the partner slot already has a near-certain KO on the
-    # same target — attacking there too wastes the action if the target dies.
-    _PARTNER_KILLS_THRESHOLD          = 10.0  # near-certain KO → moderate redirect
-    _PARTNER_CONFIRMED_OHKO_THRESHOLD = 15.0  # guaranteed OHKO  → near-veto
-    PARTNER_KILLS_FACTOR              = 0.65  # multiplied on top of the normal _FACTORS value
-    PARTNER_CONFIRMED_OHKO_FACTOR     = 0.05  # near-veto: target is already dead
+    def factor(self, state, slot_a, a0, slot_b, a1):
+        if not (_is_attack(a0) and _is_attack(a1)):
+            return 1.0, 1.0, None
+        target = a0.target_slot
+        if target is None or target != a1.target_slot:
+            return 1.0, 1.0, None   # not the same target → not doubling up
 
-    def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
-        # Need at least two opponents for doubling-up to be meaningful.
-        active_opps = [i for i, o in enumerate(state.opp_actives) if o is not None and not o.fainted]
+        active_opps = [i for i, o in enumerate(state.opp_actives)
+                       if o is not None and not o.fainted]
         if len(active_opps) < 2:
-            return
+            return 1.0, 1.0, None   # only one foe — doubling is forced, nothing to spread to
 
-        # Find what an earlier slot already committed to targeting.
-        partner_target: Optional[int] = None
-        partner_action: Optional[Action] = None
-        for other_slot, prior in enumerate(state.my_slot_decisions):
-            if other_slot == slot:
-                continue
-            if prior is not None and prior.target_slot is not None:
-                partner_target = prior.target_slot
-                partner_action = prior
-                break
-
-        if partner_target is None:
-            return  # No prior slot committed yet — nothing to coordinate against.
-
-        # Is partner's committed action a near-certain KO on that target?
-        # Also check reasons for threat_elimination: FakeOut ×0.5 can push a
-        # genuine OHKO weight below the numeric threshold, but the kill is still
-        # guaranteed if ThreatElimination fired.
-        _partner_has_threat_elim = (
-            partner_action is not None
-            and any(r.startswith("threat_elimination:")
-                    for r in (partner_action.reasons or []))
-        )
-        partner_kills = (
-            partner_action is not None
-            and (partner_action.weight >= self._PARTNER_KILLS_THRESHOLD
-                 or _partner_has_threat_elim)
-        )
-
-        # Did the target Pokémon use a Protect move last turn?
         opp_last = state.opp_last_moves
-        target_protected = (
-            partner_target < len(opp_last) and
-            opp_last[partner_target] in _PROTECT_MOVES
-        )
+        target_protected = (target < len(opp_last)
+                            and opp_last[target] in _PROTECT_MOVES)
+        other_threatening = _other_opp_threatens(state, [slot_a, slot_b], target)
+        base = self._FACTORS[(target_protected, not other_threatening)]
 
-        # Is the OTHER opponent threatening either of our active Pokémon?
-        other_threatening = self._other_opp_is_threatening(state, slot, partner_target)
+        ctx = _ensure_turn_ctx(state)
+        a0_kills = (ctx.guarantees_ohko(slot_a, a0.move_name, target)
+                    and not ctx.is_doomed(slot_a))
+        a1_kills = (ctx.guarantees_ohko(slot_b, a1.move_name, target)
+                    and not ctx.is_doomed(slot_b))
+        if a0_kills or a1_kills:
+            # One slot already confirms the kill → the *other's* attack here is
+            # wasted (overkill).  Penalise the non-killer so the pair that spreads
+            # onto the survivor wins (the emergent focus-fire "redirect").
+            f = base * self.CONFIRMED_OHKO_FACTOR
+            reason = (f"{self.name}: both attack slot {target}, partner confirms"
+                      f" the OHKO (overkill) -> x{f:.3f}")
+            if a1_kills and not a0_kills:
+                return f, 1.0, reason   # slot_a is the wasteful doubler
+            return 1.0, f, reason       # slot_b is the wasteful doubler (default)
+        # Base doubling penalty falls on the higher slot (the conventional
+        # "doubling-up" partner), matching the old per-slot DoublingUpModule.
+        return 1.0, base, f"{self.name}: both attack slot {target} -> x{base}"
 
-        factor = self._FACTORS[(target_protected, not other_threatening)]
 
-        for action in actions:
-            if not action.is_move:
-                continue
-            if action.target_slot != partner_target:
-                continue   # Not doubling up on this action.
+class CoordinationAdjuster(JointAdjuster):
+    """
+    Favours *coordinated* turns — both slots attacking, or both Protecting — by
+    penalising the uncoordinated **split** where one slot throws away a turn on a
+    **gratuitous** Protect while its partner attacks.
 
-            # ── Confirmed-OHKO redirect ────────────────────────────────────────
-            # When the partner already has a confirmed OHKO on this target the
-            # target is effectively dead — attacking there too wastes the action.
-            # If another opponent is still active, redirect this move there so
-            # the bot attacks the surviving threat rather than defaulting to
-            # Protect.  Only fall back to the near-veto when no alt target exists.
-            # A confirmed OHKO is signalled either by weight ≥ threshold OR by
-            # ThreatElimination having fired (FakeOut ×0.5 can depress weight
-            # below the numeric threshold even on a guaranteed kill).
-            _partner_confirmed_ohko = (
-                partner_kills
-                and partner_action is not None
-                and (partner_action.weight >= self._PARTNER_CONFIRMED_OHKO_THRESHOLD
-                     or _partner_has_threat_elim)
-            )
-            if _partner_confirmed_ohko:
-                alt_targets = [i for i in active_opps if i != partner_target]
-                if alt_targets:
-                    new_slot = alt_targets[0]
-                    new_opp  = (state.opp_actives[new_slot]
-                                if new_slot < len(state.opp_actives) else None)
+    Rationale: in VGC doubles a double-attack (apply full pressure) or a double-
+    Protect (a deliberate stall) is usually the right play; a lone Protect
+    alongside an attacking partner is the exception — only correct when that mon
+    genuinely must shield (a real OHKO incoming, partner-clears, or a TR/TW stall
+    turn).  Those Protects carry a "justified" reason and are left untouched.  A
+    Protect with no such reason (e.g. only the FakeOut nudge) is gratuitous: the
+    pair is penalised so the slot attacks alongside its partner instead, biasing
+    the engine toward double-attack (protect less).
 
-                    # Swap the DamageOutput + ThreatElimination contribution from
-                    # the dying target to the surviving one, preserving TurnOrder
-                    # and all other non-target-specific factors.
-                    old_frac_avg, _   = action.target_hp_fractions.get(partner_target, (0.0, 0.0))
-                    new_frac_avg, new_frac_min = action.target_hp_fractions.get(new_slot, (0.0, 0.0))
+    A double-Protect (neither slot attacking) is never penalised; switches are
+    untouched.  Checks both orderings so it fires whichever slot holds the Protect.
+    """
 
-                    had_threat_elim = any(
-                        r.startswith("threat_elimination:") for r in action.reasons
-                    )
-                    old_dmg = 1.0 + old_frac_avg * 2.0
-                    if had_threat_elim:
-                        old_dmg *= ThreatEliminationModule.GUARANTEED_OHKO
+    name = "coordination"
+    SPLIT_PENALTY = 0.5
 
-                    new_dmg = 1.0 + new_frac_avg * 2.0
-                    new_threat = (ThreatEliminationModule.GUARANTEED_OHKO
-                                  if new_frac_min >= 1.0 else 1.0)
+    def factor(self, state, slot_a, a0, slot_b, a1):
+        if (_is_attack(a0) and a1.move_name in _PROTECT_MOVES
+                and not _protect_is_justified(a1)):
+            return 1.0, self.SPLIT_PENALTY, (
+                f"{self.name}: gratuitous lone Protect (slot {slot_b}) beside an"
+                f" attacking partner -> x{self.SPLIT_PENALTY}")
+        if (_is_attack(a1) and a0.move_name in _PROTECT_MOVES
+                and not _protect_is_justified(a0)):
+            return self.SPLIT_PENALTY, 1.0, (
+                f"{self.name}: gratuitous lone Protect (slot {slot_a}) beside an"
+                f" attacking partner -> x{self.SPLIT_PENALTY}")
+        return 1.0, 1.0, None
 
-                    action.weight /= old_dmg
-                    action.weight *= new_dmg * new_threat
-                    action.target_slot = new_slot
 
-                    action.reasons = [
-                        r for r in action.reasons
-                        if not r.startswith((
-                            "damage_output:", "threat_elimination:",
-                            "field_setter:", "opp_protect_recency:",
-                        ))
-                    ]
-                    # Prepend the new damage/threat reasons so the log reads
-                    # in the same order as a naturally-scored action.
-                    new_reasons_prefix = []
-                    if new_frac_avg > 0:
-                        new_reasons_prefix.append(
-                            f"damage_output: {new_frac_avg:.0%} HP"
-                            f" -> x{new_dmg:.2f}"
-                        )
-                    if new_threat > 1.0:
-                        opp_name = new_opp.species if new_opp else f"slot {new_slot}"
-                        new_reasons_prefix.append(
-                            f"threat_elimination: guaranteed OHKO on {opp_name}"
-                            f" -> x{new_threat:.0f}.0"
-                        )
-                    action.reasons = new_reasons_prefix + action.reasons
-                    action.reasons.append(
-                        f"{self.name}: partner confirmed OHKO"
-                        f" (w={partner_action.weight:.1f})"
-                        f" -> redirect to slot {new_slot}, damage re-scored"
-                    )
-                    continue  # No doubling-up penalty — we are no longer doubling up.
+class FakeOutAdjuster(JointAdjuster):
+    """
+    Ensures a pair pays the Fake-Out adjustment exactly **once**.
 
-            action.weight *= factor
-            why_parts = []
-            if target_protected:
-                why_parts.append("protected last turn")
-            if not other_threatening:
-                why_parts.append("other opp not threatening")
-            if not why_parts:
-                why_parts.append("Protect risk, other opp threatening")
-            action.reasons.append(
-                f"{self.name}: doubling up ({', '.join(why_parts)}) -> x{factor}"
-            )
-            if partner_kills:
-                partner_wt = partner_action.weight
-                if _partner_confirmed_ohko:
-                    # Only reached when there is no alternative target.
-                    # Near-veto: only a massive damage opportunity on the same
-                    # target should overcome this.
-                    kfactor = self.PARTNER_CONFIRMED_OHKO_FACTOR
-                    klabel  = f"partner confirmed OHKO (w={partner_wt:.1f}), no alt target"
-                else:
-                    kfactor = self.PARTNER_KILLS_FACTOR
-                    klabel  = f"partner near-KO (w={partner_wt:.1f})"
-                action.weight *= kfactor
-                action.reasons.append(
-                    f"{self.name}: {klabel} -> x{kfactor}"
-                )
+    A live Fake Out flinches exactly one of our mons.  :class:`FakeOutModule`
+    (phase 1) scores each slot in isolation, so it pessimistically discounts
+    every slot's attacks (×0.5) and boosts its Protect (×3).  Pair-wise that
+    counts the single Fake Out twice, so when a slot attacks, the *partner's*
+    multiplier is divided back out: the attacker is the one assumed to eat the
+    flinch, so the partner's attack is no longer discounted and its Protect no
+    longer earns the Fake-Out boost.  Which multiplier the partner carries
+    follows from ``ctx.fake_out_fired`` and the action itself (Protect ×3,
+    other move ×0.5) — the same rule FakeOutModule applied.
+
+    Symmetric: either slot's attack frees the other (mirror pairs score the
+    same regardless of slot order).  When both attack, one discount is kept —
+    the pair eats one flinch.  A double-Protect is untouched.
+    """
+
+    name = "fake_out"
 
     @staticmethod
-    def _other_opp_is_threatening(
-        state: "BattleState", our_slot: int, ignored_opp_slot: int
-    ) -> bool:
-        """
-        Return True if any opponent OTHER than *ignored_opp_slot* threatens a
-        max-roll OHKO on our active Pokémon at *our_slot*.
-        """
-        mon = state.my_actives[our_slot] if our_slot < len(state.my_actives) else None
-        if mon is None:
-            return True   # Unknown — assume threatening.
-        tm    = find_member(mon.species)
-        stats = _our_stats(state, our_slot)
-        if tm is None or stats is None:
-            return True
+    def _applied_mult(ctx: "TurnContext", action, slot: int) -> Optional[float]:
+        """The Fake-Out multiplier FakeOutModule applied to *action* (or None)."""
+        if not ctx.fake_out_fired(slot) or not action.is_move or action.is_switch:
+            return None
+        return (FakeOutModule.PROTECT_BOOST
+                if action.move_name in _PROTECT_MOVES
+                else FakeOutModule.ATTACK_DISCOUNT)
 
-        at_full = (mon.hp >= mon.max_hp) or (mon.hp_is_percentage and mon.hp >= 99)
+    def factor(self, state, slot_a, a0, slot_b, a1):
+        ctx = _ensure_turn_ctx(state)
+        if _is_attack(a0):
+            mult = self._applied_mult(ctx, a1, slot_b)
+            if mult:
+                return 1.0, 1.0 / mult, (
+                    f"{self.name}: partner (slot {slot_a}) absorbs Fake Out,"
+                    f" slot {slot_b} freed -> x{1.0 / mult:.2f}")
+        elif _is_attack(a1):
+            mult = self._applied_mult(ctx, a0, slot_a)
+            if mult:
+                return 1.0 / mult, 1.0, (
+                    f"{self.name}: partner (slot {slot_b}) absorbs Fake Out,"
+                    f" slot {slot_a} freed -> x{1.0 / mult:.2f}")
+        return 1.0, 1.0, None
 
-        for opp_slot, opp in enumerate(state.opp_actives):
-            if opp is None or opp.fainted or opp_slot == ignored_opp_slot:
-                continue
-            threats = incoming_damage(
-                opp_species=opp.species,
-                our_species=mon.species,
-                our_stats=stats,
-                opp_ability=_effective_ability(opp) or "",
-                opp_item=opp.item,
-                our_ability=_our_ability_for_damage(tm, mon, state.designated_mega),
-                our_item=tm.item,
-                weather=state.weather,
-                our_defender_is_full_hp=at_full,
-                opp_boosts=opp.boosts,
-                our_boosts=mon.boosts,
-            )
-            if any(t.ohko_with_max_roll for t in threats):
-                return True
-        return False
+
+class SwitchCollisionAdjuster(JointAdjuster):
+    """Veto a pair where both slots switch to the **same** bench Pokémon — only
+    one of them can, so the combination is illegal/wasteful."""
+
+    name = "switch_collision"
+
+    def factor(self, state, slot_a, a0, slot_b, a1):
+        if a0.is_switch and a1.is_switch and a0.switch_target == a1.switch_target:
+            return 1.0, 0.0, f"{self.name}: both slots switch to {a0.switch_target} -> x0"
+        return 1.0, 1.0, None
 
 
 class OppProtectRecencyModule(ScoringModule):
@@ -1330,7 +1304,7 @@ class OppProtectRecencyModule(ScoringModule):
     at a mon that just Protected, the attack is highly unlikely to be wasted —
     reward that targeting reliability with a small multiplier.
 
-    This stacks naturally with DoublingUpModule's existing ``target_protected``
+    This stacks naturally with the phase-2 DoublingAdjuster's ``target_protected``
     logic (which already reduces the doubling-up penalty for the same reason).
 
     Boost schedule:
@@ -1385,18 +1359,9 @@ class FakeOutModule(ScoringModule):
     revealed a move this field-entry (i.e. Fake Out is still available).
 
     In VGC doubles, Fake Out will hit exactly one of our two active mons —
-    flinching it and wasting its turn.  The real cost of being flinched is
-    *what the non-Fake-Out partner deals while we are stunned*.  If the partner
-    cannot deal meaningful damage, losing one turn's attack is a minor cost and
-    the standard Protect/attack split has little value.
+    flinching it and wasting its turn.
 
-    The module therefore only fires when the non-Fake-Out partner can deal
-    at least ``PARTNER_THREAT_THRESHOLD`` of this slot's HP on their max
-    damage roll.  When the partner is not threatening (e.g. a Trick Room setter
-    with weak attacks), the module is skipped entirely and the engine scores
-    moves on raw damage merit.
-
-    Scoring adjustments (applied when the partner-threat gate passes):
+    Scoring adjustments (applied when ``ctx.fake_out_fired(slot)``):
 
     * Protect-family moves:  ×3.0  (strong encouragement to shield at least one mon)
     * Non-switch attacks:    ×0.5  (expected-value discount: ~50% chance this slot
@@ -1407,29 +1372,20 @@ class FakeOutModule(ScoringModule):
     sits well below Protect's combined weight from FakeOutModule + ProtectModule.
     Below OHKO level, Protect clearly wins; at OHKO level it is a genuine
     toss-up, which reflects real-game decision complexity.
+
+    These self-only adjustments run for *every* slot (each slot is scored in
+    isolation); the joint :class:`FakeOutAdjuster` divides the partner's
+    multiplier back out so a pair pays the Fake-Out adjustment exactly once.
     """
 
     name = "fake_out"
 
-    PROTECT_BOOST            = 3.0
-    ATTACK_DISCOUNT          = 0.5
-    PARTNER_THREAT_THRESHOLD = 0.30  # non-FakeOut partner must threaten ≥30% on max roll
+    PROTECT_BOOST   = 2.0
+    ATTACK_DISCOUNT = 0.5
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
-        if not _fake_out_threatened(state):
+        if not _ensure_turn_ctx(state).fake_out_fired(slot):
             return
-        if not self._partner_is_threatening(state, slot):
-            return
-
-        # If our partner (slot A) has already committed to an attack, the Fake
-        # Out user will almost certainly target them to disrupt that attack —
-        # not us.  Slot B can attack freely; penalising it here would be wrong.
-        if slot == 1:
-            partner = state.my_slot_decisions[0]
-            if (partner is not None
-                    and partner.move_name is not None
-                    and partner.move_name not in _PROTECT_MOVES):
-                return
 
         for action in actions:
             if action.move_name in _PROTECT_MOVES:
@@ -1442,45 +1398,6 @@ class FakeOutModule(ScoringModule):
                 action.reasons.append(
                     f"{self.name}: Fake Out may flinch -> x{self.ATTACK_DISCOUNT}"
                 )
-
-    def _partner_is_threatening(self, state: "BattleState", slot: int) -> bool:
-        """Return True if any non-Fake-Out active opponent can deal
-        >= PARTNER_THREAT_THRESHOLD of this slot's HP on their max damage roll.
-        """
-        mon = state.my_actives[slot] if slot < len(state.my_actives) else None
-        if mon is None:
-            return True  # Unknown state — be conservative, assume threatening.
-        tm    = find_member(mon.species)
-        stats = _our_stats(state, slot)
-        if tm is None or stats is None:
-            return True  # Unknown — assume threatening.
-
-        at_full = (mon.hp >= mon.max_hp) or (mon.hp_is_percentage and mon.hp >= 99)
-
-        for opp_slot, opp in enumerate(state.opp_actives):
-            if opp is None or opp.fainted:
-                continue
-            # Skip the Fake Out user itself.
-            last = (state.opp_last_moves[opp_slot]
-                    if opp_slot < len(state.opp_last_moves) else "")
-            if opp.species in _FAKE_OUT_USERS and last == "":
-                continue
-            threats = incoming_damage(
-                opp_species=opp.species,
-                our_species=mon.species,
-                our_stats=stats,
-                opp_ability=_effective_ability(opp) or "",
-                opp_item=opp.item,
-                our_ability=_our_ability_for_damage(tm, mon, state.designated_mega),
-                our_item=tm.item,
-                weather=state.weather,
-                our_defender_is_full_hp=at_full,
-                opp_boosts=opp.boosts,
-                our_boosts=mon.boosts,
-            )
-            if any(t.hp_fraction_max >= self.PARTNER_THREAT_THRESHOLD for t in threats):
-                return True
-        return False
 
 
 # Species that commonly run Trick Room in the Champions format (≥40% TR usage
@@ -1570,74 +1487,56 @@ def _tw_setter_has_priority(opp: "Pokemon") -> bool:
     return False
 
 
-class SetterPresenceModule(ScoringModule):
+class SetterUrgencyModule(ScoringModule):
     """
-    Boosts non-Protect attack moves whenever an opponent Trick Room or
-    Tailwind setter is on the field **and the effect is still stoppable**.
+    "A speed-control setter is on the field and its effect is still stoppable —
+    attack, don't stall."
 
-    The boost only applies when killing the setter now is actually worth the
-    urgency — two situations qualify:
+    Exactly one urgency boost applies per turn, Trick Room first (the two are
+    mutually exclusive by structure, not by cross-checking):
 
-    1. **Effect not yet active** — the setter hasn't established the field
-       condition yet; every turn it survives is a chance it sets it up.
-    2. **Effect on its last turn** (turns_left == 1) — the setter may try to
-       re-set the effect this turn; attacking it now prevents the refresh.
+      * **Trick Room** — a TR setter is up, TR not active (or on its last turn,
+        a re-set risk), and no opposing Tailwind → every attack ×2.0.
+      * **Tailwind** — otherwise: a TW setter is up, TW not active (or last
+        turn), and no Trick Room → every attack ×1.5.
 
-    When the effect is already active with more than one turn remaining there
-    is no additional urgency specific to the setter — normal damage scoring
-    already handles targeting priority.
-
-    TR and TW conditions are evaluated independently:
-      * If TR is active (≥2 turns left) but TW is not up, the TW setter
-        boost fires even if TR setter boost does not.
-      * TR takes priority when both would fire simultaneously.
-
-    Boost schedule (applied to all non-switch, non-Protect attacks):
-      Trick Room setter:  ×2.0 — reversal of speed tiers is critical.
-      Tailwind setter:    ×1.5 — +1 speed tier for opponent is serious.
-
-    Protect-family moves and switch actions are not affected.
+    Target-agnostic: it rewards *attacking at all* over going passive while the
+    speed tier is about to flip (swinging into the Fake-Out partner is fine).
+    Protect and switches are untouched, so it biases the slot away from a
+    stall.  (Urgency was briefly folded into denial; that lost the only weight
+    keeping attacks ahead of a double-Protect on a Fake-Out + setter lead.)
     """
 
-    name = "setter_presence"
+    name = "setter_urgency"
 
-    TR_BOOST = 2.0
-    TW_BOOST = 1.5
+    TR_URGENCY = 2.0
+    TW_URGENCY = 1.5
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         active_opps = [o for o in state.opp_actives if o is not None and not o.fainted]
         if not active_opps:
             return
 
-        # TR setter boost: TR must be stoppable (not active, or last turn for
-        # re-set prevention) AND opp Tailwind must not already be up — no point
-        # urgently targeting a TR setter while TW is already running.
         tr_relevant = (
             (not state.trick_room or state.trick_room_turns_left == 1)
             and not state.opp_tailwind
         )
-        tr_setter_present = any(o.species in _TR_SETTER_SPECIES for o in active_opps)
-
-        # TW setter boost: TW must be stoppable AND TR must not already be up —
-        # no point urgently targeting a TW setter while TR is already running.
         tw_relevant = (
             (not state.opp_tailwind or state.opp_tailwind_turns_left == 1)
             and not state.trick_room
         )
-        tw_setter_present = any(o.species in _TAILWIND_SETTER_SPECIES for o in active_opps)
 
-        if tr_setter_present and tr_relevant:
-            factor = self.TR_BOOST
-            if state.trick_room:
-                label = "TR setter on field (TR last turn, re-set risk)"
-            else:
-                label = "TR setter on field (TR not active)"
-        elif tw_setter_present and tw_relevant:
-            factor = self.TW_BOOST
-            if state.opp_tailwind:
-                label = "TW setter on field (TW last turn, re-set risk)"
-            else:
-                label = "TW setter on field (TW not active)"
+        if any(o.species in _TR_SETTER_SPECIES for o in active_opps) and tr_relevant:
+            factor = self.TR_URGENCY
+            label  = ("trick_room: TR setter on field (TR last turn, re-set risk)"
+                      if state.trick_room
+                      else "trick_room: TR setter on field (TR not active)")
+        elif (any(o.species in _TAILWIND_SETTER_SPECIES for o in active_opps)
+                and tw_relevant):
+            factor = self.TW_URGENCY
+            label  = ("tailwind: TW setter on field (TW last turn, re-set risk)"
+                      if state.opp_tailwind
+                      else "tailwind: TW setter on field (TW not active)")
         else:
             return
 
@@ -1645,167 +1544,88 @@ class SetterPresenceModule(ScoringModule):
             if action.is_switch or action.move_name in _PROTECT_MOVES:
                 continue
             action.weight *= factor
-            action.reasons.append(f"{self.name}: {label} -> x{factor}")
+            action.reasons.append(f"{label} -> x{factor}")
 
 
-class FieldSetterDisruptionModule(ScoringModule):
+class SetterDenialModule(ScoringModule):
     """
-    Boosts attacks that can *deny* an opponent field-effect setter — i.e.
-    knock it out before it gets the effect up this turn.
+    "Can I kill the setter before its effect lands?"
 
-    A denial is only possible when ALL of the following hold:
+    A candidate already aimed at a speed-control setter earns the denial boost
+    when the kill is confirmed (``ctx.guarantees_ohko``), we outspeed the
+    setter, and its setup move carries no +1 priority (Prankster / Gale Wings):
 
-    1. **Guaranteed OHKO** — the move's minimum damage roll exceeds the
-       setter's current HP.  A non-lethal hit still lets the setter move
-       and establish the effect.
+      * Trick Room setter:  ×2.0
+      * Tailwind setter:    ×1.5
 
-    2. **We outspeed the setter** (``will_outspeed`` > 0.5) — our attack
-       must land before the setter's turn.
-
-    3. **No priority ability** — some setters use Tailwind with +1 priority
-       and will ALWAYS act before us regardless of Speed:
-
-       * **Prankster** (Whimsicott, and any Pokémon with Prankster revealed):
-         Status moves gain +1 priority → Tailwind cannot be denied.
-       * **Gale Wings** (Talonflame at full HP, ability unknown assumed to be
-         Gale Wings): Flying-type moves gain +1 priority → Tailwind cannot
-         be denied until Talonflame takes damage.
-
-    Disruption factors (applied when denial is confirmed):
-      Trick Room setter: ×2.0 — reversing the speed tier is high priority.
-      Tailwind setter:   ×1.5 — doubling speed for 4 turns is meaningful.
-
-    For actions already targeting a deniable setter, the factor is applied
-    directly on top of the existing score.  For actions targeting a different
-    opponent, the module computes a fresh deny-score (DamageOutput × ThreatElim
-    × factor) and redirects the action if that score exceeds the current
-    action weight.  TR setters are evaluated first.
+    Effects already active can't be denied.  An action denies at most one
+    setter — Trick Room is tried first, so its claim wins when one target sets
+    both.  Choosing the setter as target is emergent: the move→setter candidate
+    accumulates DamageOutput + ThreatElimination + this boost and wins on its
+    own merit, no target overwrite needed.
     """
 
-    name = "field_setter"
+    name = "setter_denial"
 
-    TR_DISRUPTION_FACTOR       = 2.0
-    TAILWIND_DISRUPTION_FACTOR = 1.5
+    TR_DENIAL = 2.0
+    TW_DENIAL = 1.5
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         mon = state.my_actives[slot] if slot < len(state.my_actives) else None
         if mon is None:
             return
-        tm    = find_member(mon.species)
-        stats = _our_stats(state, slot)
-        if tm is None or stats is None:
+        ours_cbt = _our_combatant(state, slot)
+        if ours_cbt is None:
             return
 
-        ally_faints = sum(1 for p in state.my_team if p.fainted)
-
-        # Build the list of (opp_slot, factor, label) setters that we can
-        # plausibly deny: effect not yet active, no priority ability, and we
-        # outspeed the setter.  TR setters come first so redirects prefer
-        # denying TR over Tailwind.
-        deniable: list[tuple[int, float, str]] = []
-        ours_cbt = _our_combatant(state, slot)
-
-        if not state.trick_room:
+        # Deniable setter slots per effect, in priority order (Trick Room first).
+        configs = [
+            ("trick_room", _TR_SETTER_SPECIES, "Trick Room",
+             lambda opp: _effective_ability(opp) == "Prankster",
+             self.TR_DENIAL, state.trick_room),
+            ("tailwind", _TAILWIND_SETTER_SPECIES, "Tailwind",
+             _tw_setter_has_priority, self.TW_DENIAL, state.opp_tailwind),
+        ]
+        deniable: list[tuple[str, float, set[int]]] = []
+        for (label, species, setter_move, has_priority, factor, active) in configs:
+            if active:
+                continue   # effect already up — it can't be denied
+            slots: set[int] = set()
             for opp_slot, opp in enumerate(state.opp_actives):
                 if opp is None or opp.fainted:
                     continue
-                if opp.species not in _TR_SETTER_SPECIES and "Trick Room" not in opp.moves:
+                if opp.species not in species and setter_move not in opp.moves:
                     continue
-                # If the (assumed or revealed) ability is Prankster, TR has
-                # +1 priority and cannot be denied.
-                if _effective_ability(opp) == "Prankster":
-                    continue
-                # Speed check: we must outspeed to attack before they set TR.
-                if ours_cbt is None:
+                if has_priority(opp):
                     continue
                 setter_cbt = _opp_combatant(state, opp_slot)
-                if setter_cbt is None or will_outspeed(ours_cbt, setter_cbt, trick_room=state.trick_room) <= 0.5:
+                if (setter_cbt is None or will_outspeed(
+                        ours_cbt, setter_cbt, trick_room=state.trick_room) <= 0.5):
                     continue
-                deniable.append((opp_slot, self.TR_DISRUPTION_FACTOR, "TR setter"))
-
-        if not state.opp_tailwind:
-            listed = {s for s, _, _ in deniable}
-            for opp_slot, opp in enumerate(state.opp_actives):
-                if opp_slot in listed or opp is None or opp.fainted:
-                    continue
-                if opp.species not in _TAILWIND_SETTER_SPECIES and "Tailwind" not in opp.moves:
-                    continue
-                # Prankster / Gale Wings → Tailwind has +1 priority → undeniable.
-                if _tw_setter_has_priority(opp):
-                    continue
-                # Speed check: we must outspeed to attack before they set TW.
-                if ours_cbt is None:
-                    continue
-                setter_cbt = _opp_combatant(state, opp_slot)
-                if setter_cbt is None or will_outspeed(ours_cbt, setter_cbt, trick_room=state.trick_room) <= 0.5:
-                    continue
-                deniable.append((opp_slot, self.TAILWIND_DISRUPTION_FACTOR, "Tailwind setter"))
-
+                slots.add(opp_slot)
+            if slots:
+                deniable.append((label, factor, slots))
         if not deniable:
             return
 
+        ctx = _ensure_turn_ctx(state)
         for action in actions:
             if not action.is_move or action.move_name in _PROTECT_MOVES:
                 continue
-            for setter_slot, factor, label in deniable:
-                opp = state.opp_actives[setter_slot]
-                if opp is None:
+            ts = action.target_slot
+            if ts is None:
+                continue
+            for (label, factor, slots) in deniable:
+                if ts not in slots:
                     continue
-
-                cur_hp = (
-                    opp.hp if not opp.hp_is_percentage and opp.hp > 0 else None
+                if not ctx.guarantees_ohko(slot, action.move_name, ts):
+                    continue   # setter survives — it still sets the effect
+                action.weight *= factor
+                action.reasons.append(
+                    f"{label}: deny {state.opp_actives[ts].species}"
+                    f" (guaranteed OHKO) -> x{factor}"
                 )
-                results = outgoing_damage(
-                    our_species=mon.species,
-                    our_stats=stats,
-                    our_moves=[action.move_name],
-                    opp_species=opp.species,
-                    our_ability=tm.ability,
-                    our_item=tm.item,
-                    opp_ability=_effective_ability(opp) or "",
-                    opp_item=opp.item,
-                    weather=state.weather,
-                    ally_faint_count=ally_faints,
-                    opp_current_hp=cur_hp,
-                    opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
-                    opp_screens=getattr(state, "opp_screens", None),
-                    attacker_boosts=mon.boosts,
-                    defender_boosts=opp.boosts,
-                )
-                if not results:
-                    continue
-                r = results[0]
-
-                # Require a guaranteed OHKO — if the setter survives it will
-                # still set up the effect on the same turn.
-                if not r.is_ohko:
-                    continue
-
-                if action.target_slot == setter_slot:
-                    # Already aiming here — apply the denial bonus.
-                    action.weight *= factor
-                    action.reasons.append(
-                        f"{self.name}: deny {opp.species} ({label},"
-                        f" guaranteed OHKO) -> x{factor}"
-                    )
-                    break
-                else:
-                    # Compute the deny-score and redirect if it beats the
-                    # current action weight.
-                    deny_score = (1.0 + r.hp_fraction_avg * 2.0) * 5.0 * factor
-                    if deny_score > action.weight:
-                        action.weight      = deny_score
-                        action.target_slot = setter_slot
-                        action.reasons = [
-                            s for s in action.reasons
-                            if not s.startswith(("damage_output:", "threat_elimination:"))
-                        ]
-                        action.reasons.append(
-                            f"{self.name}: redirect to deny {opp.species}"
-                            f" ({label}, guaranteed OHKO,"
-                            f" score={deny_score:.1f}) -> x{factor}"
-                        )
-                    break  # one setter per action
+                break   # at most one denial per action — the TR claim wins
 
 
 class FieldConditionModule(ScoringModule):
@@ -1871,37 +1691,55 @@ def make_engine() -> DecisionEngine:
     """
     Return a DecisionEngine pre-loaded with all default modules.
 
-    Order: DamageOutput -> ThreatElimination -> IncomingOHKO -> TurnOrder ->
-           SetterPresence -> FieldSetterDisruption -> OppProtectRecency ->
-           ConsecutiveProtect -> Protect -> FakeOut -> FieldCondition ->
-           Switch -> DoublingUp
+    **Phase 1** — per-slot scoring modules, run for each slot in isolation
+    (blind to the partner) over its ``(move, target)`` candidates:
 
-    Damage runs first so KO multipliers compound on the raw damage signal
-    before safety considerations are layered on top.
-    IncomingOHKOModule runs at Q3 — "can they OHKO me?" is a fundamental
-    threat assessment that should be visible early in the pipeline.
-    TurnOrderModule follows so faster attackers are rewarded before
-    redirect/disruption bonuses are applied.
-    SetterPresenceModule at Q5 raises attack urgency whenever a TR/TW setter
-    is present; FieldSetterDisruptionModule at Q6 then handles the special case
-    where a guaranteed OHKO is available and redirects if needed.
-    ConsecutiveProtectModule runs immediately before ProtectModule so the
-    consecutive penalty is visible as its own question in the pipeline.
-    FieldConditionModule runs after ProtectModule so its stall bonus stacks
-    on top of any existing Protect weight rather than being applied blind.
+      DamageOutput -> ThreatElimination -> IncomingOHKO -> TurnOrder ->
+      SetterUrgency -> SetterDenial -> OppProtectRecency ->
+      ConsecutiveProtect -> Protect -> FakeOut -> FieldCondition -> Switch
+
+    **Phase 2** — joint adjusters, applied by :meth:`DecisionEngine.coordinate`
+    over *pairs* of candidates (the only place cross-slot effects live):
+
+      Doubling -> Coordination -> FakeOut(free) -> SwitchCollision
+
+    Damage runs first so KO multipliers compound on the raw damage signal before
+    safety considerations are layered on top.  ThreatEliminationModule answers
+    both kill questions from the precomputed TurnContext: "will I die before I
+    act?" gates the credit off, and otherwise "can I guarantee a kill?" applies
+    ×5 (on the candidate already aimed at the OHKO'd target).  IncomingOHKOModule
+    then asks "can they OHKO me?".  TurnOrderModule rewards faster attackers
+    before disruption bonuses.  SetterUrgency asks "is a stoppable speed-control
+    setter up?" (one boost, Trick Room first); SetterDenial asks "can I kill the
+    setter first?" (per-candidate, Trick Room claim wins).  ConsecutiveProtect
+    precedes Protect; FieldCondition follows Protect so its stall bonus stacks
+    on existing weight.
+
+    The phase-2 adjusters subsume what the old greedy + ``recoordinate`` re-pass
+    did by hand: the doubling adjuster's confirmed-OHKO near-veto makes the
+    spread pair win (emergent focus-fire "redirect"); the coordination adjuster
+    squeezes out a gratuitous lone Protect beside an attacker; the fake-out
+    adjuster frees the partner of the slot absorbing a Fake Out; the switch-
+    collision adjuster vetoes both slots switching to the same mon.
     """
-    return DecisionEngine([
-        DamageOutputModule(),             # 1: sets action.target_slot to best opponent
-        ThreatEliminationModule(),        # 2: may override target_slot for KO opportunities
-        IncomingOHKOModule(),             # 3: boost Protect when opponent can OHKO this slot
-        TurnOrderModule(),                # 4: scale attacks by turn-order position
-        SetterPresenceModule(),           # 5: boost attacks when TR/TW setter is on field
-        FieldSetterDisruptionModule(),    # 6: redirect/boost attacks vs setters (OHKO + outspeed only)
-        OppProtectRecencyModule(),        # 7: reward attacking a mon that can't Protect again
-        ConsecutiveProtectModule(),       # 8: penalise back-to-back Protect (×0.2)
-        ProtectModule(),                  # 9: HP-based Protect bonuses + suppress states
-        FakeOutModule(),                  # 10: discount attacks / boost Protect vs fresh Fake Out users
-        FieldConditionModule(),           # 11: stall on last turn of opp Tailwind / Trick Room
-        SwitchModule(),                   # 12: evaluate switch options
-        DoublingUpModule(),               # 13: runs last — reads partner's committed target_slot
-    ])
+    return DecisionEngine(
+        modules=[
+            DamageOutputModule(),         # 1: ×(1+dmg) on each (move,target) candidate
+            ThreatEliminationModule(),    # 2: guarantee a kill? (×5) — gated off when doomed (ctx)
+            ProtectValueModule(),         # 3: boost Protect on OHKO threat + partner-clears rows
+            TurnOrderModule(),            # 4: scale attacks by turn-order position
+            SetterUrgencyModule(),        # 5: stoppable TR/TW setter up? attack, don't stall
+            SetterDenialModule(),         # 6: confirmed kill on a setter we outspeed?
+            OppProtectRecencyModule(),    # 7: reward attacking a mon that can't Protect again
+            ConsecutiveProtectModule(),   # 8: penalise back-to-back Protect (×0.2)
+            FakeOutModule(),              # 9: discount attacks / boost Protect vs fresh Fake Out users
+            FieldConditionModule(),       # 10: stall on last turn of opp Tailwind / Trick Room
+            SwitchModule(),               # 11: evaluate switch options
+        ],
+        joint=[
+            DoublingAdjuster(),           # both attack same target: ×0.40–0.70, ×0.05 if overkill
+            CoordinationAdjuster(),       # gratuitous lone Protect beside an attacker: ×0.5
+            FakeOutAdjuster(),            # lower slot absorbs Fake Out → free the partner
+            SwitchCollisionAdjuster(),    # both switch to the same mon: ×0
+        ],
+    )

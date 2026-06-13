@@ -57,6 +57,16 @@ _FORME_ALIASES: dict[str, str] = {
     "Gourgeist":             "Gourgeist-Super",
     "Gourgeist-Large":       "Gourgeist-Super",
     "Gourgeist-Small":       "Gourgeist-Super",
+    # Mid-battle forme changes (|detailschange|): usage data is filed under
+    # the base name.  Without these the engine lost the mon's move/set data
+    # the moment its forme changed (caught live by data_gaps, 0.7.6 run:
+    # Mimikyu-Busted, Aegislash-Blade, Palafin-Hero all flagged).
+    "Aegislash-Blade":       "Aegislash",
+    "Aegislash-Shield":      "Aegislash",
+    "Mimikyu-Busted":        "Mimikyu",
+    "Palafin-Hero":          "Palafin",
+    "Morpeko-Hangry":        "Morpeko",
+    "Greninja-Ash":          "Greninja",
 }
 
 
@@ -196,9 +206,11 @@ def _resolve_name(name: str) -> Optional[str]:
 
     Order: exact match → explicit forme alias (``_FORME_ALIASES``) →
     ``"<name>-Mega"`` (base forms that appear only as their Mega in this format,
-    e.g. Lopunny → Lopunny-Mega).  Names that still do not resolve (rare mons or
-    type-shifted formes such as Stunfisk-Galar) return None; callers should fall
-    back gracefully rather than treat the mon as having no data.
+    e.g. Lopunny → Lopunny-Mega) → progressive suffix stripping
+    (``"Alcremie-Rainbow-Swirl"`` → ``"Alcremie"`` — cosmetic formes Showdown
+    reports verbatim share the base entry's usage data).  Names that still do
+    not resolve return None; callers should fall back gracefully rather than
+    treat the mon as having no data.
     """
     _load()
     if name in _SETS:
@@ -209,7 +221,56 @@ def _resolve_name(name: str) -> Optional[str]:
     mega = f"{name}-Mega"
     if mega in _SETS:
         return mega
+    from .species import _DISTINCT_FORME_SUFFIXES
+    base = name
+    while "-" in base:
+        base, removed = base.rsplit("-", 1)
+        if removed in _DISTINCT_FORME_SUFFIXES:
+            return None   # never resolve across a competitively distinct forme
+        if base in _SETS:
+            return base
+        alias = _FORME_ALIASES.get(base)
+        if alias and alias in _SETS:
+            return alias
     return None
+
+
+def assumed_forme(name: str) -> str:
+    """Most-likely battle forme for *name*, weighted by usage raw counts.
+
+    The usage stats file mega formes as separate entries (Charizard vs
+    Charizard-Mega-X/-Y), so a pre-mega "Charizard" on the field is drawn
+    from the combined population.  If the mega entries together outnumber
+    the base entry, return the highest-count mega forme; otherwise return
+    *name* unchanged.  Names with no mega entries resolve to themselves.
+    """
+    _load()
+    base = _SETS.get(name)
+    megas = [(k, _SETS[k]["raw_count"])
+             for k in (f"{name}-Mega", f"{name}-Mega-X", f"{name}-Mega-Y")
+             if k in _SETS]
+    if not megas:
+        return name
+    base_count = base["raw_count"] if base else 0
+    if sum(c for _, c in megas) > base_count:
+        return max(megas, key=lambda t: t[1])[0]
+    return name
+
+
+_MEGA_STONES: Optional[frozenset] = None
+
+
+def mega_stones() -> frozenset:
+    """All mega stones in the format — the (100%) top item of every -Mega entry."""
+    global _MEGA_STONES
+    if _MEGA_STONES is None:
+        _load()
+        _MEGA_STONES = frozenset(
+            e["items"][0][0]
+            for k, e in _SETS.items()
+            if "-Mega" in k and e["items"]
+        )
+    return _MEGA_STONES
 
 
 def get_sets(name: str) -> Optional[dict]:

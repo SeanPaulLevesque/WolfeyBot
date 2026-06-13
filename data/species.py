@@ -19,6 +19,19 @@ _SPECIES: dict[str, dict] = {}
 # from the entry in smogon_champions_slim.json but shares the same typing.
 # Maps the Showdown form name → canonical name in _SPECIES.
 # Add entries here whenever a new alternate-form species is encountered.
+# Suffixes that denote a competitively DISTINCT Pokémon (different typing,
+# stats or movepool).  The progressive suffix-strip fallback must never cross
+# these: "Stunfisk-Galar" (Ground/Steel) must NOT resolve to base Stunfisk
+# (Ground/Electric) — better an honest miss (synthetic fallback + data_gaps
+# flag) than silently wrong data.  Cosmetic suffixes (Alcremie decorations,
+# Vivillon patterns, …) are open-ended and deliberately NOT listed.
+_DISTINCT_FORME_SUFFIXES: frozenset[str] = frozenset({
+    "Galar", "Alola", "Hisui", "Paldea",          # regional formes
+    "Therian", "Origin", "Bloodmoon", "Crowned",  # stat/typing-changing formes
+    "Mega", "X", "Y",                             # mega formes (own entries)
+    "F",                                          # female formes can differ (Meowstic/Indeedee/Basculegion)
+})
+
 _FORM_ALIASES: dict[str, str] = {
     # Aegislash switches between Shield (default) and Blade (attack) forms.
     # Both are Steel/Ghost.
@@ -32,6 +45,11 @@ _FORM_ALIASES: dict[str, str] = {
     "Morpeko-Hangry":   "Morpeko",
     # Greninja-Ash (Battle Bond activated). Still Water/Dark.
     "Greninja-Ash":     "Greninja",
+    # Showdown's species string for male Meowstic is the bare name; the slim
+    # DB only has the gendered entries (identical stats/typing).  Without this
+    # alias an opposing Meowstic had no stats/types at all — invisible to the
+    # engine in both damage directions (caught live by data_gaps, 0.7.6 run).
+    "Meowstic":         "Meowstic-M",
 }
 
 _MEGA_SUPPLEMENTS: dict[str, dict] = {
@@ -182,18 +200,32 @@ def _load() -> None:
 def get_species(name: str) -> Optional[dict]:
     """Return species data dict or None if not found.
 
-    Dict keys: name, types (list), hp, atk, def, spa, spd, spe, formats.
-
-    When an exact match is not found the alias table is consulted so that
-    in-battle alternate forms (e.g. ``"Aegislash-Blade"``) resolve to their
-    base entry (``"Aegislash"``) automatically.
+    Resolution order: exact match → alias table (in-battle alternate forms,
+    e.g. ``"Aegislash-Blade"`` → ``"Aegislash"``) → progressive suffix
+    stripping (``"Alcremie-Rainbow-Swirl"`` → ``"Alcremie-Rainbow"`` →
+    ``"Alcremie"``).  The last step makes cosmetic/decoration formes — which
+    Showdown reports verbatim and which share the base entry's typing and
+    stats — resolve without enumerating every variant (caught live by
+    data_gaps in the 0.7.7 run).
     """
     _load()
     entry = _SPECIES.get(name)
     if entry is not None:
         return entry
     canonical = _FORM_ALIASES.get(name)
-    return _SPECIES.get(canonical) if canonical else None
+    if canonical and canonical in _SPECIES:
+        return _SPECIES[canonical]
+    base = name
+    while "-" in base:
+        base, removed = base.rsplit("-", 1)
+        if removed in _DISTINCT_FORME_SUFFIXES:
+            return None   # never resolve across a competitively distinct forme
+        if base in _SPECIES:
+            return _SPECIES[base]
+        alias = _FORM_ALIASES.get(base)
+        if alias and alias in _SPECIES:
+            return _SPECIES[alias]
+    return None
 
 
 def base_stats(name: str) -> Optional[dict[str, int]]:

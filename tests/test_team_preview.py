@@ -39,12 +39,18 @@ def make_member(
     moves: list[str],
     item: str = "",
     mega_name: Optional[str] = None,
+    stats: Optional[dict] = None,
+    mega_stats: Optional[dict] = None,
 ) -> TeamMember:
-    """Minimal TeamMember for testing — stats/nature/ability don't matter here."""
+    """Minimal TeamMember for testing — stats/nature/ability default to blank.
+
+    *stats* / *mega_stats* may be supplied to exercise the stat-ratio demotion
+    used when a second Mega-Stone holder cannot mega evolve.
+    """
     return TeamMember(
         name=name, item=item, ability="", nature="Hardy",
         sp=_BLANK_SP, moves=moves,
-        mega_name=mega_name,
+        mega_name=mega_name, stats=stats, mega_stats=mega_stats,
     )
 
 
@@ -392,6 +398,102 @@ class TestSelectTeam:
 
         assert result[0] == 2   # mon_a is slot 2
 
+    # ── One-mega-per-battle awareness (generic: keys off mega_name) ───────────
+
+    def test_second_mega_stone_demoted_to_base_form(self):
+        """Only one mega can be used per battle.  When two stone holders both
+        rank high at *mega* value, the second is re-valued at its base form, so a
+        non-stone member with a better base matchup takes the slot instead of a
+        second (dead-item) stone.  Old behaviour would bring both stones."""
+        stone_a = make_member("StoneA", [], mega_name="StoneA-Mega")  # slot 1
+        stone_b = make_member("StoneB", [], mega_name="StoneB-Mega")  # slot 2
+        filler  = make_member("Filler", [])                            # slot 3
+
+        def fake_types(s):
+            return {
+                "StoneA": ["Dragon"],  "StoneA-Mega": ["Fairy"],  # mega immune / base weak
+                "StoneB": ["Dragon"],  "StoneB-Mega": ["Fairy"],
+                "Filler": ["Steel"],                               # resists Dragon
+                "OppDragon": ["Dragon"],
+            }.get(s, ["Normal"])
+
+        with patch("team_preview.move_type", return_value=None), \
+             patch("team_preview.types_of",  side_effect=fake_types), \
+             patch("team_preview.ability_of", return_value=None):
+            result = select_team(["OppDragon"], [stone_a, stone_b, filler], n=2)
+
+        assert 3 in result                          # the filler is brought
+        assert len({1, 2} & set(result)) == 1       # exactly one stone holder
+
+    def test_second_mega_stone_still_brought_when_base_beats_alternatives(self):
+        """The fix only *demotes* a second stone — it doesn't ban it.  If the
+        second stone's base form still out-scores the alternatives, both stones
+        are brought."""
+        stone_a = make_member("StoneA", [], mega_name="StoneA-Mega")  # slot 1
+        stone_b = make_member("StoneB", [], mega_name="StoneB-Mega")  # slot 2
+        weak    = make_member("Weak",   [])                            # slot 3
+
+        def fake_types(s):
+            return {
+                "StoneA": ["Steel"],  "StoneA-Mega": ["Fairy"],   # base still resists Dragon
+                "StoneB": ["Steel"],  "StoneB-Mega": ["Fairy"],
+                "Weak":   ["Dragon"],                              # weak to Dragon
+                "OppDragon": ["Dragon"],
+            }.get(s, ["Normal"])
+
+        with patch("team_preview.move_type", return_value=None), \
+             patch("team_preview.types_of",  side_effect=fake_types), \
+             patch("team_preview.ability_of", return_value=None):
+            result = select_team(["OppDragon"], [stone_a, stone_b, weak], n=2)
+
+        assert set(result) == {1, 2}                 # both stones beat the weakling
+
+    def test_second_mega_stone_demoted_by_stats_when_typing_unchanged(self):
+        """The key stat-megas case (e.g. Aerodactyl): a mega whose typing is
+        identical base vs mega isn't demoted by type scoring at all — only the
+        base/mega stat ratio devalues it.  With equal typing across all three
+        members, the second stone must still lose its slot to the filler purely
+        on the stat penalty."""
+        # All three share typing, so type scores are equal; only stats differ.
+        big_stats  = {"hp":80,"atk":100,"def":80,"spa":100,"spd":80,"spe":160}   # 600
+        small_stats= {"hp":80,"atk":80, "def":70,"spa":80, "spd":70,"spe":100}   # 480
+        stone_a = make_member("StoneA", [], mega_name="StoneA-Mega",
+                              stats=small_stats, mega_stats=big_stats)   # slot 1
+        stone_b = make_member("StoneB", [], mega_name="StoneB-Mega",
+                              stats=small_stats, mega_stats=big_stats)   # slot 2
+        filler  = make_member("Filler", [])                              # slot 3
+
+        def fake_types(s):
+            # Identical typing for everyone -> base-form type demotion is a no-op.
+            return ["Rock"]
+
+        with patch("team_preview.move_type", return_value=None), \
+             patch("team_preview.types_of",  side_effect=fake_types), \
+             patch("team_preview.ability_of", return_value=None):
+            result = select_team(["OppX"], [stone_a, stone_b, filler], n=2)
+
+        assert 3 in result                          # filler beats the dead-item stone
+        assert len({1, 2} & set(result)) == 1       # only one stone holder
+
+    def test_single_mega_stone_unaffected(self):
+        """A lone stone holder keeps its full mega value (nothing to demote)."""
+        stone  = make_member("Stone", [], mega_name="Stone-Mega")  # slot 1
+        filler = make_member("Filler", [])                          # slot 2
+
+        def fake_types(s):
+            return {
+                "Stone": ["Dragon"], "Stone-Mega": ["Fairy"],  # mega immune to Dragon
+                "Filler": ["Dragon"],                           # weak to Dragon
+                "OppDragon": ["Dragon"],
+            }.get(s, ["Normal"])
+
+        with patch("team_preview.move_type", return_value=None), \
+             patch("team_preview.types_of",  side_effect=fake_types), \
+             patch("team_preview.ability_of", return_value=None):
+            result = select_team(["OppDragon"], [stone, filler], n=1)
+
+        assert result == [1]   # the mega (immune) is preferred over the weak filler
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # select_leads — fallbacks (no data)
@@ -545,3 +647,101 @@ class TestSelectLeadsWithData:
             result = select_leads(list(slots), members, ["OppA"])
 
         assert sorted(result) == sorted(slots)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# select_leads — initiative rows (0.7.7 pair-based selection)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestSelectLeadsInitiative:
+    """The slow-lead and Tailwind-exposure rows demote initiative-conceding
+    pairs.  Grounded in the 0.7.6 hundred-game sample: Kingambit won 41.3%
+    when led vs 50.9% from the back."""
+
+    @staticmethod
+    def _members():
+        """Four members: Tank (slow, best matchup), Fast, two fast fillers
+        (fillers must outspeed the 120 opp leads or they carry their own
+        liability)."""
+        tank   = make_member("Tank",  ["Heavy Hit"],  stats={"spe": 50})
+        fast   = make_member("Fast",  ["Quick Hit"],  stats={"spe": 150})
+        fill_a = make_member("FillA", ["Mid Hit"],    stats={"spe": 130})
+        fill_b = make_member("FillB", ["Weak Hit"],   stats={"spe": 130})
+        return [tank, fast, fill_a, fill_b]
+
+    def _run(self, members, opp_list, scores, *, opp_speed=120,
+             priorities=None, categories=None):
+        """select_leads with full control of scores, speeds and move data.
+
+        *scores*: combined score per slot (1-based) — patched into
+        score_members.  Opp lead speed fixed via most_likely_speed.
+        """
+        pri = priorities or {}
+        cat = categories or {}
+
+        def fake_scores(opp, mems):
+            return [MemberScore(i + 1, m, scores[i + 1] / 2.0, 0.0)
+                    for i, m in enumerate(mems)]   # offense*2 = combined
+
+        with patch("data.lead_stats.lead_frequency", return_value=1), \
+             patch("data.lead_stats.total_battles", return_value=10), \
+             patch("team_preview.score_members", side_effect=fake_scores), \
+             patch("team_preview.most_likely_speed", return_value=opp_speed), \
+             patch("team_preview.move_priority", side_effect=lambda m: pri.get(m, 0)), \
+             patch("team_preview.move_category",
+                   side_effect=lambda m: cat.get(m, "Physical")):
+            return select_leads([1, 2, 3, 4], members, opp_list)
+
+    def test_slow_lead_demoted_despite_best_matchup(self):
+        """Tank has the best matchup but concedes initiative: the ×0.85 row
+        flips the pair choice to Fast + FillA."""
+        # pairs: (Tank,Fast)=19.5×0.85=16.6  (Fast,FillA)=18.5×1.0=18.5
+        scores = {1: 10.0, 2: 9.5, 3: 9.0, 4: 1.0}
+        result = self._run(self._members(), ["OppA", "OppB"], scores)
+        assert 1 not in result[:2], f"slow Tank must not lead, got {result}"
+        assert set(result[:2]) == {2, 3}
+
+    def test_trick_room_roster_waives_slow_penalty(self):
+        """Same scores, but the opponent roster has a TR setter — slow is
+        fast under TR, so Tank keeps its lead slot."""
+        scores = {1: 10.0, 2: 9.5, 3: 9.0, 4: 1.0}
+        result = self._run(self._members(), ["Farigiraf", "OppB"], scores)
+        assert 1 in result[:2], f"Tank should lead vs a TR roster, got {result}"
+
+    def test_attacking_priority_clears_the_penalty(self):
+        """Give Tank an attacking priority move (e.g. Sucker Punch) — it no
+        longer concedes initiative and keeps the lead."""
+        scores = {1: 10.0, 2: 9.5, 3: 9.0, 4: 1.0}
+        result = self._run(self._members(), ["OppA", "OppB"], scores,
+                           priorities={"Heavy Hit": 1})
+        assert 1 in result[:2], f"priority Tank should lead, got {result}"
+
+    def test_status_priority_does_not_clear_the_penalty(self):
+        """Protect-style priority (status) is not initiative — penalty stays."""
+        scores = {1: 10.0, 2: 9.5, 3: 9.0, 4: 1.0}
+        result = self._run(self._members(), ["OppA", "OppB"], scores,
+                           priorities={"Heavy Hit": 4},
+                           categories={"Heavy Hit": "Status"})
+        assert 1 not in result[:2]
+
+    def test_double_slow_pair_extra_penalty_vs_undeniable_tailwind(self):
+        """Two slow tanks survive a single ×0.85 but lose the lead when the
+        Whimsicott (Prankster TW) roster adds the second row."""
+        tank_a = make_member("TankA", ["Heavy Hit"], stats={"spe": 50})
+        tank_b = make_member("TankB", ["Slow Hit"],  stats={"spe": 45})
+        fast_a = make_member("FastA", ["Quick Hit"], stats={"spe": 150})
+        fast_b = make_member("FastB", ["Swift Hit"], stats={"spe": 140})
+        members = [tank_a, tank_b, fast_a, fast_b]
+        # tanks 12+12=24: ×0.85²=17.34 > fast 16  → tanks still lead
+        # vs TW roster: ×0.85³=14.74 < 16         → fast pair takes over
+        scores = {1: 12.0, 2: 12.0, 3: 8.0, 4: 8.0}
+
+        no_tw = self._run(members, ["OppA", "OppB"], scores)
+        assert set(no_tw[:2]) == {1, 2}, f"tanks should survive ×0.85², got {no_tw}"
+
+        # With the TW row the double-tank lead must be broken up (the winner
+        # is a mixed pair — one tank's matchup is still worth keeping).
+        with_tw = self._run(members, ["Whimsicott", "OppB"], scores)
+        assert not {1, 2} <= set(with_tw[:2]), (
+            f"undeniable TW must break up the double-slow lead, got {with_tw}"
+        )

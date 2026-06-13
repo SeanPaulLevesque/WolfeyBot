@@ -240,3 +240,105 @@ class TestForceSwitchUsesEngine:
 
         # Sylveon should be chosen, not the zeroed Incineroar
         assert "switch 3" in choice, f"Expected Sylveon (switch 3), got: {choice!r}"
+
+
+class TestStruggleNoTarget:
+    """Regression for the live 0.7.6 ladder bug: Struggle was emitted with a
+    target slot and the server rejected it ("You can't choose a target for
+    Struggle"), leaving the slot timer-controlled for the rest of the battle.
+    Struggle's request target type is "randomNormal" — the server picks the
+    target, so the choice token must be bare."""
+
+    def test_struggle_emits_no_target_in_doubles(self):
+        from main import _action_to_choice
+
+        state = _base_state(doubles=True)
+        state.my_actives     = [_pokemon("Garchomp"), _pokemon("Sneasler")]
+        state.my_team        = list(state.my_actives)
+        state.moves_per_slot = [
+            [{"move": "Struggle", "id": "struggle", "target": "randomNormal"}],
+            [],
+        ]
+        action = Action(label="Struggle", move_name="Struggle", weight=1.0)
+
+        choice = _action_to_choice(action, state, 0, False, True)
+        assert choice == "move 1", f"Struggle must carry no target, got: {choice!r}"
+
+
+class TestDoubleKoForceSwitch:
+    """Regression for the double-KO crash (backlog): both forced slots picked
+    the SAME bench mon ("/choose switch 3, switch 3") and the server rejected
+    the choice.
+
+    The per-slot rankings during a force switch are independent — the old
+    phase-1 partner-veto moved into coordinate()'s SwitchCollisionAdjuster in
+    0.7.0, and coordinate() never runs on a force switch — so _build_choice
+    itself must exclude targets an earlier forced slot already claimed.
+    These tests run the REAL engine (no scored_actions mock: a mocked ranking
+    is exactly what hid this regression).
+    """
+
+    @staticmethod
+    def _real_mon(sp: str, fainted: bool = False) -> Pokemon:
+        from team import find_member
+        tm = find_member(sp)
+        hp = 0 if fainted else tm.stats["hp"]
+        return Pokemon(ident=f"p1: {sp}", species=sp, hp=hp,
+                       max_hp=tm.stats["hp"], fainted=fainted,
+                       ability=tm.ability, item=tm.item, moves=list(tm.moves))
+
+    def _double_ko_state(self, bench: list[str]) -> BattleState:
+        dead_a = self._real_mon("Garchomp", fainted=True)
+        dead_b = self._real_mon("Kingambit", fainted=True)
+        bench_mons = [self._real_mon(b) for b in bench]
+
+        state = _base_state(doubles=True)
+        state.rqid               = 7
+        state.turn               = 5
+        state.force_switch       = [True, True]
+        state.my_team            = [dead_a, dead_b] + bench_mons
+        state.my_actives         = [dead_a, dead_b]
+        state.available_switches = bench_mons
+        state.moves_per_slot     = [[], []]
+        state.opp_actives        = [
+            Pokemon(ident="p2: Incineroar", species="Incineroar",
+                    hp=100, max_hp=100, hp_is_percentage=True),
+            Pokemon(ident="p2: Farigiraf", species="Farigiraf",
+                    hp=100, max_hp=100, hp_is_percentage=True),
+        ]
+        state.my_last_moves      = ["", ""]
+        state.opp_last_moves     = ["", ""]
+        state.my_disabled_moves  = [None, None]
+        state.my_encored_moves   = [None, None]
+        state.opp_tailwind       = False
+        state.opp_tailwind_turns_left = 0
+        state.trick_room         = False
+        state.trick_room_turns_left = 0
+        state.weather            = None
+        state.my_tailwind        = False
+        state.can_mega_evo       = [False, False]
+        state.can_terastallize   = [False, False]
+        state.trapped            = [False, False]
+        return state
+
+    def test_two_bench_mons_get_distinct_switches(self):
+        """Double KO with two bench mons: each forced slot must bring a
+        different one, never the same mon twice."""
+        from main import _build_choice
+
+        choice = _build_choice(self._double_ko_state(["Sneasler", "Basculegion-M"]))
+        # Sneasler = my_team[2] → switch 3; Basculegion = my_team[3] → switch 4
+        assert "switch 3" in choice and "switch 4" in choice, (
+            f"Expected both bench mons brought in, got: {choice!r}"
+        )
+
+    def test_single_bench_mon_switches_once_then_passes(self):
+        """Double KO with ONE bench mon left (the reported crash): the first
+        forced slot brings it, the second must pass — not pick it again."""
+        from main import _build_choice
+
+        choice = _build_choice(self._double_ko_state(["Sneasler"]))
+        body = choice.split("|")[0]          # strip rqid suffix
+        tokens = [t.strip() for t in body.replace("/choose ", "").split(",")]
+        assert tokens.count("switch 3") == 1, f"Duplicate switch in: {choice!r}"
+        assert "pass" in tokens, f"Second forced slot must pass: {choice!r}"

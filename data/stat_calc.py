@@ -1,14 +1,20 @@
 """stat_calc.py — Champions stat formula at Level 50.
 
 The SP system uses 66 total SP (max 32 per stat) replacing the standard
-510 EV system.  The exact SP→EV mapping is community-unverified; we use the
-most natural interpretation:
+510 EV system.  The SP→EV mapping is now confirmed (web sources + the
+Champions stat reference + empirical match against Showdown's own HP values
+for our team):
 
-    Each SP point ≡ one floor(EV/4) unit in the standard formula.
+    32 SP == 252 EV  →  1 SP == 7.875 EV
 
-This means ``calc_stat(base=102, sp=32, iv=31, nature_mod=1.1)`` uses
-sp=32 as the floor(EV/4) term directly.  If the real mapping is clarified,
-only ``sp_to_ev_quarter()`` needs to change.
+so the classic formula's ``floor(EV/4)`` term becomes
+``floor(SP × 7.875 / 4) == floor(SP × 1.96875)``.
+
+This means a maxed stat (32 SP) contributes a ``floor(EV/4)`` term of 63,
+exactly as 252 EVs did in the base game.  Prior to 0.8.0 this used the wrong
+``1 SP == 1 floor(EV/4) unit`` assumption, which undercounted every invested
+stat by ~half for both our team and all opponents.  Only
+``sp_to_ev_quarter()`` encodes the mapping; everything else inherits it.
 """
 from __future__ import annotations
 import math
@@ -56,11 +62,14 @@ def nature_modifier(nature: str, stat_key: str) -> float:
 
 def sp_to_ev_quarter(sp: int) -> int:
     """
-    Convert SP (0–32) to the floor(EV/4) term used in the stat formula.
+    Convert SP (0–32) to the ``floor(EV/4)`` term used in the stat formula.
 
-    Assumption: 1 SP ≡ 1 floor(EV/4) unit.  Community verification pending.
+    Mapping: 32 SP == 252 EV (1 SP == 7.875 EV), so the term is
+    ``floor(SP × 7.875 / 4) == floor(SP × 1.96875)``.  Confirmed against the
+    Champions stat reference and Showdown's own HP values (6/6 of our team).
     """
-    return max(0, min(sp, 32))
+    sp = max(0, min(sp, 32))
+    return int(sp * 252 / 32 // 4)
 
 
 # ── Stat calculators ─────────────────────────────────────────────────────────

@@ -3,7 +3,9 @@
 Two-stage process:
 
 1. :func:`select_team`  — Choose which Pokémon to bring, scored by type matchups.
-2. :func:`select_leads` — Determine lead order (stub; not yet implemented).
+2. :func:`select_leads` — Pick the best lead *pair*: type matchups vs the
+   predicted opponent leads × initiative rows (slow leads without priority
+   are demoted unless Trick Room is expected; see the 0.7.7 changelog).
 
 Usage::
 
@@ -37,7 +39,10 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from data import types_of, move_type, move_category, ability_of, all_pokemon, get_sets
+from data import (
+    types_of, move_type, move_category, ability_of, all_pokemon, get_sets,
+    move_priority, most_likely_speed,
+)
 from damage import type_effectiveness
 from team import TeamMember
 
@@ -48,6 +53,15 @@ log = logging.getLogger(__name__)
 _OFFENSE_WEIGHT = 2.0   # multiplier for offensive coverage in the combined score
 _DEFENSE_WEIGHT = 1.0   # multiplier for defensive durability in the combined score
 _IMMUNITY_BONUS = 4.0   # defensive contribution when completely immune to a type
+
+# select_leads pair rows (0.7.7).  Magnitudes grounded in the 0.7.6
+# hundred-game sample: Kingambit won 41.3% when led vs 50.9% from the back
+# (ratio ≈ 0.81), and Tailwind rosters were the worst archetype at 45.9%.
+_SLOW_LEAD_FACTOR  = 0.85  # per lead slower than both predicted opp leads with
+                           # no attacking priority move (waived when opp has a
+                           # Trick Room setter — slow IS fast under TR)
+_TW_EXPOSED_FACTOR = 0.85  # extra penalty on a DOUBLE-slow pair when the opp
+                           # roster has an undeniable (priority) Tailwind setter
 
 # ── Ability-based incoming damage modifiers ───────────────────────────────────
 # Maps ability name → {attacking_type: multiplier applied to incoming damage}.
@@ -257,6 +271,21 @@ def _defensive_score(member: TeamMember, opp_species_list: list[str]) -> float:
     )
 
 
+def _base_form_defensive_score(member: TeamMember, opp_species_list: list[str]) -> float:
+    """Defensive score for *member*'s **base** (un-mega'd) form.
+
+    Used by :func:`select_team` when a Mega-Stone holder is considered for the
+    bring but cannot actually mega evolve — only one mega is allowed per battle,
+    so any second stone holder would play with a dead item.  Scoring it with its
+    base typing and base ability (instead of the mega form) stops the selector
+    from over-valuing a second mega it can never use.
+
+    For a member with no mega stone this is identical to :func:`_defensive_score`.
+    """
+    base_types = types_of(member.name) or ["Normal"]
+    return _defense_from_types(base_types, opp_species_list, member.ability or None)
+
+
 # ── Public score container ────────────────────────────────────────────────────
 
 @dataclass
@@ -329,6 +358,20 @@ def select_team(
     Falls back to the first *n* slots in team order when *opp_species_list* is
     empty (no opponent data available at preview time).
 
+    **One mega per battle.**  Only one Pokémon can mega evolve in a game, so a
+    second Mega-Stone holder would play with a dead item (a mega stone confers
+    nothing un-evolved).  ``score_members`` values every stone holder at its
+    *mega* strength, which over-brings the pair.  Selection therefore proceeds
+    greedily: the first stone holder taken keeps its mega value, but any further
+    stone holder is re-valued at its **base** form — base typing/ability *and*
+    base stats (scaled by its own ``base_BST / mega_BST``) — which usually lets a
+    non-stone member take the slot instead.  Scaling by stats matters because a
+    Pokémon whose typing is unchanged on mega (e.g. a speed/power mega) wouldn't
+    be demoted by type scoring alone.  This is fully generic — it keys off
+    ``member.mega_name`` (truthy iff the member carries a Mega Stone) and the
+    member's own stat sheet, never specific species — so it still holds if the
+    team changes.
+
     Args:
         opp_species_list: Species names of the opponent's revealed preview team.
         our_members:      Full six-member team (from :func:`team.get_team`).
@@ -338,8 +381,47 @@ def select_team(
         List of *n* 1-based slot indices, leads-first.
     """
     scored = score_members(opp_species_list, our_members)
-    top = scored[:n]
-    return [s.index for s in top]
+    if not opp_species_list:
+        # No opponent data — preserve the team-order fallback.
+        return [s.index for s in scored[:n]]
+
+    def _base_combined(ms: MemberScore) -> float:
+        """Combined score for a stone holder that *cannot* mega this battle.
+
+        It plays as its true form: base typing/ability **and base stats**.  The
+        type-matchup score is taken from the base form, then scaled by the
+        member's own ``base_BST / mega_BST`` so the lost mega stat jump is
+        reflected (a Pokémon whose typing is unchanged on mega — so base-form
+        type scoring alone wouldn't demote it — is still correctly devalued).
+        Fully generic: reads only the member's own stat sheet, no species names.
+        """
+        base_def = _base_form_defensive_score(ms.member, opp_species_list)
+        val = _OFFENSE_WEIGHT * ms.offense + _DEFENSE_WEIGHT * base_def
+        m = ms.member
+        if m.mega_stats and m.stats:
+            mega_bst = sum(m.mega_stats.values())
+            if mega_bst > 0:
+                val *= sum(m.stats.values()) / mega_bst
+        return val
+
+    def _effective(ms: MemberScore, mega_claimed: bool) -> float:
+        # A stone holder is only worth its mega value if no mega is spoken for;
+        # otherwise it can't evolve, so value it as its (itemless) base form.
+        if ms.member.mega_name and mega_claimed:
+            return _base_combined(ms)
+        return ms.combined
+
+    remaining = list(scored)
+    selected: list[MemberScore] = []
+    mega_claimed = False
+    while remaining and len(selected) < n:
+        best = max(remaining, key=lambda ms: _effective(ms, mega_claimed))
+        selected.append(best)
+        remaining.remove(best)
+        if best.member.mega_name and not mega_claimed:
+            mega_claimed = True   # this slot consumes the battle's single mega
+
+    return [s.index for s in selected]
 
 
 def select_mega(
@@ -417,8 +499,20 @@ def select_leads(
 
     Uses historical opponent-lead frequency data (accumulated from v0.5.0
     battles onward) to predict which two Pokémon from *opp_species_list* are
-    most likely to be led, then reorders *slots* so that our best type-matchup
-    counters to those two predicted leads go first.
+    most likely to be led, then picks the best lead *pair* (all C(n,2)
+    combinations): the pair's combined type-matchup score against the
+    predicted leads, multiplied by initiative rows —
+
+    * ``_SLOW_LEAD_FACTOR`` (×0.85) per pair member that is slower than both
+      predicted leads and has no attacking priority move.  Waived entirely
+      when the opponent roster contains a Trick Room setter (slow IS fast
+      under TR).
+    * ``_TW_EXPOSED_FACTOR`` (extra ×0.85) when BOTH pair members are slow
+      and the opponent roster has an undeniable priority Tailwind setter
+      (Gale Wings Talonflame / Prankster).
+
+    With no rows firing the argmax pair equals the top-2 individual matchup
+    scores (the pre-0.7.7 behaviour).
 
     Falls back to ascending team-slot order when:
 
@@ -463,25 +557,75 @@ def select_leads(
     all_scores    = score_members(predicted, our_members)
     score_by_slot = {s.index: s.combined for s in all_scores}
 
-    # Sort by matchup score vs predicted leads, best first.
-    slots_ranked = sorted(
-        slots,
-        key=lambda i: score_by_slot.get(i, 0.0),
-        reverse=True,
-    )
-    leads = slots_ranked[:2]
-    back  = slots_ranked[2:]
+    # ── Initiative / speed-control context (pair rows, 0.7.7) ─────────────
+    # Imported lazily (matching the lead_stats import above) to keep
+    # team_preview importable without the full decision package.
+    try:
+        from decision.modules import (
+            _TR_SETTER_SPECIES, _TAILWIND_SETTER_SPECIES, _assumed_ability,
+        )
+        tr_expected = any(s in _TR_SETTER_SPECIES for s in opp_species_list)
+        tw_undeniable = any(
+            s in _TAILWIND_SETTER_SPECIES
+            and (s == "Talonflame" or _assumed_ability(s) == "Prankster")
+            for s in opp_species_list
+        )
+    except Exception:
+        tr_expected = tw_undeniable = False
 
+    opp_lead_speeds = [
+        spd for spd in (most_likely_speed(s) for s in predicted) if spd
+    ]
+
+    def _lead_liability(slot: int) -> bool:
+        """Leading this member concedes initiative: slower than every predicted
+        opponent lead, with no attacking priority move — and no Trick Room
+        expected to invert the speed order (slow IS fast under TR)."""
+        if tr_expected or not opp_lead_speeds:
+            return False
+        m = our_members[slot - 1]
+        has_priority = any(
+            (move_priority(mv) or 0) > 0 and move_category(mv) != "Status"
+            for mv in m.moves
+        )
+        if has_priority:
+            return False
+        spe = (m.stats or {}).get("spe", 0)
+        return all(spe <= opp_spd for opp_spd in opp_lead_speeds)
+
+    # ── Pick the best lead PAIR over all C(n,2) combinations ──────────────
+    # Pair score = (matchup_a + matchup_b) × initiative rows.  With no rows
+    # firing the argmax pair is exactly the top-2 individual scores, so the
+    # rows only move the choice when initiative is genuinely conceded.
+    from itertools import combinations
+
+    best_pair: tuple[int, ...] = tuple(sorted(slots)[:2])
+    best_score = float("-inf")
+    for a, b in combinations(sorted(slots), 2):
+        # Floor the base so the multiplicative penalty cannot *reward* a
+        # (rare) negative matchup total.
+        base = max(score_by_slot.get(a, 0.0) + score_by_slot.get(b, 0.0), 0.1)
+        liabilities = _lead_liability(a) + _lead_liability(b)
+        factor = _SLOW_LEAD_FACTOR ** liabilities
+        if liabilities == 2 and tw_undeniable:
+            factor *= _TW_EXPOSED_FACTOR
+        score = base * factor
+        if score > best_score:
+            best_score, best_pair = score, (a, b)
+
+    leads = sorted(best_pair,
+                   key=lambda i: score_by_slot.get(i, 0.0), reverse=True)
     # Preserve the original relative ordering for the back-line so that
     # support/setup mons don't shift unexpectedly.
-    original_order = {s: i for i, s in enumerate(slots)}
-    back.sort(key=lambda s: original_order[s])
+    back = [s for s in slots if s not in best_pair]
 
     result = leads + back
     log.info(
-        "LEAD ORDER  %s  (leads: %s vs predicted %s)",
+        "LEAD ORDER  %s  (leads: %s vs predicted %s%s%s)",
         result,
         [our_members[i - 1].name for i in leads],
         predicted,
+        "  [TR expected: slow-lead row waived]" if tr_expected else "",
+        "  [undeniable TW on roster]" if tw_undeniable else "",
     )
     return result

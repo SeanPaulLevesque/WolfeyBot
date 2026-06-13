@@ -33,7 +33,7 @@ To run a single test class or case:
 | `test_battle_utils.py` | 22 | `_parse_hp`, `_parse_status`, `_side/slot/normalize_ident`, `Pokemon.hp_fraction`, `_update_or_add` |
 | `test_battle_parser.py` | 36 | `BattleParser.feed()` — switch, damage, heal, status, boosts, Trick Room, Tailwind, turn counter, faint, win/loss callback, items, error recovery |
 | `test_damage_core.py` | 62 | `calc_damage` formula arithmetic, `type_effectiveness`, `stab_multiplier`, `stat_with_boost`, `atk/def_modifier`, `weather_modifier`, `DamageResult` KO properties, `_low_kick_power`/`_heat_crash_power` |
-| `test_turn_order.py` | 19 | `_apply_modifiers` (tailwind, paralysis, scarf, Unburden, stat stages), `priority_bracket`, `will_outspeed`, `estimate_turn_order` |
+| `test_turn_order.py` | 26 | `_apply_modifiers` (tailwind, paralysis, scarf, Unburden, stat stages), `priority_bracket`, `will_outspeed` |
 | `test_recorder.py` | 22 | `_hp_frac`, `_compact_action`, `_select_actions`, full save round-trip, compact JSON format, v2 abbreviated keys |
 | `test_decision_modules.py` | 88 | `Action`, `_build_actions`, `DecisionEngine`, and every scoring module (see below) |
 

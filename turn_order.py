@@ -1,9 +1,8 @@
-"""turn_order.py — Estimates which Pokémon moves when.
+"""turn_order.py — Estimates which Pokémon moves first.
 
 Combines exact stats for our own team (from team.py) with probabilistic
 speed distributions for opponents (from data/speed_tiers.py) to answer:
 
-  * What is the most likely move order this turn?
   * Will our Pokémon outspeed a given opponent?
   * Does our priority move land before the opponent can respond?
 
@@ -12,30 +11,20 @@ Key concepts
 - Priority brackets: higher priority always moves before lower priority.
   Trick Room only reverses speed within the same bracket.
 - Speed modifiers applied in order: stages → Choice Scarf → weather ability
-  → Tailwind → Paralysis.
+  → Unburden → Tailwind → Paralysis.
 - Opponent speed comes from spread + item usage distributions (probabilistic).
   Own team speed is computed exactly from team.txt.
 
-Usage::
-
-    from turn_order import build_combatants, estimate_turn_order, will_outspeed
-    from battle import BattleState
-
-    combatants = build_combatants(state)
-    order = estimate_turn_order(
-        combatants,
-        moves=["Fake Out", "Hyper Voice", None, None],  # None = unknown (opp)
-        trick_room=state.trick_room,
-    )
-    for entry in order:
-        print(f"  [{entry.rank}] {entry.name} ({entry.side}) "
-              f"prio={entry.priority} spd={entry.eff_speed}")
+The decision engine builds :class:`Combatant` objects per slot (see
+``decision.modules._our_combatant`` / ``_opp_combatant``) and asks
+:func:`will_outspeed` — P(attacker acts before defender) integrated over the
+opponent's speed distribution.
 """
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from typing import Optional, TYPE_CHECKING
+from dataclasses import dataclass
+from typing import Optional
 
 from data import (
     move_priority as _data_move_priority,
@@ -43,9 +32,6 @@ from data import (
     WEATHER_SPEED_ABILITIES,
     SpeedOutcome,
 )
-
-if TYPE_CHECKING:
-    from battle import BattleState, Pokemon
 
 
 # ── Data containers ───────────────────────────────────────────────────────────
@@ -81,28 +67,6 @@ class Combatant:
     # True once the held item was consumed this field stint (drives Unburden ×2).
     # Cleared when the Pokémon switches out (new Pokemon object resets the flag).
     item_consumed: bool = False
-
-
-@dataclass
-class TurnEntry:
-    """One slot's position in the estimated turn order."""
-    name:            str
-    side:            str
-    slot:            int
-    move:            str
-    priority:        int
-    eff_speed:       int              # most-likely effective speed
-    eff_speed_min:   int              # lower bound (from distribution)
-    eff_speed_max:   int              # upper bound (from distribution)
-    rank:            int = 0          # 1 = moves first, filled by estimate_turn_order
-
-    @property
-    def is_priority_move(self) -> bool:
-        return self.priority > 0
-
-    @property
-    def speed_is_exact(self) -> bool:
-        return self.eff_speed_min == self.eff_speed_max
 
 
 # ── Speed calculation ─────────────────────────────────────────────────────────
@@ -222,55 +186,6 @@ def _speed_outcomes(c: Combatant) -> list[tuple[int, float]]:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-def estimate_turn_order(
-        combatants: list[Combatant],
-        moves: list[Optional[str]],
-        trick_room: bool = False,
-) -> list[TurnEntry]:
-    """
-    Return *combatants* sorted from first-to-move to last-to-move.
-
-    Args:
-        combatants:  Active Pokémon (up to 4 in doubles).
-        moves:       Parallel list of move names (``None`` = unknown).
-        trick_room:  If True, slower Pokémon move first within each priority
-                     bracket.
-
-    The ranking uses the *most-likely* effective speed for each slot;
-    ``eff_speed_min`` / ``eff_speed_max`` indicate the uncertainty range.
-    """
-    entries: list[TurnEntry] = []
-
-    for c, move in zip(combatants, moves):
-        move_name = move or ""
-        prio = _data_move_priority(move_name) if move_name else 0
-
-        outcomes = _speed_outcomes(c)
-        mode_speed = outcomes[0][0]                       # most probable
-        all_speeds = [s for s, _ in outcomes]
-        spd_min, spd_max = min(all_speeds), max(all_speeds)
-
-        entries.append(TurnEntry(
-            name=c.name, side=c.side, slot=c.slot,
-            move=move_name, priority=prio,
-            eff_speed=mode_speed,
-            eff_speed_min=spd_min,
-            eff_speed_max=spd_max,
-        ))
-
-    # Sort: descending priority; within bracket, descending speed (or ascending
-    # under Trick Room).
-    def _key(e: TurnEntry) -> tuple:
-        speed_key = -e.eff_speed if not trick_room else e.eff_speed
-        return (-e.priority, speed_key)
-
-    ranked = sorted(entries, key=_key)
-    for i, e in enumerate(ranked):
-        e.rank = i + 1
-
-    return ranked
-
-
 def will_outspeed(
         attacker: Combatant,
         defender: Combatant,
@@ -324,84 +239,3 @@ def will_outspeed(
 def priority_bracket(move: str) -> int:
     """Return the priority value for *move* (0 for normal moves)."""
     return _data_move_priority(move) if move else 0
-
-
-# ── Battle-state integration ──────────────────────────────────────────────────
-
-def build_combatants(
-        state: "BattleState",
-        team_members: Optional[list] = None,
-) -> list[Combatant]:
-    """
-    Build a :class:`Combatant` list from the current :class:`BattleState`.
-
-    Own team slots use exact speeds from *team_members* (loaded via
-    :func:`team.get_team`).  Opponent slots use speed distributions.
-
-    If *team_members* is omitted, imports and calls :func:`team.get_team`
-    automatically.
-    """
-    if team_members is None:
-        from team import get_team
-        team_members = get_team()
-
-    result: list[Combatant] = []
-
-    # ── Own active slots ──────────────────────────────────────────────────────
-    for slot, mon in enumerate(state.my_actives):
-        if mon is None:
-            continue
-
-        # Match against team data; handle mega form names
-        tm = next(
-            (t for t in team_members
-             if mon.species == t.name
-             or mon.species == t.mega_name
-             or mon.species.startswith(t.name)),
-            None,
-        )
-
-        # Choose correct speed: post-mega if species changed
-        exact_spd: Optional[int] = None
-        if tm is not None:
-            is_mega = (mon.species == tm.mega_name)
-            if is_mega and tm.mega_stats:
-                exact_spd = tm.mega_stats["spe"]
-            elif tm.stats:
-                exact_spd = tm.stats["spe"]
-
-        result.append(Combatant(
-            name          = mon.species,
-            side          = "own",
-            slot          = slot,
-            exact_speed   = exact_spd,
-            item          = mon.item   or (tm.item    if tm else None),
-            ability       = mon.ability or (tm.ability if tm else None),
-            speed_stage   = mon.boosts.get("spe", 0),
-            tailwind      = state.my_tailwind,
-            paralyzed     = (mon.status == "par"),
-            weather       = state.weather,
-            is_mega       = (mon.species == (tm.mega_name if tm else None)),
-            item_consumed = mon.item_consumed,
-        ))
-
-    # ── Opponent active slots ─────────────────────────────────────────────────
-    for slot, mon in enumerate(state.opp_actives):
-        if mon is None or mon.fainted:
-            continue
-
-        result.append(Combatant(
-            name          = mon.species,
-            side          = "opp",
-            slot          = slot,
-            exact_speed   = None,          # opponent speed is unknown
-            item          = mon.item,      # None until revealed in battle
-            ability       = mon.ability,   # None until revealed
-            speed_stage   = mon.boosts.get("spe", 0),
-            tailwind      = state.opp_tailwind,
-            paralyzed     = (mon.status == "par"),
-            weather       = state.weather,
-            item_consumed = mon.item_consumed,
-        ))
-
-    return result

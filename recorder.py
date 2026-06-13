@@ -7,8 +7,8 @@ Compact format (recorder v2, introduced 0.3.5):
   - Decisions grouped by turn — state snapshot is shared between slot 0 and
     slot 1, eliminating the largest source of redundancy in v1.
   - HP stored as a 0.0–1.0 fraction instead of "cur/max" strings.
-  - Abbreviated keys: id, v, t, n, w, te, tr, my, opp, team, dec, sl, ch,
-    acts, lb, ts, sw, r, sts, mv.
+  - Abbreviated keys: id, v, t, n, w, te, tr, my, opp, team, dec, sl, ch, ct,
+    acts, lb, ts, tg, sw, r, sts, mv.
   - No whitespace (separators=(',', ':')) — saves ~30 % on large files.
   - Null / empty / False fields omitted.
   - Only the top-_MAX_ACTIONS actions stored per slot (weight > 1.0, minimum
@@ -29,11 +29,13 @@ Turn-level:
 Decision-level:
   sl  slot index (0 or 1)
   ch  chosen action label
+  ct  chosen action's target species (resolved from ts; omitted if no opp target)
 
 Action-level:
   lb  label
   w   weight (2 dp)
   ts  target_slot (omitted if null)
+  tg  target species (resolved from ts; omitted if no opp target)
   sw  switch_target (omitted if falsy)
   r   reasons list (omitted if empty)
 
@@ -47,10 +49,15 @@ Usage::
 from __future__ import annotations
 
 import json
+import logging
 import os
 from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
+
+from data import drain_gaps
+
+_log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from decision import Action
@@ -74,11 +81,21 @@ def _hp_frac(hp: int, max_hp: int) -> float:
     return round(hp / max_hp, 3)
 
 
-def _compact_action(a: "Action") -> dict:
-    """Serialise one Action to a compact dict; omit null / empty fields."""
+def _compact_action(a: "Action", opp_species: Optional[list] = None) -> dict:
+    """Serialise one Action to a compact dict; omit null / empty fields.
+
+    *opp_species* maps opponent slot index -> species name (or None).  When
+    given, the action's numeric ``ts`` target is also resolved to a ``tg``
+    species so the move's target is readable without cross-referencing the opp
+    list.  ``ts`` is kept for backward compatibility.
+    """
     out: dict = {"lb": a.label, "w": round(a.weight, 2)}
     if a.target_slot is not None:
         out["ts"] = a.target_slot
+        if (opp_species is not None
+                and 0 <= a.target_slot < len(opp_species)
+                and opp_species[a.target_slot]):
+            out["tg"] = opp_species[a.target_slot]
     if a.switch_target:
         out["sw"] = a.switch_target
     if a.reasons:
@@ -179,6 +196,9 @@ class BattleRecorder:
         self.battle_id   = battle_id
         self.version     = version
         self._started_at = datetime.now(timezone.utc).isoformat()
+        # Discard data-gap flags left over from a previous battle (or an
+        # aborted one) so this battle's "data_gaps" reflects only itself.
+        drain_gaps()
         # Keyed by turn number.  Each value:
         #   {"snap": dict (immutable state snapshot), "slots": {slot: [Action]}}
         self._turns: dict[int, dict] = defaultdict(lambda: {"snap": None, "slots": {}})
@@ -308,17 +328,28 @@ class BattleRecorder:
         if team_list:
             t["team"] = team_list
 
-        # Per-slot decisions
+        # Per-slot decisions.  opp_species lets each action resolve its numeric
+        # target slot to the opponent species (tg).
+        opp_species = [(o["s"] if o is not None else None) for o in opp_list]
         dec_list = []
         for slot, ranked in sorted(entry["slots"].items()):
             if not ranked:
                 continue
-            acts = [_compact_action(a) for a in _select_actions(ranked)]
-            dec_list.append({
+            chosen = ranked[0]
+            acts = [_compact_action(a, opp_species) for a in _select_actions(ranked)]
+            dec: dict = {
                 "sl":   slot,
-                "ch":   ranked[0].label,
+                "ch":   chosen.label,
                 "acts": acts,
-            })
+            }
+            # Resolve the chosen action's target slot to the opponent species so
+            # the log shows *who* each slot attacked without cross-referencing
+            # ``ts`` against the opp list.  Omitted for Protect / switches / any
+            # action with no opponent target.
+            cts = chosen.target_slot
+            if cts is not None and 0 <= cts < len(opp_list) and opp_list[cts] is not None:
+                dec["ct"] = opp_list[cts]["s"]
+            dec_list.append(dec)
         if dec_list:
             t["dec"] = dec_list
 
@@ -343,5 +374,13 @@ class BattleRecorder:
         if self._preview is not None:
             payload["preview"] = self._preview
         payload["turns"] = turns
+        # Data-layer lookup failures seen during this battle (deduped
+        # "kind:species" strings).  Present only when something went wrong —
+        # a clean battle has no key at all.
+        gaps = drain_gaps()
+        if gaps:
+            payload["data_gaps"] = gaps
+            _log.warning("Battle %s data gaps: %s",
+                         self.battle_id, ", ".join(gaps))
         with open(file_path, "w", encoding="utf-8") as fh:
             json.dump(payload, fh, separators=(',', ':'), ensure_ascii=False)

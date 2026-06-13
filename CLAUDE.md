@@ -4,8 +4,32 @@
 
 WolfeyBot is a Gen 9 VGC doubles bot that plays on Pokémon Showdown in the
 **Champions format (Reg MA)**. It connects via WebSocket, parses the battle
-protocol, and chooses moves using a scoring engine made up of 13 stacked
-multiplier modules.
+protocol, and chooses moves using a two-phase scoring engine (12 per-slot
+modules + 4 joint adjusters; see the pipeline section below).
+
+---
+
+## Testing workflow — when a test fails, STOP and review together (IMPORTANT)
+
+A failing test is a **signal to stop and review with the user**, never something
+to make green by editing expectations. This is a hard rule:
+
+- **Never edit a test's expected values/assertions, and never delete, skip, or
+  `xfail` a test, to make it pass.** That throws away the regression guard.
+- **On any failure, stop and surface it** — report (a) which test, (b) what it
+  asserted, (c) what the code now produces, and (d) *why* the behavior changed —
+  then **ask whether the new behavior is correct before changing anything.**
+- A failure is exactly one of two things; decide **together** which:
+  1. **Real regression** → fix the **code**, not the test.
+  2. **Intended behavior change** → update the test *only after the user agrees*
+     the new behavior is correct.
+- **This applies to generated/bulk expectation tables too** (`turn1_summary.md`,
+  `tests/test_turn1_decisions.py`, etc.). Do **not** regenerate expected values
+  wholesale to clear failures. Regeneration is allowed **only after** the user has
+  reviewed and approved the behavior change that produced the diff — and even
+  then, spot-check that the new values are actually correct, don't just trust the
+  engine's current output.
+- Editing a test is the **last** step, after agreement — never the reflex.
 
 ---
 
@@ -23,7 +47,8 @@ multiplier modules.
 | `turn_order.py` | `will_outspeed()`, `priority_bracket()`, `Combatant` dataclass |
 | `data/` | `smogon_champions_slim.json` (218 Champions-legal species) + move/type data |
 | `team_preview.py` | Bring-4 selection logic |
-| `DECISION_ARCHITECTURE.md` | Full narrative of how the engine works, with weight tables |
+| `docs/DECISION_ARCHITECTURE.md` | Full narrative of how the engine works, with weight tables |
+| `tools/` | Dev/analysis scripts: battle analysis, lead stats, ELO chart, team packing |
 | `CHANGELOG.md` | Per-version bug fixes — always check before investigating a bug |
 | `turn1_summary.md` | Generated first-turn decision table (5 our leads × 20 opp leads) |
 | `_gen_turn1_summary.py` | Script that produces `turn1_summary.md` |
@@ -40,34 +65,81 @@ multiplier modules.
 | Sneasler | White Herb | Unburden | Jolly | Close Combat / Dire Claw / Rock Tomb / Protect |
 | Basculegion-M | Sitrus Berry | Adaptability | Adamant | Liquidation / Last Respects / Psychic Fangs / Protect |
 | Venusaur | Venusaurite | Chlorophyll | Modest | Sludge Bomb / Giga Drain / Earth Power / Protect |
-| Garchomp | Soft Sand | Rough Skin | Adamant | Dragon Claw / Stomping Tantrum / Poison Jab / Protect |
+| Garchomp | Choice Scarf | Rough Skin | Jolly | Dragon Claw / Stomping Tantrum / Poison Jab / Rock Tomb |
 
 ---
 
-## Decision engine pipeline (13 modules, in order)
+## Decision engine pipeline (two phases, since 0.7.0)
 
-Each action starts at `weight = 1.0`. Modules multiply — never add.
+**Actions are `(move, target)` pairs.** `_build_actions` emits one candidate per
+live opponent for every single-target move (fixed `target_slot`), so *which
+target* is part of the action's identity — not a field that modules pick and
+overwrite. Spread/status/self moves and switches are single candidates
+(`target_slot=None`).
+
+### Phase 1 — per-slot scoring (11 modules, in order)
+Each candidate starts at `weight = 1.0`; modules multiply — never add. A slot is
+scored **in isolation** (blind to the partner) over its own candidates.
 
 | # | Module | What it does |
 |---|---|---|
-| 1 | DamageOutput | `×(1 + dmg_fraction × 2.0)` — sets `target_slot` to best opponent |
-| 2 | ThreatElimination | ×5.0 guaranteed OHKO only; **withheld if we're guaranteed-KO'd before acting** (a faster/priority opp min-roll-OHKOs us & isn't removed first — offensive mirror of `_opp_neutralized_before_acting`) |
-| 3 | IncomingOHKO | An opponent's max roll can OHKO us **and the threat isn't killed before it acts** (no faster ally guarantees its OHKO) → Protect ×2.5; suppress in 1v1/2v1 |
-| 4 | TurnOrder | Fastest (pos 1/4): ×2.0; pos 2: ×1.5; pos 3: ×1.0; slowest (pos 4): ×0.75 — attacks only |
-| 5 | SetterPresence | TR setter on field: attacks ×2.0; TW setter: attacks ×1.5 — unconditional urgency boost |
-| 6 | FieldSetterDisruption | Only when guaranteed OHKO + we outspeed + no Prankster/Gale Wings: ×2.0 vs TR setters, ×1.5 vs TW setters; redirect if deny-score > current weight |
-| 7 | OppProtectRecency | ×1.3 if target used Protect last turn |
+| 1 | DamageOutput | `×(1 + dmg_fraction × 2.0)` scored against the candidate's **own** fixed target (spread/status: best live foe) |
+| 2 | ThreatElimination | "Can I guarantee a kill?" → ×5.0 when `ctx.guarantees_ohko(slot, move, its target)`. "Will I die before I act?" → if `ctx.is_doomed(slot)`, the same kill candidate gets ×0.2 (cancels the ×5; net ×1.0). No target override (target is fixed) |
+| 3 | ProtectValue | Four multiplicative rows on Protect-family moves when `ctx.is_threatened(slot)`: ×2.5 always; ×3.0 if a partner can guaranteed-OHKO any threat; ×0.4 in 1v1 endgame; ×0.4 in 2v1 (mutually exclusive with 1v1). Net in 2v1 with partner clearing: 2.5×3.0×0.4=3.0 |
+| 4 | TurnOrder | By rank in the 4-mon turn order (pos 1 = we act before all 3 other actives): pos 1 ×2.0; pos 2 ×1.5; pos 3 ×1.0; pos 4 ×0.75 — attacks only |
+| 5 | SetterUrgency | One urgency boost per turn, TR first (if/elif): TR setter present & TR not active (or last turn) & no opp TW → all attacks ×2.0; **else** TW setter present & TW not active (or last turn) & no TR → all attacks ×1.5. Target-agnostic — bias toward attacking, not stalling |
+| 6 | SetterDenial | A candidate aimed at a setter it guaranteed-OHKOs (`ctx.ohko`), that we outspeed, whose setup move has no +1 priority (Prankster/Gale Wings) → TR setter ×2.0, TW setter ×1.5. At most one denial per action (TR claim wins); active effects can't be denied |
+| 7 | OppProtectRecency | ×1.3 if the candidate's target used Protect last turn |
 | 8 | ConsecutiveProtect | ×0.2 if we used Protect last turn — no exceptions |
-| 9 | Protect | An opp can OHKO us + ≥1 such threat still connects (not killed before it acts) + a partner has a guaranteed OHKO on one of the threats: ×3.0; suppress in 1v1/2v1 |
-| 10 | FakeOut | Fake Out user on field (empty last move): Protect ×3.0, all attacks ×0.5 |
-| 11 | FieldCondition | turns_left=1 or 3 → Protect ×3.0 (stall every other turn); no bonus at turns_left=2 |
-| 12 | Switch | Board-value (1-ply): `TEMPO×(offense_term+escape)×safety`. offense_term=1+max(0, switchin_offense−current_offense)×2 (halved unless escaping; current Struggle counts as 0); escape +3.0 if current mon OHKO-threatened (connecting) & switch-in survives; safety ×0.3 if switch-in is OHKO'd; TEMPO 0.6; ×0 if partner switching same mon |
-| 13 | DoublingUp | Both hitting same target: ×0.40–0.70 penalty; partner confirmed OHKO (w≥15): redirect or ×0.05 |
+| 9 | FakeOut | `ctx.fake_out_fired(slot)` (fresh Fake Out user on field): Protect ×2.0, all attacks ×0.5 — for **every** slot |
+| 10 | FieldCondition | turns_left=1 or 3 → Protect ×3.0 (stall every other turn) |
+| 11 | Switch | Board-value (1-ply): `TEMPO×(1+g)×escape×safety` — TEMPO=0.6, g=offense gain, escape=×4.0 if escaping a connecting OHKO into a survivor, safety=×0.3 if switch-in OHKO'd (no same-mon veto — that's phase 2) |
 
-**Slot A is scored first. Slot B sees Slot A's committed decision** — DoublingUp
-reads `my_slot_decisions[0]` when scoring slot 1.
+### Phase 2 — joint coordination (`DecisionEngine.coordinate`)
+Phase 1 yields a ranked candidate list per slot. `coordinate` then picks the
+**best joint pair** — `argmax (w0·factor_a)·(w1·factor_b)` over all candidate
+pairs — where the `JointAdjuster`s below are the *only* cross-slot effects. With
+all factors 1.0 the argmax is each slot's independent best, so coordination only
+moves a choice off the per-slot optimum when a real interaction makes another pair
+better. The chosen pair's per-slot factors are **baked into** the actions'
+weights (so a decision's weight reflects the joint effects). `main.py` runs the
+turn as: phase-1 score all → `coordinate` → record/mega/emit.
+
+| Adjuster | Effect (per-slot factor on the pair) |
+|---|---|
+| Doubling | Both attack the same target: ×0.40–0.70 (penalty on the higher slot); if one slot already confirms the OHKO, ×0.05 **overkill** near-veto on the *non-killer* → the pair that **spreads** onto the survivor wins (emergent "redirect") |
+| Coordination | A **gratuitous** lone Protect (no `incoming_ohko`/`protect:`/`field_condition` reason) beside an attacking partner: ×0.5 on the Protect → favour double-attack; justified Protects and double-Protects untouched |
+| FakeOut (free) | When **either** slot attacks, divide the partner's Fake-Out multiplier back out (attack un-halved, Protect un-boosted; known from `ctx.fake_out` + the action type) — a pair pays the Fake-Out adjustment once, never twice; symmetric since 0.7.2 |
+| SwitchCollision | Both slots switch to the **same** bench mon → ×0 |
+
+There is no scoring-order blind spot: slot 0 is never committed before slot 1 is
+seen. The old greedy + `recoordinate` re-pass (0.6.8–0.6.10) is gone — its
+overkill-redirect and gratuitous-Protect repairs are now emergent from choosing
+the best pair.
 
 ### Key constants in engine.py / modules.py
+- `TurnContext` (modules.py) — per-turn precomputed facts: `doomed[slot]` (KO'd
+  before acting), `ohko` (set of `(slot, move, opp_slot)` guaranteed-OHKO
+  triples), `incoming_ohko[slot]` / `incoming_certain[slot]` (opp slots whose
+  max / min roll OHKOs us), `neutralized[opp_slot]` (opp KO'd before it acts),
+  `fake_out[slot]` (Fake-Out adjustment applies), and board counts behind the
+  1v1/2v1 rows. Built once per turn by `build_turn_context` — the **only**
+  place damage calcs run for yes/no facts — and cached via
+  `_ensure_turn_ctx(state)` (keyed on `state.turn`). `_partner_can_ohko` /
+  `_opp_neutralized_before_acting` / `_ko_before_acting` are thin fact readers
+  (tests patch them as seams; the build passes the partial ctx explicitly)
+- **Opponent inference seams (modules.py, since 0.7.6)** — every fact about an
+  unrevealed opponent goes through three helpers: `_assumed_species(mon)`
+  (population-weighted forme via `data.assumed_forme` — a pre-mega Charizard
+  is modelled as Charizard-Mega-Y; revealed mega or revealed non-stone item
+  overrides), `_effective_ability(mon)` (revealed > top-usage ability of the
+  assumed forme), `_effective_item(mon)` (revealed > consumed→None > top-usage
+  item if ≥40%, `_ASSUMED_ITEM_MIN_PCT`). Assumed items feed **all** damage
+  math; Focus Sash/Sturdy set `DamageResult.ko_prevented` (damage.py), which
+  gates `is_ohko`/`ohko_with_max_roll` — multi-hit moves break Sash naturally
+- `JointAdjuster` (engine.py) — phase-2 base class; `factor(state, slot_a, a0,
+  slot_b, a1) -> (factor_a, factor_b, reason)`. Concrete: `DoublingAdjuster`,
+  `CoordinationAdjuster`, `FakeOutAdjuster`, `SwitchCollisionAdjuster` (modules.py)
 - `_PROTECT_MOVES` — frozenset of all Protect-family move names
 - `_FAKE_OUT_USERS` — frozenset: Incineroar, Kangaskhan, Tinkaton, Weavile, Sneasler, Lopunny(-Mega), Toxicroak, Salazzle, etc. (Champions-legal only; derived from usage stats)
 - `_TR_SETTER_SPECIES` — Farigiraf, Oranguru, Hatterene, Cofagrigus, Runerigus, Slowbro/Slowking variants, Reuniclus, Wyrdeer, etc. (≥40% TR usage in Champions stats)
@@ -130,22 +202,38 @@ best = ranked[0]                              # Action with .move_name / .switch
 .venv\Scripts\python.exe _gen_turn1_summary.py
 ```
 
+**Never prefix shell commands with `cd`.** The tool's working directory is
+already the project root and persists between calls. A compound command like
+`cd C:\...\WolfeyBot && ...` (or `cd ...; ...`) trips Claude Code's
+path-resolution safety check and forces a manual approval every single time.
+Run commands bare with relative paths, exactly as in the block above
+(`.venv\Scripts\pytest -q`, not `cd <repo> && .venv/Scripts/pytest -q`).
+
 ---
 
 ## Pending tasks
 
 - **Task #3** — Audit switch-in order logic after a faint
-- **Task #4** — Build lead selection framework
-- **Task #5** — Stat-aware mega selection. `select_mega` ranks candidates by
-  *defensive type-delta* (mega typing vs base), which is always 0 for our team
-  (Aerodactyl & Venusaur keep their typing on mega), so it never discriminates
-  and falls through to the type-based offensive score — ignoring the mega STAT
-  jump and stat-abilities (Mega Venusaur bulk + Thick Fat, Mega Aerodactyl
-  speed/power). Replace the delta with a stat-aware mega-vs-base value
-  comparison. Only matters when two stone-holders are brought together.
-- **Ongoing** — Investigate weight issues surfaced by `turn1_summary.md`
-  (FakeOut ×0.5 discount may be too aggressive; double-Protect scenarios
-  where neither slot has a good attack warrant review)
+- **Task #4** — Build lead selection framework. *Done (0.7.7):* `select_team`
+  is one-mega-aware (0.6.9); `select_leads` is pair-based and initiative-aware
+  (0.7.7) — all C(n,2) lead pairs scored as matchup-vs-predicted-leads ×
+  slow-lead/Tailwind-exposure rows, with the slow row waived vs TR rosters.
+  Remaining idea: validate the row magnitudes (×0.85) against the next
+  100-game sample's led-vs-back splits.
+- **Task #5** — Stat-aware mega selection. *Core idea now implemented in
+  `select_team` (0.6.9):* a second stone-holder is demoted to base typing/ability
+  **and** base stats (`base_BST / mega_BST`), which is the stat-aware mega-vs-base
+  comparison this task wanted. Remaining: `select_mega` (which of the *brought*
+  stones actually evolves) still ranks by defensive type-delta (≈0 for our team)
+  → could reuse the same stat-aware base-vs-mega value. Lower priority now that
+  we rarely bring two stones.
+- **Ongoing** — Investigate weight issues surfaced by `turn1_summary.md`. The
+  FakeOut over-protection (×0.5 discount looked too aggressive; gratuitous lone
+  Protects) is now addressed *via coordination* — `CoordinationModule` (0.6.9)
+  flips a gratuitous lone Protect to an attack beside an attacking partner,
+  rather than re-tuning the FakeOut multipliers. Remaining: opponent **setup**
+  (Tailwind/TR/defensive boosts) is the biggest loss correlate (59.8% of 0.6.8
+  losses) — largely a team gap (no Taunt/Haze/speed-control), tracked separately.
 
 ---
 
