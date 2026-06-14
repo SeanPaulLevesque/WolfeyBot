@@ -71,6 +71,19 @@ model calibration:
  assume FRAILER than reality.) Land in ISOLATION per the regression note so the
  win-rate delta is attributable.
 
+-In-battle forme modeling — remaining cases after 0.8.10. 0.8.10 fixed the
+ STAT-changing transformers (Palafin-Hero stats; Aegislash Blade-offense /
+ Shield-defense). Still unmodeled, lower impact:
+   * Mimikyu (Disguise): the first hit is blocked entirely — effectively a free
+     Focus Sash. We OVER-predict our first hit removing it; should gate like
+     `ko_prevented` (one free hit) until Disguise is busted. Most useful of the
+     leftovers (affects our offense planning vs a common mon).
+   * Morpeko-Hangry: stats are identical to base; only Aura Wheel's type flips
+     Electric→Dark. A per-move type override, not a stat fix. Minor.
+   * Castform-Sunny/Rainy/Snowy: weather forms change TYPE (Normal→Fire/Water/
+     Ice), stats unchanged — affects type effectiveness only in weather. Rare.
+ (Wishiwashi/Eiscue/Cramorant/Cherrim aren't Champions-legal.)
+
 
 bugs:
 -[FIXED 0.7.6] I saw a bug when there was a double ko against my team and the bot tried to pick the last remaining mon twice and error'd out
