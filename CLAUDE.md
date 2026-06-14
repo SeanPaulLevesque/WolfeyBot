@@ -65,7 +65,7 @@ to make green by editing expectations. This is a hard rule:
 | Sneasler | White Herb | Unburden | Jolly | Close Combat / Dire Claw / Rock Tomb / Protect |
 | Basculegion-M | Sitrus Berry | Adaptability | Adamant | Liquidation / Last Respects / Psychic Fangs / Protect |
 | Venusaur | Venusaurite | Chlorophyll | Modest | Sludge Bomb / Giga Drain / Earth Power / Protect |
-| Garchomp | Choice Scarf | Rough Skin | Jolly | Dragon Claw / Stomping Tantrum / Poison Jab / Rock Tomb |
+| Garchomp | Choice Scarf | Rough Skin | Adamant | Dragon Claw / Stomping Tantrum / Poison Jab / Rock Tomb |
 
 ---
 
