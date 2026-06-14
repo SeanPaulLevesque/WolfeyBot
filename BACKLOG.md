@@ -27,7 +27,49 @@ The 0.8.5 batches wired every ability that keys off move flags, move type, categ
 -Out of format, revisit only if the legal pool changes (no Champions-legal holder today): Slow Start (Regigigas), Orichalcum Pulse (Koraidon), Hadron Engine (Miraidon; also needs Electric Terrain), Flower Gift (Cherrim). Any of these would also need turns-active and/or terrain tracking that we deliberately skipped.
 
 model calibration:
--Opponent spread calibration. incoming_damage/outgoing_damage use _most_common_stats = the single MODAL spread, which for many mons is the frail max-offense spread; real opponents often run bulkier spreads, so we systematically OVER-predict our damage into bulky targets. Evidence (0.8.5/0.8.6 accuracy report, real ladder games): Rock Tomb -> Delphox-Mega 100% predicted vs 41% actual; Last Respects -> Sinistcha 73% vs 19%; Dragon Claw/Rock Tomb -> Pelipper 49% vs ~27%. Options: use a median/percentile-bulk spread for defensive stats, sample across the top-N spreads and aggregate, or bias toward a bulk-leaning spread when computing OUR damage into an opponent. (Supersedes the earlier loosely-worded "Milotic over-prediction" note — the direction is: we assume FRAILER than reality.) Land in isolation per the regression note so the win-rate delta is attributable.
+-Opponent spread calibration (DECISION NEEDED — pick an approach below). We
+ systematically OVER-predict our damage into bulky walls.
+
+ ROOT CAUSE: `_most_common_stats` (damage.py) returns `spread_distribution(sp)[0]`
+ — the single MODAL spread — and uses it for BOTH the opponent's offense AND its
+ defense. But a mon's modal spread is often an *attacker* set even when the mon
+ is overwhelmingly played as a *wall*, so the one modal pick is the frailest-on-
+ defense option. Conflating offense and defense in one spread is the structural
+ bug.
+
+ WORKED EXAMPLE — Corviknight (assumed base forme, no mega):
+   * base stats HP98/Def105/SpD85; the engine uses modal spread
+     `Adamant: 32/13/0/0/13/8` -> Def 125 (a physical ATTACKER set, 0 Def EVs).
+   * that spread is only 4.6% usage; ~73% of Corviknight usage is bulk-invested
+     (Impish/Careful walls): Def up to 172, usage-weighted-mean Def ~145.
+   * so we calc Kowtow Cleave into a Def-125 attacker; the real Corviknight is a
+     Def-160+ wall -> predicted 92%, actual 20%.
+
+ EVIDENCE (50-game 0.8.7 ladder sample, accuracy report): the offense
+ over-predictions are dominated by bulky walls — Kowtow Cleave -> Corviknight x5
+ (92->20%, 60->19%, ...), Earth Power -> Archaludon x3, Dragon Claw -> Rotom-Wash
+ x2, plus Sinistcha, Milotic, Pelipper, Skarmory. (Earlier samples: Delphox-Mega
+ 100->41%, Sinistcha 73->19%.) Defense is NOT similarly biased — the model only
+ had 6 [known] under-predictions in 50 games — so the fix should target the
+ OPPONENT-DEFENSE spread used by outgoing_damage, and likely leave the offensive
+ (incoming) spread alone.
+
+ OPTIONS for the opponent-DEFENSE spread:
+   (a) usage-weighted AVERAGE of defensive stats across the mon's spreads
+       (Corviknight -> Def ~145) — data-driven, but a synthetic stat line.
+   (b) the most-used BULK-INVESTED spread (Corviknight -> Def 172) — assumes the
+       common wall set; principled but ignores the attacker minority.
+   (c) a Def/SpD PERCENTILE (e.g. median) across spreads.
+ Key design point: split the spread choice — defensive spread for OUR outgoing
+ damage into them, offensive/modal spread for THEIR incoming damage into us.
+
+ CAVEAT: the usage file lists only each mon's top ~6 spreads (~17% of its total
+ usage), so any aggregate is over a partial sample; direction is unambiguous but
+ magnitudes are approximate.
+
+ (Supersedes the earlier loose "Milotic over-prediction" note — direction is: we
+ assume FRAILER than reality.) Land in ISOLATION per the regression note so the
+ win-rate delta is attributable.
 
 
 bugs:
