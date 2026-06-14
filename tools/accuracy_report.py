@@ -26,6 +26,15 @@ import sys
 DMG_RE = re.compile(r"damage_output: (\d+)% HP")
 POS_RE = re.compile(r"pos (\d)/4")
 
+# Moves that resolve early (via +priority) but don't threaten us — a Protect (or
+# Endure) moving "before" our attacker is fine and shouldn't count as our mon
+# being slow.  Excluded when computing the actual turn-order position.
+_NONTHREAT_FIRST = frozenset({
+    "Protect", "Detect", "King's Shield", "Spiky Shield", "Baneful Bunker",
+    "Silk Trap", "Burning Bulwark", "Wide Guard", "Quick Guard", "Crafty Shield",
+    "Mat Block", "Max Guard", "Obstruct", "Endure",
+})
+
 
 def _load(version):
     files = glob.glob(os.path.join("Battle Data", version, "*.json"))
@@ -71,7 +80,13 @@ def report(version, slop=0.15):
                     pm = POS_RE.search(reasons)
                     e = us_ev.get((ch, ct)) or next(
                         (x for x in ev if x["sd"] == "us" and x["a"] == actor and x["mv"] == ch), None)
-                    if pm and e is not None:
+                    # Skip turns where a Protect/Endure-type move (non-threatening,
+                    # +priority) resolved before our mon: it jumping ahead doesn't
+                    # mean we were slow, so it shouldn't count as a miss.  Real
+                    # speed mispredictions (no priority move ahead) are still scored.
+                    blocked_ahead = (e is not None and any(
+                        x["o"] < e["o"] and x["mv"] in _NONTHREAT_FIRST for x in ev))
+                    if pm and e is not None and not blocked_ahead:
                         diff = abs((e["o"] + 1) - int(pm.group(1)))
                         to_total += 1
                         to_exact += diff == 0
