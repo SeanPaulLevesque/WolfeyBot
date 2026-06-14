@@ -1,5 +1,37 @@
 # WolfeyBot Changelog
 
+## 0.8.9 — 2026-06-14
+
+### Assume the weather an active weather-setter brings
+
+The engine modelled an assumed Charizard's *movepool* (Mega-Y) but not its
+*weather* — it computed incoming damage with `state.weather` (often None on the
+turns that matter), so a Drought-Mega-Y Charizard's Weather Ball scored as a
+feeble Normal 50 and its Heat Wave missed the sun boost.  Measured gap vs our
+Sneasler: **Weather Ball 30% → 131% (OHKO), Heat Wave 62% → 93%** once sun is
+assumed — and the 50-game 0.8.7 sample showed exactly those incoming hits
+(Weather Ball → Sneasler ~100%).
+
+- **`_assumed_weather(state)`** (modules.py): observed `state.weather` always
+  wins; otherwise assume the weather an **active** weather-setting ability will
+  put up — keyed off the assumed forme via `_effective_ability`, so a pre-mega
+  Charizard (→ Mega-Y → **Drought**) implies sun before its `|detailschange|`
+  arrives.  `Drought→sun`, `Drizzle→rain`, `Sand Stream→sand`, `Snow Warning→
+  snow`.  On a **simultaneous** set, entry abilities fire fastest-first, so the
+  **slowest** setter writes last and its weather sticks (ranked by base Speed).
+- Threaded through **every fact site** in `build_turn_context` — both damage
+  loops (Weather Ball type/power, Fire/Water modifiers, Solar Power) **and** the
+  Combatant speed calc, so weather-speed abilities (Chlorophyll/Swift Swim/…)
+  activate in the assumed weather on **both** sides (e.g. our Venusaur is fast in
+  the sun an opposing Charizard brings).
+- **Turn-1 table:** 4 decisions change (reviewed + approved), all in
+  weather-setter matchups: vs rain Pelipper we now pivot to **Basculegion**
+  (rain-boosted Adaptability Water) instead of Kingambit / instead of a weak Rock
+  Tomb (1.20, 4.20, 6.20); vs sun Charizard, Garchomp goes for the 4× Rock Tomb
+  while Kingambit Protects the now-correctly-lethal spread Heat Wave (3.17).
+  Plus 3 weight-only shifts on Charizard/sun cells.  Summary + 120-row
+  `test_turn1_decisions.py` table regenerated.  Full suite 773.
+
 ## 0.8.8 — 2026-06-14
 
 ### DamageOutput: weight a move by how much of the job it does

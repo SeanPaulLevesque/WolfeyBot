@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.8.8 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.8.9 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -33,10 +33,10 @@ Bench: Kingambit, Sneasler, Basculegion, Garchomp
 | 1.14 | Lopunny | Garchomp | Dual Wingbeat → Lopunny `16.25` | Giga Drain → Garchomp `1.33` |
 | 1.15 | Weavile | Garchomp | Rock Tomb → Weavile `3.35` | Switch → Kingambit `1.67` |
 | 1.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `84.58` | Switch → Basculegion `8.57` |
-| 1.17 | Charizard | Incineroar | Rock Tomb → Charizard `35.08` | Protect → ? `7.50` |
+| 1.17 | Charizard | Incineroar | Rock Tomb → Charizard `26.31` | Protect → ? `7.50` |
 | 1.18 | Rotom-Wash | Garchomp | Ice Fang → Garchomp `7.72` | Giga Drain → Rotom-Wash `2.71` |
 | 1.19 | Glimmora | Incineroar | Protect → ? `7.50` | Earth Power → Glimmora `11.97` |
-| 1.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `10.57` | Switch → Kingambit `3.20` |
+| 1.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `10.57` | Switch → Basculegion `3.35` |
 
 ---
 
@@ -61,7 +61,7 @@ Bench: Kingambit, Sneasler, Basculegion, Garchomp
 | 2.14 | Lopunny | Garchomp | Ice Fang → Garchomp `2.53` | Sludge Bomb → Lopunny `1.91` |
 | 2.15 | Weavile | Garchomp | Switch → Kingambit `5.41` | Protect → ? `2.00` |
 | 2.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `71.42` | Giga Drain → Garchomp `2.24` |
-| 2.17 | Charizard | Incineroar | Rock Tomb → Charizard `30.07` | Earth Power → Incineroar `2.10` |
+| 2.17 | Charizard | Incineroar | Rock Tomb → Charizard `22.55` | Earth Power → Incineroar `4.21` |
 | 2.18 | Rotom-Wash | Garchomp | Ice Fang → Garchomp `6.74` | Giga Drain → Rotom-Wash `3.05` |
 | 2.19 | Glimmora | Incineroar | Switch → Garchomp `7.67` | Earth Power → Glimmora `13.80` |
 | 2.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `9.16` | Switch → Kingambit `3.20` |
@@ -89,7 +89,7 @@ Bench: Aerodactyl, Sneasler, Basculegion, Venusaur
 | 3.14 | Lopunny | Garchomp | Dragon Claw → Garchomp `3.79` | Switch → Basculegion `4.33` |
 | 3.15 | Weavile | Garchomp | Dragon Claw → Garchomp `3.79` | Low Kick → Weavile `4.67` |
 | 3.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `82.69` | Kowtow Cleave → Garchomp `2.57` |
-| 3.17 | Charizard | Incineroar | Rock Tomb → Charizard `25.48` | Low Kick → Incineroar `1.82` |
+| 3.17 | Charizard | Incineroar | Rock Tomb → Charizard `25.48` | Protect → ? `7.50` |
 | 3.18 | Rotom-Wash | Garchomp | Dragon Claw → Garchomp `7.58` | Kowtow Cleave → Rotom-Wash `2.15` |
 | 3.19 | Glimmora | Incineroar | Stomping Tantrum → Glimmora `35.28` | Low Kick → Incineroar `1.82` |
 | 3.20 | Pelipper | Dragonite | Dragon Claw → Dragonite `6.18` | Kowtow Cleave → Pelipper `3.14` |
@@ -120,7 +120,7 @@ Bench: Kingambit, Basculegion, Venusaur, Garchomp
 | 4.17 | Charizard | Incineroar | Rock Tomb → Charizard `35.08` | Close Combat → Incineroar `5.65` |
 | 4.18 | Rotom-Wash | Garchomp | Ice Fang → Garchomp `7.72` | Switch → Garchomp `3.90` |
 | 4.19 | Glimmora | Incineroar | Switch → Garchomp `7.41` | Close Combat → Incineroar `2.83` |
-| 4.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `10.57` | Switch → Kingambit `3.74` |
+| 4.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `10.57` | Switch → Basculegion `4.00` |
 
 ---
 
@@ -145,7 +145,7 @@ Bench: Aerodactyl, Kingambit, Sneasler, Basculegion
 | 5.14 | Lopunny | Garchomp | Dragon Claw → Garchomp `3.79` | Sludge Bomb → Lopunny `1.91` |
 | 5.15 | Weavile | Garchomp | Switch → Kingambit `5.43` | Protect → ? `2.00` |
 | 5.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `82.69` | Giga Drain → Garchomp `2.24` |
-| 5.17 | Charizard | Incineroar | Rock Tomb → Charizard `25.48` | Earth Power → Incineroar `2.10` |
+| 5.17 | Charizard | Incineroar | Rock Tomb → Charizard `25.48` | Earth Power → Incineroar `3.15` |
 | 5.18 | Rotom-Wash | Garchomp | Dragon Claw → Garchomp `7.58` | Giga Drain → Rotom-Wash `3.05` |
 | 5.19 | Glimmora | Incineroar | Stomping Tantrum → Incineroar `3.13` | Earth Power → Glimmora `27.59` |
 | 5.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `8.02` | Switch → Kingambit `3.20` |
@@ -176,4 +176,4 @@ Bench: Aerodactyl, Basculegion, Venusaur, Garchomp
 | 6.17 | Charizard | Incineroar | Protect → ? `5.00` | Switch → Aerodactyl `5.95` |
 | 6.18 | Rotom-Wash | Garchomp | Switch → Garchomp `3.90` | Kowtow Cleave → Rotom-Wash `2.15` |
 | 6.19 | Glimmora | Incineroar | Close Combat → Incineroar `3.77` | Iron Head → Glimmora `3.05` |
-| 6.20 | Pelipper | Dragonite | Rock Tomb → Dragonite `3.35` | Kowtow Cleave → Pelipper `3.14` |
+| 6.20 | Pelipper | Dragonite | Switch → Basculegion `4.00` | Kowtow Cleave → Pelipper `3.14` |

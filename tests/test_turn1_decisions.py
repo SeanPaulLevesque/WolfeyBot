@@ -298,10 +298,10 @@ def test_summary_header_matches_version():
     ("Lopunny", "Garchomp", "Dual Wingbeat → Lopunny", 16.25, "Giga Drain → Garchomp", 1.33),
     ("Weavile", "Garchomp", "Rock Tomb → Weavile", 3.35, "Switch → Kingambit", 1.67),
     ("Talonflame", "Garchomp", "Rock Tomb → Talonflame", 84.58, "Switch → Basculegion", 8.57),
-    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 35.08, "Protect → ?", 7.50),
+    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 26.31, "Protect → ?", 7.50),
     ("Rotom-Wash", "Garchomp", "Ice Fang → Garchomp", 7.72, "Giga Drain → Rotom-Wash", 2.71),
     ("Glimmora", "Incineroar", "Protect → ?", 7.50, "Earth Power → Glimmora", 11.97),
-    ("Pelipper", "Dragonite", "Rock Tomb → Pelipper", 10.57, "Switch → Kingambit", 3.20),
+    ("Pelipper", "Dragonite", "Rock Tomb → Pelipper", 10.57, "Switch → Basculegion", 3.35),
 ], ids=[f"1.{i}" for i in range(1, 21)])
 def test_section1(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
     best_a, best_b = _run("Aerodactyl", "Venusaur", opp_a, opp_b, "Aerodactyl")
@@ -330,7 +330,7 @@ def test_section1(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
     ("Lopunny", "Garchomp", "Ice Fang → Garchomp", 2.53, "Sludge Bomb → Lopunny", 1.91),
     ("Weavile", "Garchomp", "Switch → Kingambit", 5.41, "Protect → ?", 2.00),
     ("Talonflame", "Garchomp", "Rock Tomb → Talonflame", 71.42, "Giga Drain → Garchomp", 2.24),
-    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 30.07, "Earth Power → Incineroar", 2.10),
+    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 22.55, "Earth Power → Incineroar", 4.21),
     ("Rotom-Wash", "Garchomp", "Ice Fang → Garchomp", 6.74, "Giga Drain → Rotom-Wash", 3.05),
     ("Glimmora", "Incineroar", "Switch → Garchomp", 7.67, "Earth Power → Glimmora", 13.80),
     ("Pelipper", "Dragonite", "Rock Tomb → Pelipper", 9.16, "Switch → Kingambit", 3.20),
@@ -362,7 +362,7 @@ def test_section2(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
     ("Lopunny", "Garchomp", "Dragon Claw → Garchomp", 3.79, "Switch → Basculegion", 4.33),
     ("Weavile", "Garchomp", "Dragon Claw → Garchomp", 3.79, "Low Kick → Weavile", 4.67),
     ("Talonflame", "Garchomp", "Rock Tomb → Talonflame", 82.69, "Kowtow Cleave → Garchomp", 2.57),
-    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 25.48, "Low Kick → Incineroar", 1.82),
+    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 25.48, "Protect → ?", 7.50),
     ("Rotom-Wash", "Garchomp", "Dragon Claw → Garchomp", 7.58, "Kowtow Cleave → Rotom-Wash", 2.15),
     ("Glimmora", "Incineroar", "Stomping Tantrum → Glimmora", 35.28, "Low Kick → Incineroar", 1.82),
     ("Pelipper", "Dragonite", "Dragon Claw → Dragonite", 6.18, "Kowtow Cleave → Pelipper", 3.14),
@@ -397,7 +397,7 @@ def test_section3(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
     ("Charizard", "Incineroar", "Rock Tomb → Charizard", 35.08, "Close Combat → Incineroar", 5.65),
     ("Rotom-Wash", "Garchomp", "Ice Fang → Garchomp", 7.72, "Switch → Garchomp", 3.90),
     ("Glimmora", "Incineroar", "Switch → Garchomp", 7.41, "Close Combat → Incineroar", 2.83),
-    ("Pelipper", "Dragonite", "Rock Tomb → Pelipper", 10.57, "Switch → Kingambit", 3.74),
+    ("Pelipper", "Dragonite", "Rock Tomb → Pelipper", 10.57, "Switch → Basculegion", 4.00),
 ], ids=[f"4.{i}" for i in range(1, 21)])
 def test_section4(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
     best_a, best_b = _run("Aerodactyl", "Sneasler", opp_a, opp_b, "Aerodactyl")
@@ -426,7 +426,7 @@ def test_section4(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
     ("Lopunny", "Garchomp", "Dragon Claw → Garchomp", 3.79, "Sludge Bomb → Lopunny", 1.91),
     ("Weavile", "Garchomp", "Switch → Kingambit", 5.43, "Protect → ?", 2.00),
     ("Talonflame", "Garchomp", "Rock Tomb → Talonflame", 82.69, "Giga Drain → Garchomp", 2.24),
-    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 25.48, "Earth Power → Incineroar", 2.10),
+    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 25.48, "Earth Power → Incineroar", 3.15),
     ("Rotom-Wash", "Garchomp", "Dragon Claw → Garchomp", 7.58, "Giga Drain → Rotom-Wash", 3.05),
     ("Glimmora", "Incineroar", "Stomping Tantrum → Incineroar", 3.13, "Earth Power → Glimmora", 27.59),
     ("Pelipper", "Dragonite", "Rock Tomb → Pelipper", 8.02, "Switch → Kingambit", 3.20),
@@ -461,7 +461,7 @@ def test_section5(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
     ("Charizard", "Incineroar", "Protect → ?", 5.00, "Switch → Aerodactyl", 5.95),
     ("Rotom-Wash", "Garchomp", "Switch → Garchomp", 3.90, "Kowtow Cleave → Rotom-Wash", 2.15),
     ("Glimmora", "Incineroar", "Close Combat → Incineroar", 3.77, "Iron Head → Glimmora", 3.05),
-    ("Pelipper", "Dragonite", "Rock Tomb → Dragonite", 3.35, "Kowtow Cleave → Pelipper", 3.14),
+    ("Pelipper", "Dragonite", "Switch → Basculegion", 4.00, "Kowtow Cleave → Pelipper", 3.14),
 ], ids=[f"6.{i}" for i in range(1, 21)])
 def test_section6(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
     best_a, best_b = _run("Sneasler", "Kingambit", opp_a, opp_b, None)

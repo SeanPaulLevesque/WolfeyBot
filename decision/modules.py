@@ -22,7 +22,7 @@ from typing import Optional, TYPE_CHECKING
 
 from data import (
     types_of, move_type as get_move_type, move_category as get_move_category,
-    get_species as _get_species,
+    get_species as _get_species, base_spe as _base_spe,
     WEATHER_SPEED_ABILITIES as _WEATHER_SPEED_ABILITIES,
     ability_distribution as _ability_distribution,
     item_distribution as _item_distribution,
@@ -76,7 +76,7 @@ def _our_combatant(state: "BattleState", slot: int) -> Optional[Combatant]:
         speed_stage=mon.boosts.get("spe", 0),
         tailwind=state.my_tailwind,
         paralyzed=(mon.status == "par"),
-        weather=state.weather,
+        weather=_assumed_weather(state),
         item_consumed=mon.item_consumed,
     )
 
@@ -96,12 +96,13 @@ def _opp_combatant(state: "BattleState", opp_slot: int) -> Optional[Combatant]:
     # weather-speed ability takes precedence to avoid overconfident speed
     # estimates (e.g. Excadrill in sandstorm assumed Sand Rush even if no
     # ability has been revealed).
+    weather = _assumed_weather(state)
     inferred_ability = _effective_ability(mon)
-    if inferred_ability is None and state.weather:
+    if inferred_ability is None and weather:
         sp_data = _get_species(mon.species)
         if sp_data:
             for ab in sp_data.get("abilities", []):
-                if _WEATHER_SPEED_ABILITIES.get(ab) == state.weather:
+                if _WEATHER_SPEED_ABILITIES.get(ab) == weather:
                     inferred_ability = ab
                     break
     return Combatant(
@@ -111,7 +112,7 @@ def _opp_combatant(state: "BattleState", opp_slot: int) -> Optional[Combatant]:
         speed_stage=mon.boosts.get("spe", 0),
         tailwind=state.opp_tailwind,
         paralyzed=(mon.status == "par"),
-        weather=state.weather,
+        weather=weather,
         item_consumed=mon.item_consumed,
     )
 
@@ -256,6 +257,45 @@ def _effective_ability(mon: "Pokemon") -> Optional[str]:
     return _assumed_ability(_assumed_species(mon))
 
 
+# Weather-setting abilities → the weather they put up on switch-in / mega-evolve.
+_WEATHER_SETTING_ABILITIES = {
+    "Drought": "sun", "Drizzle": "rain",
+    "Sand Stream": "sand", "Snow Warning": "snow",
+}
+
+
+def _assumed_weather(state: "BattleState") -> Optional[str]:
+    """Effective weather for the turn's facts.
+
+    Observed weather always wins.  Otherwise we *assume* the weather an **active**
+    weather-setting ability will bring — keyed off the assumed forme via
+    ``_effective_ability``, so a pre-mega Charizard (→ Mega-Y → Drought) implies
+    sun before its ``|detailschange|`` even arrives.  This drives Weather Ball's
+    type/power, the Fire/Water damage modifiers, and weather-speed abilities
+    (Chlorophyll/Swift Swim/…) on **both** sides.
+
+    When several active mons would set weather on the *same* turn, entry abilities
+    fire fastest-first, so the **slowest** setter writes last and its weather
+    sticks (ranked by base Speed — a rough but adequate tiebreak for the rare
+    double-setter case; a lone setter needs no tiebreak).
+    """
+    if state.weather:
+        return state.weather
+    setters: list[tuple[int, str]] = []
+    for actives, ours in ((state.my_actives, True), (state.opp_actives, False)):
+        for mon in actives:
+            if mon is None or mon.fainted:
+                continue
+            ability = (mon.ability if ours else _effective_ability(mon)) or ""
+            w = _WEATHER_SETTING_ABILITIES.get(ability)
+            if w:
+                species = mon.species if ours else _assumed_species(mon)
+                setters.append((_base_spe(species) or 0, w))
+    if not setters:
+        return None
+    return min(setters, key=lambda t: t[0])[1]   # slowest writes last → its weather wins
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Built-in scoring modules
 # ══════════════════════════════════════════════════════════════════════════════
@@ -323,7 +363,7 @@ class DamageOutputModule(ScoringModule):
                 our_species=mon.species, our_stats=stats, our_moves=[move_name],
                 opp_species=_assumed_species(opp), our_ability=tm.ability, our_item=tm.item,
                 opp_ability=_effective_ability(opp) or "", opp_item=_effective_item(opp),
-                weather=state.weather, ally_faint_count=ally_faints, opp_current_hp=cur_hp,
+                weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                 opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
                 opp_screens=getattr(state, "opp_screens", None),
                 attacker_boosts=mon.boosts, defender_boosts=opp.boosts,
@@ -877,7 +917,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                     our_species=mon.species, our_stats=stats, our_moves=[move],
                     opp_species=_assumed_species(opp), our_ability=tm.ability, our_item=tm.item,
                     opp_ability=_effective_ability(opp) or "", opp_item=_effective_item(opp),
-                    weather=state.weather, ally_faint_count=ally_faints, opp_current_hp=cur_hp,
+                    weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                     opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
                     opp_is_full_hp=opp_at_full,
                     opp_screens=getattr(state, "opp_screens", None),
@@ -926,7 +966,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 opp_item=_effective_item(opp),
                 our_ability=_our_ability_for_damage(tm, mon, state.designated_mega),
                 our_item=our_item,
-                weather=state.weather,
+                weather=_assumed_weather(state),
                 our_defender_is_full_hp=at_full,
                 opp_boosts=opp.boosts,
                 our_boosts=mon.boosts,
@@ -1102,7 +1142,7 @@ class SwitchModule(ScoringModule):
                     our_species=species, our_stats=stats, our_moves=[mv],
                     our_ability=ability or "", our_item=item,
                     opp_species=_assumed_species(opp), opp_ability=_effective_ability(opp) or "",
-                    opp_item=_effective_item(opp), weather=state.weather,
+                    opp_item=_effective_item(opp), weather=_assumed_weather(state),
                     ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                 )
                 if results:
@@ -1126,7 +1166,7 @@ class SwitchModule(ScoringModule):
                 opp_species=_assumed_species(opp), our_species=species,
                 our_stats=bench_tm.stats, opp_ability=_effective_ability(opp) or "",
                 opp_item=_effective_item(opp), our_ability=bench_tm.ability or "",
-                our_item=bench_item, weather=state.weather,
+                our_item=bench_item, weather=_assumed_weather(state),
                 our_defender_is_full_hp=True,
                 opp_hp_fraction=opp.hp_fraction,
                 opp_status=opp.status or "",
