@@ -126,6 +126,40 @@ class TestDamageHeal:
         assert mon.hp == 0
 
 
+# ── Flash Fire activation ──────────────────────────────────────────────────────
+
+class TestFlashFireActivation:
+    """|-start|IDENT|ability: Flash Fire sets the holder's flash_fire_active flag
+    (either side); other -start effects leave it alone, and it resets on switch."""
+
+    def _setup(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Heatran|Heatran, L50|175/175"))
+        return parser
+
+    def test_flag_starts_false(self):
+        parser = self._setup()
+        assert parser.state.opp_actives[0].flash_fire_active is False
+
+    def test_flash_fire_sets_flag(self):
+        parser = self._setup()
+        run(parser.feed("|-start|p2a: Heatran|ability: Flash Fire"))
+        assert parser.state.opp_actives[0].flash_fire_active is True
+
+    def test_other_start_effect_does_not_set_flag(self):
+        parser = self._setup()
+        run(parser.feed("|-start|p2a: Heatran|Encore"))
+        assert parser.state.opp_actives[0].flash_fire_active is False
+
+    def test_flag_cleared_on_switch_out(self):
+        parser = self._setup()
+        run(parser.feed("|-start|p2a: Heatran|ability: Flash Fire"))
+        # A different mon switching into the slot is a fresh object → flag reset.
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        assert parser.state.opp_actives[0].flash_fire_active is False
+
+
 # ── Actual move-resolution instrumentation (0.8.1) ───────────────────────────
 
 class TestMoveInstrumentation:

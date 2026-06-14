@@ -90,25 +90,33 @@ def report(version, slop=0.15):
                     else:
                         off_miss.append((act - pred, ch, ct, pred, act))
 
-            # ---- DEFENSE: actual incoming on our mons vs predicted worst-case --
-            # pin: [{"a": attacker, "df": defender, "p": predicted_frac}]
+            # ---- DEFENSE: actual incoming vs predicted, per ACTUAL move -------
+            # pin: [{"a": attacker, "df": defender, "mvs": {move: pred_frac}}]
+            our_species = [m["s"] for m in my]
             for e in ev:
-                if e["sd"] != "opp" or e.get("tg") not in [m["s"] for m in my]:
+                if e["sd"] != "opp" or e.get("tg") not in our_species:
                     continue
                 if e.get("d") is None or e.get("cr") or e.get("h0", 1) <= 0:
                     continue                      # skip misses (no d) and crits
-                defender, attacker, act = e["tg"], e["a"], e["d"]
-                # predicted worst-case incoming on this defender from this attacker
-                preds = [p["p"] for p in pin if p["df"] == defender and p["a"] == attacker]
-                if not preds:
-                    preds = [p["p"] for p in pin if p["df"] == defender]
-                if not preds:
-                    continue
-                pred = max(preds)
-                # cap actual at what mattered: only flag if it genuinely exceeded
-                # our worst-case expectation by more than the slop
-                if act - pred > slop:
-                    def_under.append((act - pred, attacker, defender, pred, act))
+                defender, attacker, mv, act = e["tg"], e["a"], e["mv"], e["d"]
+                entry = next((p for p in pin if p["df"] == defender and p["a"] == attacker), None)
+                # 0.8.6+ stores per-move map "mvs"; older logs stored a single
+                # scariest {"mv","p"} — fall back to that for backward compat.
+                if entry and "mvs" in entry:
+                    assessed = entry["mvs"]
+                elif entry and "mv" in entry:
+                    assessed = {entry["mv"]: entry.get("p", 0.0)}
+                else:
+                    assessed = {}
+                if mv in assessed:
+                    pred = assessed[mv]               # we assessed this exact move
+                    if act - pred > slop:
+                        def_under.append((act - pred, attacker, defender, mv, pred, act, "known"))
+                else:
+                    # move we never assessed (off-meta tech, or below usage cutoff)
+                    worst = max(assessed.values()) if assessed else 0.0
+                    if act - worst > slop:
+                        def_under.append((act - worst, attacker, defender, mv, None, act, "tech"))
 
     # ── 1. HIGH-LEVEL ────────────────────────────────────────────────────────
     print(f"\n{'='*64}\n ACCURACY REPORT — v{version}  ({len(games)} games)\n{'='*64}")
@@ -119,8 +127,11 @@ def report(version, slop=0.15):
     if to_total:
         print(f" TurnOrder: {to_exact}/{to_total} exact ({to_exact/to_total:.0%}), "
               f"±1 {to_off1/to_total:.0%}, off-by-2+ {to_worse/to_total:.0%}")
-    print(f" Defense  : {len(def_under)} cases hit HARDER than our worst-case "
-          f"prediction by >{int(slop*100)}% (crits/misses excluded)")
+    n_known = sum(1 for c in def_under if c[6] == "known")
+    n_tech = sum(1 for c in def_under if c[6] == "tech")
+    print(f" Defense  : {len(def_under)} cases hit harder than predicted by "
+          f">{int(slop*100)}% (crits/misses excluded) — {n_known} on assessed "
+          f"moves (model gaps), {n_tech} on unassessed moves (tech/off-meta)")
 
     # ── 2. TURN ORDER ────────────────────────────────────────────────────────
     print(f"\n── TURN ORDER (full 4-move turns, n={to_total}) ──")
@@ -130,11 +141,16 @@ def report(version, slop=0.15):
         print(f"   off by 2+      : {to_worse:4} ({to_worse/to_total:.0%})   <- real misses")
 
     # ── 3. PER-CASE: defensive under-predictions (the danger cases) ──────────
-    print(f"\n── DEFENSIVE UNDER-PREDICTIONS (attacker -> defender: predicted | actual) ──")
+    print(f"\n── DEFENSIVE UNDER-PREDICTIONS (attacker's MOVE -> defender: predicted | actual) ──")
+    print(f"   [known] = move we assessed but under-rated (model gap)   "
+          f"[TECH] = move we never assessed (off-meta)")
     if not def_under:
         print("   none — every incoming hit was within prediction + slop.")
-    for err, atk, dfd, pred, act in sorted(def_under, key=lambda x: -x[0]):
-        print(f"   {atk:16} -> {dfd:14} predicted {pred:>4.0%} | actual {act:>4.0%}  (+{err:.0%})")
+    for err, atk, dfd, mv, pred, act, kind in sorted(def_under, key=lambda x: -x[0]):
+        if kind == "known":
+            print(f"   [known] {atk:14} {mv:16} -> {dfd:12} predicted {pred:>4.0%} | actual {act:>4.0%}  (+{err:.0%})")
+        else:
+            print(f"   [TECH ] {atk:14} {mv:16} -> {dfd:12} NOT ASSESSED        | actual {act:>4.0%}")
 
     # offense mis-models, secondary
     if off_miss:

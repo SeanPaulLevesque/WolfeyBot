@@ -1,5 +1,124 @@
 # WolfeyBot Changelog
 
+## 0.8.5 — 2026-06-14
+
+### Three damage-model fixes surfaced by the accuracy report
+
+All in `damage.py`; turn-1 table byte-identical (no weather on turn 1, assumed
+Charizard is Mega-Y not Tough-Claws Mega-X, and no turn-1 incoming fact flipped).
+
+- **Weather Ball** now becomes the weather's type at 100 BP (rain→Water,
+  sun→Fire, sand→Rock, hail→Ice) instead of a feeble Normal 50.  This was the
+  rain culprit: the report flagged Politoed → Garchomp predicted 39% / actual
+  100% — a rain-boosted Water Weather Ball we were modelling as Normal.
+- **Foul Play** now computes damage from the *target's* Attack stat and Attack
+  stat-stages, not the user's.  Fixes the Sableye → Sneasler under-prediction
+  (8% → actual 24%): Foul Play hits with our own high Attack.
+- **Tough Claws** ×1.3 on contact moves (e.g. Charizard-Mega-X Dragon Claw),
+  via the new move-flags layer below.
+- Tests: `TestWeatherBall`, `TestFoulPlay`, `TestToughClaws`. Full suite 704.
+
+### Defensive `pin` now logs the whole assessed movepool
+
+- The per-turn `"pin"` predicted-incoming record changed from a single
+  scariest `{"mv","p"}` to a per-move map `{"mvs": {move: pred_frac}}` over
+  *every* move the engine assessed for each (opponent → our mon).  This lets
+  the accuracy report distinguish a genuine **model mis-calc on a move we
+  assessed** from an **off-meta tech move we never considered** — so a
+  defensive under-prediction can be triaged instead of guessed at.
+- `tools/accuracy_report.py` defensive section now tags each case `[known]`
+  (assessed move, under-rated → model gap) or `[TECH]` (unassessed move) and
+  prints the actual move; backward-compatible with pre-0.8.6 single-move logs.
+
+### Move-flags layer (`data/move_flags.py`)
+
+- New per-move property flags — **contact / slicing / punch / bite** — as
+  explicit positive sets, replacing the inverted `_NON_CONTACT_MOVES` hack.
+  `move_flags(name)`, `move_has_flag(name, flag)`, `is_contact(name)`.
+- **Contact is a full positive list** (178 moves over the Champions movepool —
+  174 physical + the special-category contact moves Draining Kiss / Grass Knot
+  / Infestation / Petal Dance), generated against `champions_moves.json` and
+  the Bulbapedia contact list, so special contact moves a physical-only
+  heuristic would miss are covered.  Tough Claws now keys off `is_contact`.
+- **slicing / punch / bite** sets are seeded too (e.g. Kowtow Cleave + Dragon
+  Claw/Shadow Claw are slicing; Ice Fang/Psychic Fangs are bite), plus
+  **pulse** (Aura Sphere, Dark/Dragon/Water Pulse, Terrain Pulse), **sound**
+  (Boomburst, Hyper Voice, Bug Buzz, Snarl, …) and **recoil** (Flare Blitz,
+  Brave Bird, Wave Crash, Wood Hammer, …).
+
+### Offensive-boost abilities wired into `atk_modifier`
+
+All key off the move-flags layer above, the move's type, or its category — no
+new per-attacker plumbing — so an assumed opponent carrying one has its
+incoming threat rated correctly.  Turn-1 table byte-identical (no assumed
+turn-1 lead runs any of them).
+
+- **Flag-keyed:** Sharpness (×1.5 slicing), Strong Jaw (×1.5 bite), Iron Fist
+  (×1.2 punch), Mega Launcher (×1.5 pulse), Punk Rock (×1.3 sound), Reckless
+  (×1.2 recoil), Tough Claws (×1.3 contact).
+- **Type-keyed:** Fairy Aura (×1.33 Fairy), Steely Spirit (×1.5 Steel), Water
+  Bubble (×2.0 Water).  Transistor corrected to **×1.3** Electric (Champions
+  reference; mainline Gen 9 is ×1.5).
+- **Category-keyed:** Huge Power / Pure Power (×2.0 physical), Gorilla Tactics
+  (×1.5 physical).  ×2.0 abilities land ~1.95 in practice from integer damage
+  rounding — same approximation as the existing Choice-item modifiers.
+- Tests: `TestFlagAbilities` extended to 16 cases (one per ability + negative
+  type/category guards).  Full suite 721.
+- **Deferred** (need attacker HP / status / weather / ally / turn-faint facts
+  the calc doesn't yet receive): Blaze/Overgrow/Torrent/Swarm pinch,
+  Flare/Toxic Boost + Guts, Sand Force, Solar Power sun-gating, Orichalcum
+  Pulse / Hadron Engine, Battery/Power Spot/Plus/Minus, Slow Start, Supreme
+  Overlord.
+
+### Effectiveness / strike-count abilities in `full_damage_calc`
+
+A second batch, applied inside `full_damage_calc` (not `atk_modifier`) because
+they need the resolved type effectiveness or the move's spread status — still
+no new per-attacker plumbing.  Turn-1 table byte-identical.
+
+- **Neuroforce** — ×1.2 on a super-effective hit (`eff > 1`).
+- **Tinted Lens** — ×2.0 on a not-very-effective hit (`0 < eff < 1`); leaves
+  immune (`eff = 0`) and neutral/super-effective hits alone.
+- **Parental Bond** (Kangaskhan-Mega) — single-target damage ≈ ×1.25 (the
+  second strike at 25%), gated to non-spread moves, and its extra strike now
+  **breaks Focus Sash / Sturdy** like a multi-hit move (folds into the
+  `ko_prevented` guard).
+- **Adaptability** was already correct (×2.0 STAB in `stab_multiplier`); **Flash
+  Fire** immunity was already in `_ABILITY_TYPE_IMMUNITY`.  Still deferred to
+  the plumbing batch: Analytic (move-last), Merciless (target poisoned),
+  Stakeout (target switching), Flash Fire's post-hit +50%, Sniper.
+- Tests: `TestEffectivenessAbilities` (6), `TestParentalBond` (4). Full
+  suite 731.
+
+### Conditional-fact abilities — attacker HP / status / weather / faint + Flash Fire
+
+The third batch threads new *attacker* facts through the damage path
+(`atk_modifier` gained `weather` / `attacker_hp_fraction` / `attacker_status` /
+`ally_faint_count` / `flash_fire_active`), sourced in `build_turn_context` from
+the in-scope `Pokemon` objects (`.hp_fraction`, `.status`, opponent faint
+count) and forwarded through `outgoing_damage` / `incoming_damage`.
+
+- **Pinch (≤⅓ HP):** Blaze/Overgrow/Torrent/Swarm — own-type ×1.5.
+- **Defeatist (≤½ HP):** Atk & SpA ×0.5.
+- **Status:** Guts (Atk ×1.5 while statused), Flare Boost (SpA ×1.5 burned),
+  Toxic Boost (Atk ×1.5 poisoned).
+- **Weather:** **Solar Power fixed** — was applying Fire/Electric ×1.5 in *all*
+  weather; now SpA ×1.5 **in sun only**.  Sand Force — Rock/Ground/Steel ×1.3
+  in sand.
+- **Faint:** Supreme Overlord — Atk & SpA +10% per fainted ally (cap +50%);
+  **Kingambit**, threaded for both our attacker and the opponent's.
+- **Flash Fire (+50%):** new `Pokemon.flash_fire_active` flag, set by the parser
+  on `|-start|…|ability: Flash Fire` (either side, resets on switch); boosts the
+  holder's Fire moves ×1.5.
+- **Dropped as out-of-format** (no Champions-legal holder): Slow Start
+  (Regigigas), Orichalcum Pulse (Koraidon), Hadron Engine (Miraidon), Flower
+  Gift (Cherrim) — so no turns-active or terrain tracking was needed.
+- Tests: `TestPinchAbilities`, `TestStatusAbilities`, `TestWeatherGatedAbilities`
+  (incl. a Solar-Power-no-sun regression), `TestSupremeOverlord`,
+  `TestFlashFireBoost` (damage layer); `TestFlashFireActivation` (parser);
+  `TestConditionalAbilityPlumbing` (Guts + Flash Fire reach the incoming facts).
+  Turn-1 table byte-identical.  Full suite 762.
+
 ## 0.8.4 — 2026-06-14
 
 ### Defensive-prediction instrumentation + automated accuracy report

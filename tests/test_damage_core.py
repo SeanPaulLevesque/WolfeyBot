@@ -21,6 +21,377 @@ from damage import (
     _heat_crash_power,
     _ALWAYS_CRIT_MOVES,
 )
+from data import is_contact, move_flags, is_spread_move
+
+
+# ── Weather Ball / Foul Play / Tough Claws (0.8.5 defensive-model fixes) ─────
+
+class TestWeatherBall:
+    """Weather Ball becomes the weather's type at 100 BP (base Normal 50)."""
+
+    _ATK = {"hp": 150, "atk": 80, "def": 100, "spa": 120, "spd": 100, "spe": 100}
+    _DEF = {"hp": 190, "atk": 120, "def": 120, "spd": 110, "spe": 100}
+
+    def test_normal_50_with_no_weather(self):
+        r = full_damage_calc("Weather Ball", "Politoed", "Garchomp", self._ATK, self._DEF)
+        assert r.effective_type == "Normal" and r.power == 50
+
+    def test_rain_becomes_water_100(self):
+        r = full_damage_calc("Weather Ball", "Politoed", "Garchomp",
+                             self._ATK, self._DEF, weather="rain")
+        assert r.effective_type == "Water" and r.power == 100
+        # Water vs Garchomp (Ground/Dragon) = 2× Ground × 0.5× Dragon = 1.0 (neutral);
+        # the big jump vs Normal is power 50→100 + Water STAB + rain ×1.5.
+        assert r.effectiveness == 1.0
+
+    def test_sun_sand_hail_types(self):
+        for wx, ty in (("sun", "Fire"), ("sand", "Rock"), ("hail", "Ice")):
+            r = full_damage_calc("Weather Ball", "Politoed", "Garchomp",
+                                 self._ATK, self._DEF, weather=wx)
+            assert r.effective_type == ty and r.power == 100
+
+
+class TestFoulPlay:
+    """Foul Play uses the TARGET's Attack stat, not the user's."""
+
+    def test_scales_with_defender_attack(self):
+        attacker = {"hp": 150, "atk": 70, "def": 120, "spa": 80, "spd": 120, "spe": 50}
+        weak_def = {"hp": 171, "atk": 80, "def": 100, "spd": 90, "spe": 100}
+        strong_def = {"hp": 171, "atk": 220, "def": 100, "spd": 90, "spe": 100}
+        low = full_damage_calc("Foul Play", "Sableye", "X", attacker, weak_def)
+        high = full_damage_calc("Foul Play", "Sableye", "X", attacker, strong_def)
+        # Same attacker; damage rises with the DEFENDER's Attack.
+        assert high.damage_avg > low.damage_avg * 2
+
+    def test_defender_attack_boost_counts(self):
+        attacker = {"hp": 150, "atk": 70, "def": 120, "spa": 80, "spd": 120, "spe": 50}
+        d = {"hp": 171, "atk": 120, "def": 100, "spd": 90, "spe": 100}
+        base = full_damage_calc("Foul Play", "Sableye", "X", attacker, d)
+        boosted = full_damage_calc("Foul Play", "Sableye", "X", attacker, d,
+                                   defender_boosts={"atk": 2})
+        assert boosted.damage_avg > base.damage_avg
+
+
+class TestToughClaws:
+    """Tough Claws ×1.3 on contact moves only."""
+
+    _ATK = {"hp": 150, "atk": 180, "def": 115, "spa": 130, "spd": 85, "spe": 150}
+    _DEF = {"hp": 190, "atk": 120, "def": 120, "spd": 110, "spe": 100}
+
+    def test_contact_move_boosted(self):
+        no = full_damage_calc("Dragon Claw", "Charizard-Mega-X", "Garchomp",
+                              self._ATK, self._DEF)
+        tc = full_damage_calc("Dragon Claw", "Charizard-Mega-X", "Garchomp",
+                              self._ATK, self._DEF, attacker_ability="Tough Claws")
+        assert tc.damage_avg == pytest.approx(no.damage_avg * 1.3, rel=0.04)
+
+    def test_non_contact_move_unchanged(self):
+        no = full_damage_calc("Earthquake", "Charizard-Mega-X", "Garchomp",
+                              self._ATK, self._DEF)
+        tc = full_damage_calc("Earthquake", "Charizard-Mega-X", "Garchomp",
+                              self._ATK, self._DEF, attacker_ability="Tough Claws")
+        assert tc.damage_avg == pytest.approx(no.damage_avg, rel=0.01)
+        assert not is_contact("Earthquake")
+
+    def test_special_contact_move_flagged(self):
+        """Grass Knot is a SPECIAL move that makes contact (the case a
+        physical-only heuristic would miss)."""
+        assert is_contact("Grass Knot")
+        assert "contact" in move_flags("Dragon Claw")
+        assert "slicing" in move_flags("Dragon Claw")
+
+
+class TestFlagAbilities:
+    """Sharpness/Strong Jaw/Iron Fist boost their flagged move classes."""
+
+    _A = {"hp": 150, "atk": 150, "def": 100, "spa": 100, "spd": 100, "spe": 100}
+    _D = {"hp": 190, "atk": 120, "def": 120, "spd": 110, "spe": 100}
+
+    def _ratio(self, move, ability):
+        base = full_damage_calc(move, "X", "Y", self._A, self._D).damage_avg
+        boost = full_damage_calc(move, "X", "Y", self._A, self._D,
+                                 attacker_ability=ability).damage_avg
+        return boost / base
+
+    def test_sharpness_slicing(self):
+        assert self._ratio("Night Slash", "Sharpness") == pytest.approx(1.5, rel=0.04)
+
+    def test_strong_jaw_bite(self):
+        assert self._ratio("Crunch", "Strong Jaw") == pytest.approx(1.5, rel=0.04)
+
+    def test_iron_fist_punch(self):
+        assert self._ratio("Ice Punch", "Iron Fist") == pytest.approx(1.2, rel=0.04)
+
+    def test_ability_ignores_unflagged_move(self):
+        # Earthquake is neither slicing/bite/punch — no boost from any of them.
+        assert self._ratio("Earthquake", "Sharpness") == pytest.approx(1.0, rel=0.02)
+        assert self._ratio("Earthquake", "Strong Jaw") == pytest.approx(1.0, rel=0.02)
+
+    # ── newly-wired flag/type/category abilities (0.8.5) ──────────────────────
+    def test_mega_launcher_pulse(self):
+        assert self._ratio("Aura Sphere", "Mega Launcher") == pytest.approx(1.5, rel=0.04)
+
+    def test_punk_rock_sound(self):
+        assert self._ratio("Boomburst", "Punk Rock") == pytest.approx(1.3, rel=0.04)
+
+    def test_reckless_recoil(self):
+        assert self._ratio("Flare Blitz", "Reckless") == pytest.approx(1.2, rel=0.04)
+
+    def test_fairy_aura_fairy_type(self):
+        assert self._ratio("Moonblast", "Fairy Aura") == pytest.approx(1.33, rel=0.04)
+
+    def test_steely_spirit_steel_type(self):
+        assert self._ratio("Iron Head", "Steely Spirit") == pytest.approx(1.5, rel=0.04)
+
+    def test_water_bubble_water_type(self):
+        # ×2.0 nominal; integer damage rounding lands it slightly under.
+        assert self._ratio("Liquidation", "Water Bubble") == pytest.approx(2.0, rel=0.05)
+
+    def test_huge_power_physical(self):
+        assert self._ratio("Earthquake", "Huge Power") == pytest.approx(2.0, rel=0.05)
+
+    def test_pure_power_physical(self):
+        assert self._ratio("Earthquake", "Pure Power") == pytest.approx(2.0, rel=0.05)
+
+    def test_gorilla_tactics_physical(self):
+        assert self._ratio("Earthquake", "Gorilla Tactics") == pytest.approx(1.5, rel=0.04)
+
+    def test_transistor_electric(self):
+        # Champions reference: +30% (not the +50% of mainline Gen 9).
+        assert self._ratio("Thunderbolt", "Transistor") == pytest.approx(1.3, rel=0.04)
+
+    def test_type_ability_ignores_other_types(self):
+        # Each type-keyed ability only touches its own type.
+        assert self._ratio("Earthquake", "Fairy Aura") == pytest.approx(1.0, rel=0.02)
+        assert self._ratio("Earthquake", "Water Bubble") == pytest.approx(1.0, rel=0.02)
+        assert self._ratio("Moonblast", "Steely Spirit") == pytest.approx(1.0, rel=0.02)
+
+    def test_category_ability_ignores_special(self):
+        # Huge/Pure Power & Gorilla Tactics are physical-only.
+        assert self._ratio("Moonblast", "Huge Power") == pytest.approx(1.0, rel=0.02)
+        assert self._ratio("Moonblast", "Gorilla Tactics") == pytest.approx(1.0, rel=0.02)
+
+
+class TestEffectivenessAbilities:
+    """Neuroforce (×1.2 super-effective) and Tinted Lens (×2.0 not-very-eff).
+
+    Both key off the resolved type effectiveness, so they're tested against
+    real defender types: Ice Beam vs Garchomp is 4× (SE), Flamethrower vs
+    Garchomp is 0.5× (NVE), Surf vs Garchomp is 1× (neutral).
+    """
+
+    _A = {"hp": 150, "atk": 150, "def": 100, "spa": 150, "spd": 100, "spe": 100}
+    _D = {"hp": 190, "atk": 120, "def": 120, "spd": 110, "spe": 100}
+
+    def _ratio(self, move, defender, ability):
+        # Attacker species is unknown ("Atk") → no STAB, so the ratio isolates
+        # the ability's effect.
+        base = full_damage_calc(move, "Atk", defender, self._A, self._D).damage_avg
+        boost = full_damage_calc(move, "Atk", defender, self._A, self._D,
+                                 attacker_ability=ability).damage_avg
+        return boost / base
+
+    def test_neuroforce_super_effective(self):
+        assert self._ratio("Ice Beam", "Garchomp", "Neuroforce") == pytest.approx(1.2, rel=0.05)
+
+    def test_neuroforce_neutral_no_boost(self):
+        assert self._ratio("Surf", "Garchomp", "Neuroforce") == pytest.approx(1.0, rel=0.02)
+
+    def test_neuroforce_resisted_no_boost(self):
+        assert self._ratio("Flamethrower", "Garchomp", "Neuroforce") == pytest.approx(1.0, rel=0.02)
+
+    def test_tinted_lens_not_very_effective(self):
+        assert self._ratio("Flamethrower", "Garchomp", "Tinted Lens") == pytest.approx(2.0, rel=0.05)
+
+    def test_tinted_lens_neutral_no_boost(self):
+        assert self._ratio("Surf", "Garchomp", "Tinted Lens") == pytest.approx(1.0, rel=0.02)
+
+    def test_tinted_lens_super_effective_no_boost(self):
+        assert self._ratio("Ice Beam", "Garchomp", "Tinted Lens") == pytest.approx(1.0, rel=0.02)
+
+
+class TestParentalBond:
+    """Parental Bond (Kangaskhan-Mega): ≈×1.25 single-target, breaks Sash,
+    no effect on spread moves."""
+
+    _A = {"hp": 150, "atk": 180, "def": 100, "spa": 100, "spd": 100, "spe": 100}
+    _D = {"hp": 190, "atk": 120, "def": 120, "spd": 110, "spe": 100}
+
+    def test_single_target_x1_25(self):
+        base = full_damage_calc("Body Slam", "Kangaskhan-Mega", "Garchomp",
+                                self._A, self._D).damage_avg
+        pb = full_damage_calc("Body Slam", "Kangaskhan-Mega", "Garchomp",
+                              self._A, self._D, attacker_ability="Parental Bond").damage_avg
+        assert pb / base == pytest.approx(1.25, rel=0.04)
+
+    def test_spread_move_no_boost(self):
+        # Parental Bond does not apply to spread moves.
+        assert is_spread_move("Earthquake")
+        base = full_damage_calc("Earthquake", "Kangaskhan-Mega", "Garchomp",
+                                self._A, self._D).damage_avg
+        pb = full_damage_calc("Earthquake", "Kangaskhan-Mega", "Garchomp",
+                              self._A, self._D, attacker_ability="Parental Bond").damage_avg
+        assert pb / base == pytest.approx(1.0, rel=0.02)
+
+    def test_breaks_focus_sash(self):
+        """The second strike breaks a full-HP Focus Sash, so the KO stands."""
+        r = full_damage_calc(
+            "Close Combat",
+            attacker_species="Kangaskhan-Mega", attacker_stats={"atk": 150, "hp": 100},
+            defender_species="Kingambit", defender_stats={"def": 120, "hp": 135},
+            defender_item="Focus Sash", defender_is_full_hp=True,
+            attacker_ability="Parental Bond",
+        )
+        assert r.ko_prevented is False
+        assert r.is_ohko is True
+
+    def test_sash_still_holds_without_parental_bond(self):
+        """Control: same hit without Parental Bond is blocked by the Sash."""
+        r = full_damage_calc(
+            "Close Combat",
+            attacker_species="Lopunny-Mega", attacker_stats={"atk": 150, "hp": 100},
+            defender_species="Kingambit", defender_stats={"def": 120, "hp": 135},
+            defender_item="Focus Sash", defender_is_full_hp=True,
+        )
+        assert r.ko_prevented is True
+
+
+# ── conditional-fact abilities (0.8.5): HP / status / weather / faint ─────────
+
+_CF_A = {"hp": 150, "atk": 150, "def": 100, "spa": 150, "spd": 100, "spe": 100}
+_CF_D = {"hp": 190, "atk": 120, "def": 120, "spd": 110, "spe": 100}
+
+
+def _cf(move, ability="", **kw):
+    """damage_avg for *move* from a neutral attacker (no STAB) into a neutral
+    defender, so the ratio of two calls isolates the ability's modifier."""
+    return full_damage_calc(move, "Atk", "Def", _CF_A, _CF_D,
+                            attacker_ability=ability, **kw).damage_avg
+
+
+class TestPinchAbilities:
+    """Blaze/Overgrow/Torrent/Swarm (own-type ×1.5 at ≤⅓ HP); Defeatist (×0.5 at ≤½)."""
+
+    def test_blaze_fire_below_third(self):
+        base = _cf("Flamethrower")
+        boost = _cf("Flamethrower", "Blaze", attacker_hp_fraction=0.3)
+        assert boost / base == pytest.approx(1.5, rel=0.04)
+
+    def test_blaze_no_boost_above_third(self):
+        base = _cf("Flamethrower")
+        full = _cf("Flamethrower", "Blaze", attacker_hp_fraction=0.5)
+        assert full / base == pytest.approx(1.0, rel=0.02)
+
+    def test_blaze_only_boosts_fire(self):
+        base = _cf("Surf")
+        other = _cf("Surf", "Blaze", attacker_hp_fraction=0.2)  # Water move
+        assert other / base == pytest.approx(1.0, rel=0.02)
+
+    def test_overgrow_torrent_swarm(self):
+        assert _cf("Energy Ball", "Overgrow", attacker_hp_fraction=0.2) / _cf("Energy Ball") == pytest.approx(1.5, rel=0.04)
+        assert _cf("Surf", "Torrent", attacker_hp_fraction=0.2) / _cf("Surf") == pytest.approx(1.5, rel=0.04)
+        assert _cf("Bug Buzz", "Swarm", attacker_hp_fraction=0.2) / _cf("Bug Buzz") == pytest.approx(1.5, rel=0.04)
+
+    def test_defeatist_halves_below_half(self):
+        base = _cf("Body Slam")
+        weak = _cf("Body Slam", "Defeatist", attacker_hp_fraction=0.4)
+        # Halving a small integer damage amplifies rounding noise (~4%).
+        assert weak / base == pytest.approx(0.5, rel=0.06)
+
+    def test_defeatist_no_penalty_above_half(self):
+        base = _cf("Body Slam")
+        full = _cf("Body Slam", "Defeatist", attacker_hp_fraction=0.6)
+        assert full / base == pytest.approx(1.0, rel=0.02)
+
+
+class TestStatusAbilities:
+    """Guts (Atk ×1.5 statused), Flare Boost (SpA ×1.5 burned), Toxic Boost (Atk ×1.5 poisoned)."""
+
+    def test_guts_physical_when_statused(self):
+        base = _cf("Body Slam")
+        guts = _cf("Body Slam", "Guts", attacker_status="par")
+        assert guts / base == pytest.approx(1.5, rel=0.04)
+
+    def test_guts_no_boost_without_status(self):
+        assert _cf("Body Slam", "Guts", attacker_status="") / _cf("Body Slam") == pytest.approx(1.0, rel=0.02)
+
+    def test_guts_ignores_special(self):
+        assert _cf("Flamethrower", "Guts", attacker_status="par") / _cf("Flamethrower") == pytest.approx(1.0, rel=0.02)
+
+    def test_flare_boost_special_when_burned(self):
+        assert _cf("Flamethrower", "Flare Boost", attacker_status="brn") / _cf("Flamethrower") == pytest.approx(1.5, rel=0.04)
+
+    def test_flare_boost_needs_burn(self):
+        assert _cf("Flamethrower", "Flare Boost", attacker_status="par") / _cf("Flamethrower") == pytest.approx(1.0, rel=0.02)
+
+    def test_toxic_boost_physical_when_poisoned(self):
+        assert _cf("Body Slam", "Toxic Boost", attacker_status="psn") / _cf("Body Slam") == pytest.approx(1.5, rel=0.04)
+        assert _cf("Body Slam", "Toxic Boost", attacker_status="tox") / _cf("Body Slam") == pytest.approx(1.5, rel=0.04)
+
+
+class TestWeatherGatedAbilities:
+    """Solar Power (SpA ×1.5 in sun only — the 0.8.5 fix) and Sand Force."""
+
+    def test_solar_power_special_in_sun(self):
+        # Both calls share weather=sun so the Fire weather-boost cancels in the ratio.
+        base = _cf("Flamethrower", weather="sun")
+        sp = _cf("Flamethrower", "Solar Power", weather="sun")
+        assert sp / base == pytest.approx(1.5, rel=0.04)
+
+    def test_solar_power_no_boost_without_sun(self):
+        # Regression for the old bug: Solar Power used to boost Fire/Electric in
+        # ALL weather.  It must now do nothing outside sun.
+        assert _cf("Flamethrower", "Solar Power", weather=None) / _cf("Flamethrower") == pytest.approx(1.0, rel=0.02)
+        assert _cf("Thunderbolt", "Solar Power", weather=None) / _cf("Thunderbolt") == pytest.approx(1.0, rel=0.02)
+
+    def test_solar_power_ignores_physical(self):
+        base = _cf("Earthquake", weather="sun")
+        sp = _cf("Earthquake", "Solar Power", weather="sun")
+        assert sp / base == pytest.approx(1.0, rel=0.02)
+
+    def test_sand_force_ground_in_sand(self):
+        base = _cf("Earthquake", weather="sand")
+        sf = _cf("Earthquake", "Sand Force", weather="sand")
+        assert sf / base == pytest.approx(1.3, rel=0.04)
+
+    def test_sand_force_needs_sand(self):
+        assert _cf("Earthquake", "Sand Force", weather=None) / _cf("Earthquake") == pytest.approx(1.0, rel=0.02)
+
+    def test_sand_force_only_rock_ground_steel(self):
+        base = _cf("Flamethrower", weather="sand")
+        sf = _cf("Flamethrower", "Sand Force", weather="sand")  # Fire move — unboosted
+        assert sf / base == pytest.approx(1.0, rel=0.02)
+
+
+class TestSupremeOverlord:
+    """+10% Atk & SpA per fainted ally, capped at +50% (5 faints) — Kingambit."""
+
+    def test_scales_with_faints(self):
+        assert _cf("Body Slam", "Supreme Overlord", ally_faint_count=2) / _cf("Body Slam") == pytest.approx(1.2, rel=0.04)
+        assert _cf("Body Slam", "Supreme Overlord", ally_faint_count=5) / _cf("Body Slam") == pytest.approx(1.5, rel=0.04)
+
+    def test_caps_at_five(self):
+        assert _cf("Body Slam", "Supreme Overlord", ally_faint_count=6) / _cf("Body Slam") == pytest.approx(1.5, rel=0.04)
+
+    def test_no_faints_no_boost(self):
+        assert _cf("Body Slam", "Supreme Overlord", ally_faint_count=0) / _cf("Body Slam") == pytest.approx(1.0, rel=0.02)
+
+    def test_boosts_special_too(self):
+        # +10%/faint applies to both Atk and SpA.
+        assert _cf("Flamethrower", "Supreme Overlord", ally_faint_count=3) / _cf("Flamethrower") == pytest.approx(1.3, rel=0.04)
+
+
+class TestFlashFireBoost:
+    """Flash Fire: +50% Fire moves once a Fire move has been absorbed."""
+
+    def test_fire_boosted_when_active(self):
+        assert _cf("Flamethrower", "Flash Fire", flash_fire_active=True) / _cf("Flamethrower") == pytest.approx(1.5, rel=0.04)
+
+    def test_no_boost_when_inactive(self):
+        assert _cf("Flamethrower", "Flash Fire", flash_fire_active=False) / _cf("Flamethrower") == pytest.approx(1.0, rel=0.02)
+
+    def test_only_fire_moves(self):
+        assert _cf("Body Slam", "Flash Fire", flash_fire_active=True) / _cf("Body Slam") == pytest.approx(1.0, rel=0.02)
 
 
 # ── calc_damage ───────────────────────────────────────────────────────────────

@@ -25,7 +25,7 @@ from data import (
     types_of, base_stats as get_base_stats,
     spread_distribution, parse_spread,
     calc_all_stats, get_weight,
-    note_gap,
+    note_gap, is_contact, move_has_flag,
 )
 
 
@@ -107,6 +107,20 @@ _ALWAYS_CRIT_MOVES: frozenset[str] = frozenset({
 # Items/abilities that prevent a one-hit KO from full HP (single-hit moves only).
 _KO_PREVENTING_ITEMS: frozenset[str] = frozenset({"Focus Sash"})
 _KO_PREVENTING_ABILITIES: frozenset[str] = frozenset({"Sturdy"})
+
+# Weather Ball: in weather it becomes the weather's type at 100 BP (base is
+# Normal 50 BP).  Keyed by the normalised weather string (see battle.py).
+_WEATHER_BALL_TYPE: dict[str, str] = {
+    "rain": "Water", "sun": "Fire", "sand": "Rock", "hail": "Ice",
+}
+
+# Foul Play computes damage from the *target's* Attack stat (and the target's
+# Attack stat stages), not the user's.
+_FOUL_PLAY = "Foul Play"
+
+# Move contact / slicing / punch / bite flags live in data/move_flags.py
+# (positive per-move sets, used by Tough Claws and future Sharpness/Iron Fist/
+# Strong Jaw).  Imported via ``is_contact`` above.
 
 
 def _low_kick_power(target_weight_kg: float) -> int:
@@ -253,6 +267,12 @@ def stat_with_boost(base: int, boost: int) -> int:
 
 # ── Modifier helpers ──────────────────────────────────────────────────────────
 
+# Pinch abilities: own-type ×1.5 when the user is at ≤⅓ HP.
+_PINCH_ABILITIES: dict[str, str] = {
+    "Blaze": "Fire", "Overgrow": "Grass", "Torrent": "Water", "Swarm": "Bug",
+}
+
+
 def atk_modifier(
         ability: str,
         item: Optional[str],
@@ -262,6 +282,11 @@ def atk_modifier(
         category: str,
         *,
         original_type: str = "",
+        weather: Optional[str] = None,
+        attacker_hp_fraction: float = 1.0,
+        attacker_status: str = "",
+        ally_faint_count: int = 0,
+        flash_fire_active: bool = False,
 ) -> float:
     """
     Return the combined offensive modifier from ability + item.
@@ -274,6 +299,15 @@ def atk_modifier(
         original_type: The move's raw type before ability conversion.  Pass this
                        so Pixilate / Aerilate / etc. can detect that the move was
                        originally Normal and apply their 1.2× bonus correctly.
+        weather:       Current weather ("sun"/"rain"/"sand"/"hail") for
+                       weather-gated abilities (Solar Power, Sand Force).
+        attacker_hp_fraction: User's current HP fraction (0–1) for pinch
+                       abilities (Blaze/Overgrow/Torrent/Swarm, Defeatist).
+        attacker_status: User's status ("brn"/"psn"/"tox"/… or "") for
+                       status-gated abilities (Guts, Flare Boost, Toxic Boost).
+        ally_faint_count: Fainted teammates on the user's side (Supreme Overlord).
+        flash_fire_active: True once the user has absorbed a Fire move this stint
+                       (Flash Fire's +50% Fire boost).
     """
     mod = 1.0
 
@@ -300,15 +334,81 @@ def atk_modifier(
     elif ability == "Hustle" and category == "Physical":
         mod *= 1.5
 
-    elif ability == "Solar Power" and move_type in ("Fire", "Electric"):
-        mod *= 1.5   # only in sun, but worth flagging
+    elif ability == "Solar Power" and weather == "sun" and category == "Special":
+        mod *= 1.5   # SpA ×1.5 in sun only (was wrongly applied in all weather)
 
     elif ability == "Transistor" and move_type == "Electric":
-        mod *= 1.5   # Regieleki exclusive in standard; may exist in Champions
+        mod *= 1.3   # +30% Electric (Champions reference)
 
-    # Category-specific abilities handled via tagging (Iron Fist, etc.) would
-    # need move metadata (punching, biting, pulse) which isn't in our data
-    # layer; callers can pass an explicit modifier override.
+    elif ability == "Tough Claws" and is_contact(move_name):
+        mod *= 1.3   # contact moves only (see data/move_flags.py)
+
+    elif ability == "Sharpness" and move_has_flag(move_name, "slicing"):
+        mod *= 1.5   # slicing moves (Kowtow Cleave, Night Slash, Dragon Claw, …)
+
+    elif ability == "Strong Jaw" and move_has_flag(move_name, "bite"):
+        mod *= 1.5   # biting moves (Crunch, Ice Fang, Psychic Fangs, …)
+
+    elif ability == "Iron Fist" and move_has_flag(move_name, "punch"):
+        mod *= 1.2   # punching moves (Ice Punch, Mach Punch, Meteor Mash, …)
+
+    elif ability == "Mega Launcher" and move_has_flag(move_name, "pulse"):
+        mod *= 1.5   # pulse/aura moves (Aura Sphere, Dark/Dragon/Water Pulse, …)
+
+    elif ability == "Punk Rock" and move_has_flag(move_name, "sound"):
+        mod *= 1.3   # sound moves (Boomburst, Hyper Voice, Bug Buzz, …)
+
+    elif ability == "Reckless" and move_has_flag(move_name, "recoil"):
+        mod *= 1.2   # recoil/crash moves (Flare Blitz, Brave Bird, Wave Crash, …)
+
+    elif ability == "Fairy Aura" and move_type == "Fairy":
+        mod *= 1.33  # +33% all Fairy moves (both sides — modelled per-attacker)
+
+    elif ability == "Steely Spirit" and move_type == "Steel":
+        mod *= 1.5   # +50% Steel (self; ally boost needs doubles context — TODO)
+
+    elif ability == "Water Bubble" and move_type == "Water":
+        mod *= 2.0   # +100% Water (defensive Fire-halving is in def_modifier)
+
+    elif ability in ("Huge Power", "Pure Power") and category == "Physical":
+        mod *= 2.0   # doubles Attack (≈ ×2 physical damage) — Medicham-Mega etc.
+
+    elif ability == "Gorilla Tactics" and category == "Physical":
+        mod *= 1.5   # +50% Attack (Choice-lock side effect not modelled)
+
+    # ── Conditional-fact abilities (need attacker HP / status / weather / faint) ──
+    elif (ability in _PINCH_ABILITIES
+          and move_type == _PINCH_ABILITIES[ability]
+          and attacker_hp_fraction <= 1.0 / 3.0):
+        mod *= 1.5   # Blaze/Overgrow/Torrent/Swarm at ≤⅓ HP
+
+    elif ability == "Defeatist" and attacker_hp_fraction <= 0.5:
+        mod *= 0.5   # Atk & SpA both halved at ≤½ HP
+
+    elif ability == "Guts" and attacker_status and category == "Physical":
+        mod *= 1.5   # Atk ×1.5 while statused (also ignores burn's Atk drop)
+
+    elif ability == "Flare Boost" and attacker_status == "brn" and category == "Special":
+        mod *= 1.5   # SpA ×1.5 while burned
+
+    elif (ability == "Toxic Boost" and attacker_status in ("psn", "tox")
+          and category == "Physical"):
+        mod *= 1.5   # Atk ×1.5 while poisoned
+
+    elif (ability == "Sand Force" and weather == "sand"
+          and move_type in ("Rock", "Ground", "Steel")):
+        mod *= 1.3   # Rock/Ground/Steel ×1.3 in sand
+
+    elif ability == "Supreme Overlord" and ally_faint_count > 0:
+        mod *= 1.0 + 0.1 * min(ally_faint_count, 5)   # +10% Atk&SpA per faint, cap +50%
+
+    elif ability == "Flash Fire" and flash_fire_active and move_type == "Fire":
+        mod *= 1.5   # Fire ×1.5 once a Fire move has been absorbed this stint
+
+    # Flag-keyed abilities (Tough Claws/Sharpness/Strong Jaw/Iron Fist/Mega
+    # Launcher/Punk Rock/Reckless) read the positive sets in data/move_flags.py.
+    # Doubles/ally abilities (Battery/Power Spot/Plus/Minus/Aura both-sides) and
+    # prediction-gated ones (Analytic/Merciless/Stakeout) are not yet wired.
 
     # ── Item ─────────────────────────────────────────────────────────────────
     if item == "Choice Band" and category == "Physical":
@@ -587,6 +687,9 @@ def full_damage_calc(
         defender_is_full_hp: bool = True,
         ally_faint_count: int = 0,
         defender_screens=None,
+        attacker_hp_fraction: float = 1.0,
+        attacker_status: str = "",
+        flash_fire_active: bool = False,
 ) -> DamageResult:
     """
     Compute a full damage result for *move_name* from *attacker_species*
@@ -613,6 +716,13 @@ def full_damage_calc(
     power    = move_data.get("power") or 0
     category = move_data.get("category", "Status")
     raw_type = move_data.get("type", "Normal")
+
+    # Weather Ball: in weather it changes to the weather's type and doubles its
+    # base power (50 → 100).  Without this it scores as a feeble Normal move —
+    # the cause of badly under-predicting rain Politoed/Pelipper incoming.
+    if move_name == "Weather Ball" and weather in _WEATHER_BALL_TYPE:
+        raw_type = _WEATHER_BALL_TYPE[weather]
+        power = 100
 
     # Moves that always land as critical hits regardless of the opponent's
     # stat stages (Gen 6+ rules).  Battle Armor / Shell Armor immunity is not
@@ -680,7 +790,27 @@ def full_damage_calc(
 
     atk_m = atk_modifier(attacker_ability, attacker_item,
                           move_name, eff_type, power, category,
-                          original_type=raw_type)
+                          original_type=raw_type,
+                          weather=weather,
+                          attacker_hp_fraction=attacker_hp_fraction,
+                          attacker_status=attacker_status,
+                          ally_faint_count=ally_faint_count,
+                          flash_fire_active=flash_fire_active)
+
+    # Effectiveness/strike-count abilities — applied here, not in atk_modifier,
+    # because they need the resolved type effectiveness (eff) or spread status.
+    # Parental Bond (Kangaskhan-Mega): the move strikes twice, the 2nd at 25%
+    # power, so single-target damage ≈ ×1.25; it does not apply to spread moves,
+    # and its extra strike breaks Focus Sash / Sturdy like a multi-hit.
+    parental_bond = (attacker_ability == "Parental Bond"
+                     and not is_spread)
+    if attacker_ability == "Neuroforce" and eff > 1.0:
+        atk_m *= 1.2          # +20% on super-effective hits
+    elif attacker_ability == "Tinted Lens" and 0.0 < eff < 1.0:
+        atk_m *= 2.0          # not-very-effective hits land at full power
+    elif parental_bond:
+        atk_m *= 1.25
+
     def_m = def_modifier(defender_ability, defender_item,
                          eff_type, category, eff, defender_is_full_hp)
 
@@ -693,6 +823,12 @@ def full_damage_calc(
         burn = False   # burn status is not passed to full_damage_calc; callers
                        # should use the top-level outgoing_damage() which receives
                        # the full Pokemon object and can set this correctly (TODO)
+        # Foul Play hits with the TARGET's Attack stat (and the target's Attack
+        # stat stages) — not the user's.  Without this we badly under-predict
+        # incoming Foul Play vs our high-Attack mons (Sableye -> Sneasler).
+        if move_name == _FOUL_PLAY:
+            A  = defender_stats.get("atk", 100)
+            ab = boosts_def.get("atk", 0)
     else:  # Special
         A  = attacker_stats.get("spa", 100)
         D  = defender_stats.get("spd", 100)
@@ -726,6 +862,7 @@ def full_damage_calc(
     ko_prevented = (
         defender_is_full_hp
         and n_hits == 1.0                       # multi-hit moves break Sash/Sturdy
+        and not parental_bond                   # Parental Bond's 2nd strike too
         and (defender_item in _KO_PREVENTING_ITEMS
              or defender_ability in _KO_PREVENTING_ABILITIES)
     )
@@ -845,6 +982,10 @@ def incoming_damage(
         top_n_moves: int = 6,
         opp_boosts: Optional[dict[str, int]] = None,
         our_boosts: Optional[dict[str, int]] = None,
+        opp_hp_fraction: float = 1.0,
+        opp_status: str = "",
+        opp_ally_faint_count: int = 0,
+        opp_flash_fire_active: bool = False,
 ) -> list[DamageResult]:
     """
     Estimate the damage our Pokémon (*our_species*) would take from
@@ -898,6 +1039,10 @@ def incoming_damage(
             attacker_boosts=opp_boosts,
             defender_boosts=our_boosts,
             defender_is_full_hp=our_defender_is_full_hp,
+            ally_faint_count=opp_ally_faint_count,
+            attacker_hp_fraction=opp_hp_fraction,
+            attacker_status=opp_status,
+            flash_fire_active=opp_flash_fire_active,
         )
         if result.power > 0:
             results.append(result)
@@ -923,6 +1068,9 @@ def outgoing_damage(
         opp_screens=None,
         attacker_boosts: Optional[dict[str, int]] = None,
         defender_boosts: Optional[dict[str, int]] = None,
+        attacker_hp_fraction: float = 1.0,
+        attacker_status: str = "",
+        flash_fire_active: bool = False,
 ) -> list[DamageResult]:
     """
     Compute damage our Pokémon's moves would deal to *opp_species* using
@@ -983,6 +1131,9 @@ def outgoing_damage(
             defender_screens=opp_screens,
             attacker_boosts=attacker_boosts,
             defender_boosts=defender_boosts,
+            attacker_hp_fraction=attacker_hp_fraction,
+            attacker_status=attacker_status,
+            flash_fire_active=flash_fire_active,
         )
         if result.power > 0:
             results.append(result)

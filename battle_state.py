@@ -59,6 +59,10 @@ class Pokemon:
     # Cleared automatically when a Pokémon switches out (new Pokemon object created).
     # Used by turn_order to apply the Unburden speed doubling.
     item_consumed: bool = False
+    # True once this mon has absorbed a Fire move via Flash Fire this field stint
+    # (Showdown reports it as |-start|…|ability: Flash Fire).  Cleared on switch
+    # (new Pokemon object).  Drives Flash Fire's +50% Fire-move boost in damage.py.
+    flash_fire_active: bool = False
 
     @property
     def hp_fraction(self) -> float:

@@ -300,6 +300,9 @@ class DamageOutputModule(ScoringModule):
                 opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
                 opp_screens=getattr(state, "opp_screens", None),
                 attacker_boosts=mon.boosts, defender_boosts=opp.boosts,
+                attacker_hp_fraction=mon.hp_fraction,
+                attacker_status=mon.status or "",
+                flash_fire_active=mon.flash_fire_active,
             )
             return results[0].hp_fraction_avg if results else 0.0
 
@@ -798,6 +801,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
     """
     ctx = TurnContext()
     ally_faints = sum(1 for p in state.my_team if p is not None and p.fainted)
+    opp_faints  = sum(1 for p in state.opp_team if p is not None and p.fainted)
 
     # ── Board-state counts (1v1 endgame / 2v1 advantage rows) ─────────────────
     ctx.bench_alive = len(state.available_switches)
@@ -844,6 +848,9 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                     opp_is_full_hp=opp_at_full,
                     opp_screens=getattr(state, "opp_screens", None),
                     attacker_boosts=mon.boosts, defender_boosts=opp.boosts,
+                    attacker_hp_fraction=mon.hp_fraction,
+                    attacker_status=mon.status or "",
+                    flash_fire_active=mon.flash_fire_active,
                 )
                 if results and results[0].is_ohko:
                     ctx.ohko.add((slot, move, opp_slot))
@@ -889,18 +896,24 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 our_defender_is_full_hp=at_full,
                 opp_boosts=opp.boosts,
                 our_boosts=mon.boosts,
+                opp_hp_fraction=opp.hp_fraction,
+                opp_status=opp.status or "",
+                opp_ally_faint_count=opp_faints,
+                opp_flash_fire_active=opp.flash_fire_active,
             )
             if any(t.ohko_with_max_roll for t in threats):
                 max_roll_kills.append(opp_slot)
             if any(t.is_ohko for t in threats):
                 min_roll_kills.append(opp_slot)
-            # Record the scariest predicted incoming hit (expected, non-crit)
-            # for offline defensive-accuracy analysis — the figure that says
-            # "this is the most we think this opponent does to us".
+            # Record predicted incoming damage per ASSESSED move (expected,
+            # non-crit) for offline defensive-accuracy analysis.  Storing the
+            # whole assessed movepool — not just the scariest — lets the report
+            # tell a genuine model mis-calc (a move we assessed but under-rated)
+            # from an off-meta tech move we never considered.
             if threats:
                 _pred.append({"a": opp.species, "df": mon.species,
-                              "p": round(threats[0].hp_fraction_avg, 3),
-                              "mv": threats[0].move})
+                              "mvs": {t.move: round(t.hp_fraction_avg, 3)
+                                      for t in threats}})
         ctx.incoming_ohko[slot]    = max_roll_kills
         ctx.incoming_certain[slot] = min_roll_kills
     # Persist the predicted-incoming snapshot for this turn (defensive accuracy).
@@ -1071,6 +1084,7 @@ class SwitchModule(ScoringModule):
         *bench_item* is the consumption-aware item (None once consumed), not
         the static team.txt item — a spent Chople must not soak the hit.
         """
+        opp_faints = sum(1 for p in state.opp_team if p is not None and p.fainted)
         for opp in state.opp_actives:
             if opp is None or opp.fainted:
                 continue
@@ -1080,6 +1094,10 @@ class SwitchModule(ScoringModule):
                 opp_item=_effective_item(opp), our_ability=bench_tm.ability or "",
                 our_item=bench_item, weather=state.weather,
                 our_defender_is_full_hp=True,
+                opp_hp_fraction=opp.hp_fraction,
+                opp_status=opp.status or "",
+                opp_ally_faint_count=opp_faints,
+                opp_flash_fire_active=opp.flash_fire_active,
             )
             if any(t.ohko_with_max_roll for t in threats):
                 return False

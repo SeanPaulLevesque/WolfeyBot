@@ -306,7 +306,8 @@ class TestMoveEventsInLog:
                      "hp0": 1.0, "dmg": 0.9, "crit": True},
                 ]}
                 state.predicted_incoming_log = {1: [
-                    {"a": "Incineroar", "df": "Garchomp", "p": 0.32, "mv": "Flare Blitz"},
+                    {"a": "Incineroar", "df": "Garchomp",
+                     "mvs": {"Flare Blitz": 0.32, "Darkest Lariat": 0.28}},
                 ]}
                 rec.record_decision(state, slot=0, ranked_actions=_make_actions())
                 rec.record_outcome(won=True)
@@ -316,7 +317,7 @@ class TestMoveEventsInLog:
                 turn = data["turns"][0]
                 assert turn["ev"][0]["cr"] is True
                 assert turn["pin"] == [{"a": "Incineroar", "df": "Garchomp",
-                                        "p": 0.32, "mv": "Flare Blitz"}]
+                                        "mvs": {"Flare Blitz": 0.32, "Darkest Lariat": 0.28}}]
 
     def test_no_ev_key_when_no_events(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -55,10 +55,13 @@ mons we thought were safe that got hit harder.
 
 ```
 {
-  "a":  "Incineroar",  // attacker species
-  "df": "Garchomp",    // defender (our mon)
-  "p":  0.32,          // predicted damage as a fraction of defender max HP (expected, non-crit)
-  "mv": "Flare Blitz"  // the move that prediction is for (the scariest assessed)
+  "a":   "Incineroar",                       // attacker species
+  "df":  "Garchomp",                         // defender (our mon)
+  "mvs": {"Flare Blitz": 0.32, "Darkest Lariat": 0.28}
+         // predicted damage (fraction of defender max HP, expected non-crit)
+         // for EVERY assessed move.  Storing the whole assessed movepool lets
+         // analysis tell a model mis-calc on a known move from an off-meta
+         // tech move that was never assessed (key absent).
 }
 ```
 

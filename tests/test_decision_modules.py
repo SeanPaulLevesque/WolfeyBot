@@ -2481,7 +2481,9 @@ class TestPredictedIncomingLog:
         assert pred, "predicted_incoming_log should be populated"
         e = pred[0]
         assert e["a"] == "Incineroar" and e["df"] == "Garchomp"
-        assert 0.0 <= e["p"] <= 2.0 and isinstance(e["mv"], str)
+        # per-assessed-move map: {move: predicted_frac}
+        assert isinstance(e["mvs"], dict) and e["mvs"]
+        assert all(isinstance(k, str) and 0.0 <= v <= 2.0 for k, v in e["mvs"].items())
 
 
 class TestOpponentBoostFacts:
@@ -2522,6 +2524,48 @@ class TestOpponentBoostFacts:
             helper("Aerodactyl", "Whimsicott", designated_mega="Aerodactyl",
                    opp_boosts={"def": 2}))
         assert (0, "Dual Wingbeat", 0) not in boosted.ohko
+
+
+class TestConditionalAbilityPlumbing:
+    """Conditional-fact abilities (status / Flash Fire) must reach
+    build_turn_context's incoming-threat predictions, not just the damage layer.
+
+    Pins the plumbing at the call site: the opponent's HP / status / flash-fire
+    state has to be forwarded into incoming_damage."""
+
+    @staticmethod
+    def _worst_incoming(state) -> float:
+        """Largest predicted incoming damage fraction over all assessed moves."""
+        build_turn_context(state)
+        preds = state.predicted_incoming_log[state.turn]
+        return max((max(p["mvs"].values()) for p in preds if p["mvs"]),
+                   default=0.0)
+
+    def _opp(self, opp_species, *, ability, status=None, flash_fire=False):
+        s = TestEffectiveItem._single_slot_state("Venusaur", opp_species)
+        opp = s.opp_actives[0]
+        opp.ability = ability          # revealed → _effective_ability honours it
+        opp.status = status
+        opp.flash_fire_active = flash_fire
+        return s
+
+    def test_guts_status_raises_incoming(self):
+        """A statused Guts attacker hits ~1.5× harder with physical moves —
+        the status must flow through to the incoming prediction."""
+        clean = self._worst_incoming(self._opp("Conkeldurr", ability="Guts"))
+        statused = self._worst_incoming(
+            self._opp("Conkeldurr", ability="Guts", status="par"))
+        assert clean > 0
+        assert statused == pytest.approx(clean * 1.5, rel=0.1)
+
+    def test_flash_fire_flag_raises_fire_incoming(self):
+        """An active Flash Fire flag (parser-tracked) boosts the opponent's Fire
+        moves by 50% in the incoming facts.  Arcanine leads with Flare Blitz."""
+        cold = self._worst_incoming(self._opp("Arcanine", ability="Flash Fire"))
+        hot = self._worst_incoming(
+            self._opp("Arcanine", ability="Flash Fire", flash_fire=True))
+        assert cold > 0
+        assert hot == pytest.approx(cold * 1.5, rel=0.1)
 
 
 class TestBenchConsumedItem:

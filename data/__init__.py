@@ -46,6 +46,9 @@ from .sets import (
 # Data-gap diagnostics (battle-log "data_gaps" flags)
 from .diagnostics import note_gap, drain_gaps
 
+# Per-move property flags (contact / slicing / punch / bite)
+from .move_flags import move_flags, move_has_flag, is_contact
+
 # Metagame
 from .usage import (
     archetype_usage, all_archetypes,
@@ -98,6 +101,8 @@ __all__ = [
     "parse_spread", "scarf_probability", "all_pokemon",
     # diagnostics
     "note_gap", "drain_gaps",
+    # move flags
+    "move_flags", "move_has_flag", "is_contact",
     # usage
     "archetype_usage", "all_archetypes",
     # moves

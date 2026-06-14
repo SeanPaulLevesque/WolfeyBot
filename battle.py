@@ -588,10 +588,19 @@ class BattleParser:
 
         Showdown fires: |-start|p1a: Venusaur|Encore
         We record the move our slot last used; _build_actions will allow only that.
+
+        Also catches Flash Fire activation on either side
+        (|-start|IDENT|ability: Flash Fire), which boosts the holder's Fire moves
+        by 50% until it switches out.
         """
         if len(args) < 2:
             return
         ident, effect = args[0], args[1]
+        if "flash fire" in effect.lower():
+            mon = self._find_mon(ident)
+            if mon:
+                mon.flash_fire_active = True
+            return
         if _side_from_ident(ident) != self.state.my_side:
             return
         if "encore" not in effect.lower():
