@@ -1,5 +1,29 @@
 # WolfeyBot Changelog
 
+## 0.8.7 — 2026-06-14
+
+### Zero-damage reason: tell an ability immunity from a Protect/miss
+
+A move that deals 0 is no longer ambiguous.  The parser now tags the resolving
+move event with *why* it dealt nothing, and — crucially — **reveals an immunity
+ability** so we stop firing into an immune mon.
+
+- **Parser (`battle.py`):** new `-immune` / `-miss` handlers and a Protect/
+  Substitute tag in `-activate`.  Each sets `event["z"]` ∈
+  {`immune`,`miss`,`protect`,`sub`}.  An `|-immune|…|[from] ability: X` records
+  `event["za"]=X` **and sets `mon.ability=X`** on the target — a wrong assumed
+  ability is exactly how we were "missing" immunities (e.g. re-Earthquaking a
+  Levitate mon).
+- **Recorder:** writes `z` / `za` into the battle-log `ev` events.
+- **`accuracy_report.py`:** the offense filter now uses `z` — genuine
+  non-connects (miss/protect/sub) are dropped, but **predicting damage on an
+  immune target is surfaced** in a new "IMMUNITY MODEL GAPS" section (with the
+  ability, when known).  This was the hole in 0.8.6's blunt "drop all 0%" filter
+  (which could hide a wrong-ability immunity as if it were a Protect).
+  Backward-compatible with logs that have no `z`.
+- Tests: `TestZeroDamageReason` (immune w/ + w/o ability, miss, protect, sub,
+  real-hit control).  Turn-1 table byte-identical (no immunity procs on turn 1).
+
 ## 0.8.6 — 2026-06-14
 
 ### Revealed mega stone commits to the mega forme

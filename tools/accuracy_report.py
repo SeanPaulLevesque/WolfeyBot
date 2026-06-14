@@ -42,6 +42,7 @@ def report(version, slop=0.15):
     # ── gather offense / defense / turn-order samples ────────────────────────
     off_within = off_total = 0
     off_miss = []                      # (err, mv, tg, pred, act)
+    off_immune = []                    # (pred, mv, tg, ability) — predicted dmg on immune target
     def_under = []                     # (err, attacker, defender, pred, act)
     to_exact = to_off1 = to_worse = to_total = 0
 
@@ -81,14 +82,19 @@ def report(version, slop=0.15):
                     continue
                 md = DMG_RE.search(reasons)
                 e = us_ev.get((ch, ct))
-                # A move that connected always deals >0; actual==0 means it never
-                # landed on the predicted target — Protect / immunity / substitute
-                # absorbing it.  (Misses log no -damage event, and a target that
-                # switched out makes (ch,ct) not match — both already fall out
-                # here.)  Drop those so the offense list shows only real hits.
-                if (md and e and e.get("h0", 0) > 0 and e.get("d")
-                        and e["d"] > 0 and not e.get("cr")):
-                    pred = min(int(md.group(1)) / 100.0, e["h0"])
+                if not (md and e and not e.get("cr")):
+                    continue
+                pred = min(int(md.group(1)) / 100.0, e.get("h0", 1.0) or 1.0)
+                z = e.get("z")
+                if z == "immune":
+                    # We predicted damage but the target was IMMUNE — a wrong
+                    # assumed ability (or type) gap, NOT noise.  Surface it.
+                    off_immune.append((pred, ch, ct, e.get("za")))
+                elif z in ("miss", "protect", "sub"):
+                    continue                       # genuine non-connect — drop
+                elif e.get("h0", 0) > 0 and e.get("d") and e["d"] > 0:
+                    # Real connecting hit.  (Untagged 0-damage from older logs or
+                    # a switch-away still falls through here and is skipped.)
                     act = e["d"]
                     off_total += 1
                     if abs(act - pred) <= slop:
@@ -138,6 +144,9 @@ def report(version, slop=0.15):
     print(f" Defense  : {len(def_under)} cases hit harder than predicted by "
           f">{int(slop*100)}% (crits/misses excluded) — {n_known} on assessed "
           f"moves (model gaps), {n_tech} on unassessed moves (tech/off-meta)")
+    if off_immune:
+        print(f" Immunity : {len(off_immune)} times we predicted damage on an "
+              f"IMMUNE target (wrong assumed ability/type)")
 
     # ── 2. TURN ORDER ────────────────────────────────────────────────────────
     print(f"\n── TURN ORDER (full 4-move turns, n={to_total}) ──")
@@ -165,6 +174,14 @@ def report(version, slop=0.15):
             sign = "over" if err < 0 else "under"
             print(f"   {mv:16} -> {tg:14} predicted {pred:>4.0%} | actual {act:>4.0%}  "
                   f"[{sign} {abs(err):.0%}]")
+
+    # immunity model gaps — we fired into an immune target (wrong assumed ability)
+    if off_immune:
+        print(f"\n── IMMUNITY MODEL GAPS (predicted damage on an IMMUNE target) ──")
+        print(f"   we chose this move expecting damage, but the target was immune")
+        for pred, mv, tg, abil in sorted(off_immune, key=lambda x: -x[0]):
+            why = f"ability: {abil}" if abil else "type immunity"
+            print(f"   {mv:16} -> {tg:14} predicted {pred:>4.0%} | IMMUNE ({why})")
     print()
 
 

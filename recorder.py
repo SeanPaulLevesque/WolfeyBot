@@ -375,6 +375,10 @@ class BattleRecorder:
                     ev["d"] = e["dmg"]
                 if e.get("crit"):
                     ev["cr"] = True                 # critical hit — excluded from accuracy
+                if e.get("z"):
+                    ev["z"] = e["z"]                # 0-dmg reason: immune/miss/protect/sub
+                    if e.get("za"):
+                        ev["za"] = e["za"]          # ability that conferred immunity
                 ev_list.append(ev)
             t["ev"] = ev_list
 

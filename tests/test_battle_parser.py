@@ -160,6 +160,69 @@ class TestFlashFireActivation:
         assert parser.state.opp_actives[0].flash_fire_active is False
 
 
+# ── Zero-damage reason (immune / miss / protect) ───────────────────────────────
+
+class TestZeroDamageReason:
+    """A move that deals 0 is tagged with WHY (immune/miss/protect/sub) so an
+    ability immunity isn't confused with a Protect or a miss — and an immunity
+    that names the ability reveals it on the target."""
+
+    def _battle(self, opp="Bronzong"):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p1a: Garchomp|Garchomp, L50, M|200/200"))
+        run(parser.feed(f"|switch|p2a: {opp}|{opp}, L50|150/150"))
+        run(parser.feed("|turn|1"))
+        return parser
+
+    def _last_event(self, parser):
+        return parser.state.turn_events[-1]
+
+    def test_immune_with_ability_tags_and_reveals(self):
+        parser = self._battle("Bronzong")
+        run(parser.feed("|move|p1a: Garchomp|Earthquake|p2a: Bronzong"))
+        run(parser.feed("|-immune|p2a: Bronzong|[from] ability: Levitate"))
+        ev = self._last_event(parser)
+        assert ev["z"] == "immune"
+        assert ev["za"] == "Levitate"
+        # The immunity reveals the ability so later turns stop targeting it.
+        assert parser.state.opp_actives[0].ability == "Levitate"
+
+    def test_immune_by_type_has_no_ability(self):
+        parser = self._battle("Pelipper")
+        run(parser.feed("|move|p1a: Garchomp|Earthquake|p2a: Pelipper"))
+        run(parser.feed("|-immune|p2a: Pelipper"))   # Flying — type immunity, no ability
+        ev = self._last_event(parser)
+        assert ev["z"] == "immune"
+        assert "za" not in ev
+
+    def test_miss_tagged(self):
+        parser = self._battle("Pelipper")
+        run(parser.feed("|move|p1a: Garchomp|Stone Edge|p2a: Pelipper"))
+        run(parser.feed("|-miss|p1a: Garchomp|p2a: Pelipper"))
+        assert self._last_event(parser)["z"] == "miss"
+
+    def test_protect_tagged(self):
+        parser = self._battle("Kommo-o")
+        run(parser.feed("|move|p1a: Garchomp|Dragon Claw|p2a: Kommo-o"))
+        run(parser.feed("|-activate|p2a: Kommo-o|move: Protect"))
+        assert self._last_event(parser)["z"] == "protect"
+
+    def test_substitute_tagged(self):
+        parser = self._battle("Kommo-o")
+        run(parser.feed("|move|p1a: Garchomp|Dragon Claw|p2a: Kommo-o"))
+        run(parser.feed("|-activate|p2a: Kommo-o|move: Substitute"))
+        assert self._last_event(parser)["z"] == "sub"
+
+    def test_real_hit_has_no_reason_tag(self):
+        parser = self._battle("Kommo-o")
+        run(parser.feed("|move|p1a: Garchomp|Dragon Claw|p2a: Kommo-o"))
+        run(parser.feed("|-damage|p2a: Kommo-o|90/150"))
+        ev = self._last_event(parser)
+        assert "z" not in ev
+        assert ev["dmg"] is not None and ev["dmg"] > 0
+
+
 # ── Actual move-resolution instrumentation (0.8.1) ───────────────────────────
 
 class TestMoveInstrumentation:

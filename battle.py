@@ -311,6 +311,41 @@ class BattleParser:
         if pending is not None:
             pending["crit"] = True
 
+    async def _on_immune(self, args: list[str]):
+        """|-immune|TARGET[|[from] ability: X] — the resolving move dealt no
+        damage because the target was immune (by type or ability).
+
+        Two jobs:
+          * Tag the move event ``z="immune"`` (+ ``za=<ability>``) so accuracy
+            analysis tells a real immunity from a Protect/miss/Substitute.
+          * If an ability is named, reveal it on the target so later turns stop
+            firing into an immune mon (a wrong assumed ability is exactly how we
+            "miss" an immunity).
+        """
+        if not args:
+            return
+        pending = getattr(self, "_pending_event", None)
+        if pending is not None and pending.get("z") is None:
+            pending["z"] = "immune"
+        ability = None
+        for a in args[1:]:
+            if "ability:" in a:
+                ability = a.split("ability:", 1)[1].strip()
+                break
+        if ability:
+            if pending is not None:
+                pending["za"] = ability
+            mon = self._find_mon(args[0])
+            if mon:
+                mon.ability = ability
+
+    async def _on_miss(self, args: list[str]):
+        """|-miss|SOURCE|TARGET — the resolving move missed; tag the event so a
+        0-damage outcome isn't mistaken for an immunity."""
+        pending = getattr(self, "_pending_event", None)
+        if pending is not None and pending.get("z") is None:
+            pending["z"] = "miss"
+
     async def _on_damage(self, args: list[str]):
         if len(args) < 2:
             return
@@ -566,10 +601,26 @@ class BattleParser:
         Showdown fires: |-activate|p1a: Venusaur|move: Disable|Giga Drain
         We record the Disabled move name so _build_actions can filter it out.
         """
-        if len(args) < 3:
+        if len(args) < 2:
             return
         ident, effect = args[0], args[1]
+
+        # Tag the resolving move event when a Protect-family move or Substitute
+        # absorbed the hit (either side), so a 0-damage outcome is told apart
+        # from an ability immunity in accuracy analysis.
+        pending = getattr(self, "_pending_event", None)
+        if pending is not None and pending.get("z") is None and effect.startswith("move:"):
+            mv = effect.split(":", 1)[1].strip().lower()
+            if mv == "substitute":
+                pending["z"] = "sub"
+            elif (any(k in mv for k in ("protect", "detect", "guard", "shield",
+                                        "bunker", "bulwark", "obstruct"))
+                  or mv in ("silk trap", "mat block")):
+                pending["z"] = "protect"
+
         # Only care about Disable affecting our own Pokémon.
+        if len(args) < 3:
+            return
         if _side_from_ident(ident) != self.state.my_side:
             return
         if "disable" not in effect.lower():
@@ -737,6 +788,8 @@ _HANDLERS = {
     "replace":        BattleParser._on_switch,      # zen mode etc
     "move":           BattleParser._on_move,
     "-crit":          BattleParser._on_crit,
+    "-immune":        BattleParser._on_immune,
+    "-miss":          BattleParser._on_miss,
     "-damage":        BattleParser._on_damage,
     "-heal":          BattleParser._on_heal,
     "-sethp":         BattleParser._on_damage,      # same handling
