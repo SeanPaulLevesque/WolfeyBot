@@ -17,6 +17,19 @@ Add more complete weather and field effects to the engine. ie damage from sandst
 -Take Choice items locking in moves into account. An opponent with a revealed/assumed Choice Scarf/Band/Specs that has already attacked is locked into that one move until it switches: incoming threat should collapse to just the locked move (not their full movepool), Protect/switch value changes when we resist the locked move, and a locked-in opponent that switches out resets the lock. Pairs with the likely-moves switch module idea above and the existing item inference (_effective_item already assumes Choice items at >=40% usage; the lock itself is the unmodeled part).
 
 
+offensive abilities — deferred (need facts atk_modifier/build_turn_context don't yet thread):
+The 0.8.5 batches wired every ability that keys off move flags, move type, category, attacker HP/status/weather, ally-faint count, effectiveness, or the Flash Fire flag. These remain, grouped by the missing fact:
+-Doubles / ally context (need the PARTNER slot's ability/type, read across both active slots): Battery (ally's special moves x1.3), Power Spot (ally's moves x1.3), Plus/Minus (SpA x1.5 if partner has Plus/Minus), Steely Spirit ally-half (ally's Steel x1.5 — the self-half is done), Fairy Aura / Dark Aura both-sides (currently modelled per-attacker only; should boost BOTH sides' Fairy/Dark moves).
+-Analytic (x1.33 if the user moves last, incl. when the target switches): needs the "do I move last" turn-order fact threaded into the damage calc — build_turn_context already computes the 4-mon order, just not passed down.
+-Merciless (auto-crit = x1.5 vs a POISONED target): needs DEFENDER status into the calc. Relevant — this is Toxapex, a common wall.
+-Stakeout (x2.0 if the target switches in this turn): needs opponent switch prediction — the hardest of the set.
+-Sniper (x1.5 on a crit): low value — random crits are excluded from the yes/no facts, so it would only ever fire on always-crit moves (Flower Trick etc.).
+-Out of format, revisit only if the legal pool changes (no Champions-legal holder today): Slow Start (Regigigas), Orichalcum Pulse (Koraidon), Hadron Engine (Miraidon; also needs Electric Terrain), Flower Gift (Cherrim). Any of these would also need turns-active and/or terrain tracking that we deliberately skipped.
+
+model calibration:
+-Opponent spread calibration. incoming_damage/outgoing_damage use _most_common_stats = the single MODAL spread, which for many mons is the frail max-offense spread; real opponents often run bulkier spreads, so we systematically OVER-predict our damage into bulky targets. Evidence (0.8.5/0.8.6 accuracy report, real ladder games): Rock Tomb -> Delphox-Mega 100% predicted vs 41% actual; Last Respects -> Sinistcha 73% vs 19%; Dragon Claw/Rock Tomb -> Pelipper 49% vs ~27%. Options: use a median/percentile-bulk spread for defensive stats, sample across the top-N spreads and aggregate, or bias toward a bulk-leaning spread when computing OUR damage into an opponent. (Supersedes the earlier loosely-worded "Milotic over-prediction" note — the direction is: we assume FRAILER than reality.) Land in isolation per the regression note so the win-rate delta is attributable.
+
+
 bugs:
 -[FIXED 0.7.6] I saw a bug when there was a double ko against my team and the bot tried to pick the last remaining mon twice and error'd out
   -> force-switch loop now dedupes claimed targets; with one bench mon left the second slot passes. Regression tests in TestDoubleKoForceSwitch.
