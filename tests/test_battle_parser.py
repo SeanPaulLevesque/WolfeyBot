@@ -167,6 +167,26 @@ class TestMoveInstrumentation:
         assert 1 in parser.state.events_log
         assert len(parser.state.events_log[1]) == 2
 
+    def test_crit_flag_captured_on_event(self):
+        """|-crit| flags the resolving move so accuracy analysis can skip crits."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p1a: Garchomp|Garchomp, L50, M|200/200"))
+        run(parser.feed("|switch|p2a: Incineroar|Incineroar, L50, M|100/100"))
+        run(parser.feed("|turn|1"))
+        run(parser.feed("|move|p2a: Incineroar|Flare Blitz|p1a: Garchomp"))
+        run(parser.feed("|-crit|p1a: Garchomp"))
+        run(parser.feed("|-damage|p1a: Garchomp|80/200"))
+        run(parser.feed("|turn|2"))
+        ev = parser.state.events_log[1][0]
+        assert ev.get("crit") is True
+        assert ev["dmg"] == pytest.approx(0.6, abs=0.01)
+
+    def test_no_crit_flag_on_normal_hit(self):
+        parser = self._battle()
+        run(parser.feed("|turn|2"))
+        assert all("crit" not in e for e in parser.state.events_log[1])
+
     def test_residual_damage_not_attributed_to_a_move(self):
         """A second -damage on the same target (e.g. recoil/residual) must not
         overwrite the move's recorded damage — the link clears after one hit."""

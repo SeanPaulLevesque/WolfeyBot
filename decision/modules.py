@@ -858,6 +858,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
     # ── 3. Incoming threats (the one incoming_damage fact loop) ───────────────
     fo_live = _fake_out_threatened(state)
     ctx.fake_out_live = fo_live
+    _pred: list = []   # predicted worst-case incoming per (opp -> our mon)
     for slot in ctx.alive_slots:
         mon   = state.my_actives[slot]
         tm    = find_member(mon.species)
@@ -893,8 +894,17 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 max_roll_kills.append(opp_slot)
             if any(t.is_ohko for t in threats):
                 min_roll_kills.append(opp_slot)
+            # Record the scariest predicted incoming hit (expected, non-crit)
+            # for offline defensive-accuracy analysis — the figure that says
+            # "this is the most we think this opponent does to us".
+            if threats:
+                _pred.append({"a": opp.species, "df": mon.species,
+                              "p": round(threats[0].hp_fraction_avg, 3),
+                              "mv": threats[0].move})
         ctx.incoming_ohko[slot]    = max_roll_kills
         ctx.incoming_certain[slot] = min_roll_kills
+    # Persist the predicted-incoming snapshot for this turn (defensive accuracy).
+    state.predicted_incoming_log[state.turn] = _pred
 
     # ── 4. Doomed (incoming_certain + neutralized + speed) ────────────────────
     for slot in ctx.alive_slots:

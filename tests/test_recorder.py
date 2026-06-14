@@ -198,6 +198,7 @@ def _make_mock_state(turn=1):
                                     moves=["Earthquake"])]
     state.my_team = [MagicMock(species="Garganacl", hp=300, max_hp=300)]
     state.events_log = {}   # real dict (0.8.1) — MagicMock would break _build_turn
+    state.predicted_incoming_log = {}   # real dict (0.8.4) — same reason
     return state
 
 
@@ -293,6 +294,29 @@ class TestMoveEventsInLog:
                                  "h0": 1.0, "d": 0.6}
                 # internal linkage key must be stripped (raw hp0 renamed to h0)
                 assert "_tgt_ident" not in ev[0] and "hp0" not in ev[0]
+
+    def test_crit_flag_and_predicted_incoming_written(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                rec = BattleRecorder("battle-pin-test", "0.8.4")
+                state = _make_mock_state(turn=1)
+                state.events_log = {1: [
+                    {"o": 0, "sd": "opp", "a": "Incineroar", "mv": "Flare Blitz",
+                     "tg": "Garchomp", "_tgt_ident": "p1: Garchomp",
+                     "hp0": 1.0, "dmg": 0.9, "crit": True},
+                ]}
+                state.predicted_incoming_log = {1: [
+                    {"a": "Incineroar", "df": "Garchomp", "p": 0.32, "mv": "Flare Blitz"},
+                ]}
+                rec.record_decision(state, slot=0, ranked_actions=_make_actions())
+                rec.record_outcome(won=True)
+                with open(os.path.join(tmpdir, "Battle Data", "0.8.4",
+                                       "battle-pin-test.json"), encoding="utf-8") as f:
+                    data = json.load(f)
+                turn = data["turns"][0]
+                assert turn["ev"][0]["cr"] is True
+                assert turn["pin"] == [{"a": "Incineroar", "df": "Garchomp",
+                                        "p": 0.32, "mv": "Flare Blitz"}]
 
     def test_no_ev_key_when_no_events(self):
         with tempfile.TemporaryDirectory() as tmpdir:

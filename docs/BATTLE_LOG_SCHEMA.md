@@ -41,9 +41,29 @@ Also emitted as a `WARNING` log line when the battle is saved.
   "opp":  [ <active>, ... ],   // opponent actives, index = slot
   "team": [ <active>, ... ],   // full 4-mon team snapshot (including actives)
   "dec":  [ <decision>, ... ], // one entry per active slot that had a choice
-  "ev":   [ <event>, ... ]     // OPTIONAL (0.8.1) actual move resolution (omitted if none)
+  "ev":   [ <event>, ... ],    // OPTIONAL (0.8.1) actual move resolution (omitted if none)
+  "pin":  [ <pred-incoming>, ... ] // OPTIONAL (0.8.4) predicted worst-case incoming
 }
 ```
+
+### Predicted-incoming object (`pin`, 0.8.4+)
+
+The engine's predicted worst-case incoming damage per (opponent → our mon),
+from the same threat assessment that drives the OHKO facts.  Compared against
+the actual `ev` damage (with `sd:"opp"`) to find defensive under-predictions —
+mons we thought were safe that got hit harder.
+
+```
+{
+  "a":  "Incineroar",  // attacker species
+  "df": "Garchomp",    // defender (our mon)
+  "p":  0.32,          // predicted damage as a fraction of defender max HP (expected, non-crit)
+  "mv": "Flare Blitz"  // the move that prediction is for (the scariest assessed)
+}
+```
+
+Move events (`ev`) also gain an optional **`cr: true`** (0.8.4) when the hit
+was a critical — excluded from accuracy analysis along with misses.
 
 ### Move-resolution event object (`ev`, 0.8.1+)
 

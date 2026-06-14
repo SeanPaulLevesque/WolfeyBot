@@ -1,5 +1,30 @@
 # WolfeyBot Changelog
 
+## 0.8.4 — 2026-06-14
+
+### Defensive-prediction instrumentation + automated accuracy report
+
+Pure observation — no decision change, turn-1 table unaffected.
+
+- **Predicted incoming damage logged (`pin`).**  `build_turn_context` now
+  records, per (opponent → our mon), the scariest assessed incoming hit's
+  expected % — from the same `incoming_damage` it already runs for the OHKO
+  facts.  Written per turn as a `"pin"` array.  Paired with the actual
+  incoming `ev` damage, this makes the *defensive* model checkable (did a mon
+  we thought was safe get hit harder than predicted?) — the parallel to the
+  `damage_output` offensive predictions.
+- **Crit flag (`cr`).**  New `|-crit|` handler marks the resolving move event
+  so accuracy analysis can exclude crits; misses are excluded naturally (they
+  deal no damage).
+- **`tools/accuracy_report.py`** — automated report over a version's logs:
+  (1) high-level stats (win rate, offense damage accuracy, defensive
+  under-prediction count, turn-order accuracy), (2) a turn-order detail
+  section, (3) per-case one-liners (attacker, defender, predicted, actual).
+  Headline list is defensive under-predictions; offense mis-models follow.
+  `--slop` configurable (default ±15%).
+- Tests: crit capture + no-crit, predicted-incoming population, recorder
+  `pin`/`cr` output.
+
 ## 0.8.3 — 2026-06-14
 
 ### Soften the SwitchModule tempo tax (0.6 → 0.8)

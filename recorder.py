@@ -373,8 +373,16 @@ class BattleRecorder:
                     ev["h0"] = round(e["hp0"], 3)   # target HP fraction before the hit
                 if e.get("dmg") is not None:
                     ev["d"] = e["dmg"]
+                if e.get("crit"):
+                    ev["cr"] = True                 # critical hit — excluded from accuracy
                 ev_list.append(ev)
             t["ev"] = ev_list
+
+        # Predicted worst-case incoming damage this turn (0.8.4) — for defensive
+        # accuracy analysis (did a mon we thought was safe get hit harder?).
+        pin = getattr(self._state, "predicted_incoming_log", {}).get(turn_num) if self._state else None
+        if pin:
+            t["pin"] = pin
 
         return t
 

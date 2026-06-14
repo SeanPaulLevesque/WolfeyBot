@@ -304,6 +304,13 @@ class BattleParser:
             self.state.opp_last_moves.append("")
         self.state.opp_last_moves[slot] = move_name
 
+    async def _on_crit(self, args: list[str]):
+        # |-crit|TARGET — flag the move currently resolving as a critical hit
+        # so accuracy analysis can exclude crits (0.8.4 instrumentation).
+        pending = getattr(self, "_pending_event", None)
+        if pending is not None:
+            pending["crit"] = True
+
     async def _on_damage(self, args: list[str]):
         if len(args) < 2:
             return
@@ -720,6 +727,7 @@ _HANDLERS = {
     "drag":           BattleParser._on_switch,      # same format
     "replace":        BattleParser._on_switch,      # zen mode etc
     "move":           BattleParser._on_move,
+    "-crit":          BattleParser._on_crit,
     "-damage":        BattleParser._on_damage,
     "-heal":          BattleParser._on_heal,
     "-sethp":         BattleParser._on_damage,      # same handling

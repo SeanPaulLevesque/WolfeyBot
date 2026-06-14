@@ -150,6 +150,11 @@ class BattleState:
     # decision-making — pure observation.
     turn_events: list = field(default_factory=list)
     events_log: dict = field(default_factory=dict)
+    # Predicted worst-case incoming damage per turn (0.8.4), for defensive
+    # accuracy analysis: {turn: [{"a": attacker, "df": defender, "p": pred_frac,
+    # "mv": move}, ...]}.  Written by build_turn_context from the same threat
+    # assessment that drives the OHKO facts.
+    predicted_incoming_log: dict = field(default_factory=dict)
 
     # Current request data (from most recent |request| message)
     # moves_per_slot[i] = list of move dicts for active slot i

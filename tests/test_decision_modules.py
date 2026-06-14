@@ -2469,6 +2469,21 @@ class TestEffectiveItem:
 # Opponent stat boosts feed the TurnContext facts
 # ══════════════════════════════════════════════════════════════════════════════
 
+class TestPredictedIncomingLog:
+    """build_turn_context records predicted worst-case incoming damage per
+    (opponent -> our mon) for offline defensive-accuracy analysis (0.8.4)."""
+
+    def test_predicted_incoming_populated(self):
+        s = TestEffectiveItem._single_slot_state("Garchomp", "Incineroar")
+        s.turn = 3
+        build_turn_context(s)
+        pred = s.predicted_incoming_log.get(3)
+        assert pred, "predicted_incoming_log should be populated"
+        e = pred[0]
+        assert e["a"] == "Incineroar" and e["df"] == "Garchomp"
+        assert 0.0 <= e["p"] <= 2.0 and isinstance(e["mv"], str)
+
+
 class TestOpponentBoostFacts:
     """Visible opponent boosts (Swords Dance, Calm Mind, …) must flow into the
     incoming-threat and kill-credit facts.
