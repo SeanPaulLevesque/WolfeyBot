@@ -1,5 +1,20 @@
 # WolfeyBot Changelog
 
+## 0.8.11 — 2026-06-14
+
+### Garchomp spread: hit the 226 Scarf-speed benchmark
+
+The Choice Scarf Garchomp was at `6 HP / 32 Atk / 28 Spe` (Adamant) → 150 raw →
+**225** effective, one short of the intended **226** benchmark (the original
+"226" was computed under the pre-0.8.0 SP formula and didn't survive the SP
+fix).  Re-tuned to `5 HP / 32 Atk / 29 Spe` (Adamant) → 151 raw → **226**,
+keeping max Atk; the 1 SP came from HP to stay within the 66-SP cap.
+
+Turn-1 table byte-identical (no opponent sits at the 225/226 boundary, and
+Garchomp's HP doesn't affect its own offense scoring) — the extra point matters
+mid-game in a Scarf-speed mirror.  This is the regenerated baseline. Full suite
+778.
+
 ## 0.8.10 — 2026-06-14
 
 ### In-battle forme stats: Palafin-Hero and Aegislash stance
