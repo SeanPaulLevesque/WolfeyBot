@@ -1,5 +1,43 @@
 # WolfeyBot Changelog
 
+## 0.8.8 — 2026-06-14
+
+### DamageOutput: weight a move by how much of the job it does
+
+`DamageOutputModule` scored a damaging move `1 + fraction*2`, floored at ×1.0 —
+so a move that threatens **~nothing** (immune / fully resisted / a dead
+Choice-locked move) scored the same ×1.0 as a neutral baseline, and `TurnOrder`
+×2 could still lift it above a switch.  That's why a Choice-locked Garchomp kept
+firing Ground into a Levitate/Flying wall instead of pivoting (the smoke-test
+finding), and a "1-damage" move would still stay in.
+
+New formula for **damaging** moves — a single line:
+
+    factor = 0.5 + 3.5 * fraction
+
+- **Floors at 0.5** (a move threatening ~0): below a healthy switch (so we leave
+  a useless matchup), above a suicidal one (so we don't sack a mon into an OHKO
+  on entry).
+- **Crosses the old 1+2f curve at ~33% damage**, so moves ≥33% keep ≈ today's
+  weight (no over-switching off real super-effective chip); below that they taper
+  toward the floor (switch-prone), above it they climb a little (sharpen
+  "attack with the big move").
+- **Status moves keep the ×1.0 baseline** (they deal 0 by design, not by
+  failure) so ProtectValue / SetterUrgency / FakeOut still score them.
+
+Verified on the dead-matchup case: a Choice-locked Garchomp vs a Ground-immune
+Dragonite now **switches to a surviving bench mon** when one exists, and **stays
+in (no sack)** when the only switch-in would be OHKO'd.
+
+**Turn-1 table:** 16 of 120 decisions change (reviewed + approved): un-Protects 5
+passive turn-1 double-Protects, attacks (mostly super-effective) instead of
+speculative switches, and 4 "double-to-break-Focus-Sash" reshuffles on assumed-
+Sash Whimsicott (defensible — secures the KO on the fast support mon).  Slope 3.5
+was chosen from a sweep: it zeroes over-switching while avoiding slope-4's extra
+aggression.  `turn1_summary.md` + the 120-row `test_turn1_decisions.py` table
+regenerated; `TestDamageOutputModuleIntegration` updated to the new formula
+(+ a guard that status moves keep ×1.0).  Full suite 773.
+
 ## 0.8.7 — 2026-06-14
 
 ### Zero-damage reason: tell an ability immunity from a Protect/miss

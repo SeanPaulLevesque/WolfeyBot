@@ -1763,7 +1763,7 @@ class TestDamageOutputModuleIntegration:
     module = DamageOutputModule()
 
     def test_high_damage_fraction_increases_weight(self):
-        """A move that does 80% HP should weight roughly ×2.6."""
+        """A move that does 80% HP should weight ×(0.5 + 3.5·0.80) = 3.3."""
         our_mon = make_mon("Garganacl")
         opp_mon = make_mon("Garchomp", side="p2")
         state = make_state(
@@ -1782,11 +1782,13 @@ class TestDamageOutputModuleIntegration:
              patch("decision.modules.outgoing_damage", return_value=[result]):
             self.module.score(state, slot=0, actions=[action])
 
-        expected = 1.0 + 0.80 * 2.0  # = 2.6
+        expected = 0.5 + 3.5 * 0.80  # = 3.3
         assert action.weight == pytest.approx(expected)
 
-    def test_zero_damage_does_not_change_weight(self):
-        """A move that deals 0 damage (type immunity) should stay at 1.0."""
+    def test_neutralized_damaging_move_floors_at_half(self):
+        """A DAMAGING move that deals 0 (type immunity / dead matchup) floors at
+        ×0.5 — below a healthy switch (so we leave a useless matchup) but above
+        sacking into an OHKO.  ("Ghost Move" is unknown → treated as damaging.)"""
         our_mon = make_mon("Garganacl")
         opp_mon = make_mon("Garchomp", side="p2")
         state = make_state(
@@ -1795,6 +1797,29 @@ class TestDamageOutputModuleIntegration:
             my_team=[our_mon],
         )
         action = make_action("Ghost Move", "Ghost Move")
+
+        zero_result = make_damage_result(damage_min=0, damage_max=0, damage_avg=0.0,
+                                          defender_hp=100)
+        mock_tm = make_mock_member()
+
+        with patch("decision.modules.find_member", return_value=mock_tm), \
+             patch("decision.modules.outgoing_damage", return_value=[zero_result]):
+            self.module.score(state, slot=0, actions=[action])
+
+        assert action.weight == pytest.approx(0.5)
+
+    def test_status_move_keeps_baseline(self):
+        """A STATUS move deals 0 by design, not by failure, so DamageOutput
+        leaves it at the ×1.0 baseline (ProtectValue / SetterUrgency score it) —
+        it must NOT get the damaging-move floor."""
+        our_mon = make_mon("Garganacl")
+        opp_mon = make_mon("Garchomp", side="p2")
+        state = make_state(
+            my_actives=[our_mon],
+            opp_actives=[opp_mon],
+            my_team=[our_mon],
+        )
+        action = make_action("Protect", "Protect")   # category Status
 
         zero_result = make_damage_result(damage_min=0, damage_max=0, damage_avg=0.0,
                                           defender_hp=100)

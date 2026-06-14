@@ -269,16 +269,31 @@ class DamageOutputModule(ScoringModule):
     is computed against every active opponent; the best value across all targets
     is used.
 
-    Weight multiplier: 1.0 + fraction * 2.0
+    Weight multiplier (damaging moves): DAMAGE_INTERCEPT + DAMAGE_SLOPE * fraction
+    — a single line that floors at 0.5 (a move threatening ~nothing) and passes
+    through the old 1+2f curve at 25% damage (both = 1.5).  Below 25% it devalues
+    weak moves (switch-prone — a move that does ~nothing loses to a switch but
+    still beats sacking into an OHKO); above 25% it climbs past the old curve,
+    sharpening "attack with the big move".
 
-    Examples:
-      100% avg damage (OHKO)  ->  x3.0
-      50%                     ->  x2.0
-      25%                     ->  x1.5
-       0% (status / immune)   ->  x1.0  (unchanged)
+    Examples (INTERCEPT=0.5, SLOPE=4.0):
+      100% avg damage (OHKO)  ->  x4.5
+      50%                     ->  x2.5
+      25%                     ->  x1.5   (matches the old 1+2f here)
+      12.5%                   ->  x1.0
+       5%                     ->  x0.7
+       0% (immune / dead)     ->  x0.5   (floor)
+
+    Status moves are left at the x1.0 baseline (they deal no damage by design,
+    not by failure) so ProtectValue / SetterUrgency / FakeOut can score them.
     """
 
     name = "damage_output"
+
+    DAMAGE_INTERCEPT = 0.5   # a damaging move that threatens ~nothing -> x0.5:
+                             # below a healthy switch (leave a useless matchup),
+                             # above a suicidal one (don't sack into an OHKO)
+    DAMAGE_SLOPE     = 3.5   # crosses the old 1+2f curve at ~33% damage
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         mon = state.my_actives[slot] if slot < len(state.my_actives) else None
@@ -324,21 +339,28 @@ class DamageOutputModule(ScoringModule):
         for action in actions:
             if not action.is_move:
                 continue
+            # Status moves keep the x1.0 baseline — they deal no damage by
+            # design, not by failure — so the modules that value them
+            # (ProtectValue / SetterUrgency / FakeOut) score from there.
+            if get_move_category(action.move_name) == "Status":
+                continue
             ts = action.target_slot
             if ts is not None:
                 # Fixed-target candidate — score against its own target only.
                 fraction = _frac(action.move_name, ts)
             else:
-                # Spread / status move (no chosen target): credit the best foe it
-                # could hit (0% for a status move that deals no damage).
+                # Spread move (no chosen target): credit the best foe it can hit.
                 fraction = max((_frac(action.move_name, i) for i in live), default=0.0)
 
-            if fraction > 0:
-                factor = 1.0 + fraction * 2.0
-                action.weight *= factor
-                action.reasons.append(
-                    f"{self.name}: {fraction:.0%} HP -> x{factor:.2f}"
-                )
+            # Single line: floors at DAMAGE_INTERCEPT (a move threatening
+            # ~nothing — immune / fully resisted / a dead Choice-locked move —
+            # loses to a healthy switch but still beats sacking into an OHKO)
+            # and matches the old 1+2f curve at 25% damage.
+            factor = self.DAMAGE_INTERCEPT + self.DAMAGE_SLOPE * fraction
+            action.weight *= factor
+            action.reasons.append(
+                f"{self.name}: {fraction:.0%} HP -> x{factor:.2f}"
+            )
 
 
 class ThreatEliminationModule(ScoringModule):
