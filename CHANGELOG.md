@@ -1,5 +1,36 @@
 # WolfeyBot Changelog
 
+## 0.8.6 — 2026-06-14
+
+### Revealed mega stone commits to the mega forme
+
+`_assumed_species` had a gap: a mon whose item was *revealed* to be a mega
+stone (but which hadn't evolved yet) fell through to the population-weighted
+forme guess, which lands on the **base** forme for base-dominant species
+(Venusaur, Gyarados, Gallade, …).  Now a revealed stone resolves straight to
+that stone's `-Mega` forme via the new `data.mega_forme_for_stone` (the
+inverse of `mega_stones`).  Charizard/Delphox were already handled by the
+population rule (their megas dominate usage); this fixes the *swing* species.
+
+- A strict "top item ends in -ite → mega" rule was considered and rejected:
+  the usage data files mega sets separately, so a base entry's top item is a
+  *normal* item (Charizard → Charcoal, Delphox → Focus Sash), and that rule
+  would send them to base — the opposite of what we want.  Population count
+  remains the rule when the item is unknown.
+- Tests: `TestMegaFormeForStone` (data layer), plus a base-dominant
+  revealed-stone case in `TestAssumedSpecies` (Venusaurite → Venusaur-Mega).
+  Turn-1 table byte-identical (turn-1 opponents have no revealed item).
+
+### accuracy_report.py — UTF-8 console + offense connect filter
+
+- Force UTF-8 stdout so the report's box-drawing glyphs don't crash on the
+  Windows cp1252 console.
+- Offense mis-models now exclude **non-connecting** hits (actual 0% — Protect,
+  immunity, substitute; misses and switch-aways already fell out), so the list
+  shows only real damage-model gaps.  Misdiagnosed Delphox-Mega over-prediction
+  traced to **spread calibration** (we assume the modal frail spread), not
+  forme — a separate backlog item.
+
 ## 0.8.5 — 2026-06-14
 
 ### Three damage-model fixes surfaced by the accuracy report

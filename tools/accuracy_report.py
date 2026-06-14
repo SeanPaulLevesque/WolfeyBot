@@ -81,7 +81,13 @@ def report(version, slop=0.15):
                     continue
                 md = DMG_RE.search(reasons)
                 e = us_ev.get((ch, ct))
-                if md and e and e.get("h0", 0) > 0 and e.get("d") is not None and not e.get("cr"):
+                # A move that connected always deals >0; actual==0 means it never
+                # landed on the predicted target — Protect / immunity / substitute
+                # absorbing it.  (Misses log no -damage event, and a target that
+                # switched out makes (ch,ct) not match — both already fall out
+                # here.)  Drop those so the offense list shows only real hits.
+                if (md and e and e.get("h0", 0) > 0 and e.get("d")
+                        and e["d"] > 0 and not e.get("cr")):
                     pred = min(int(md.group(1)) / 100.0, e["h0"])
                     act = e["d"]
                     off_total += 1
@@ -163,6 +169,12 @@ def report(version, slop=0.15):
 
 
 if __name__ == "__main__":
+    # The report uses box-drawing glyphs; force UTF-8 so it doesn't crash on the
+    # Windows cp1252 console.
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
     args = sys.argv[1:]
     ver = args[0] if args else None
     slop = 0.15

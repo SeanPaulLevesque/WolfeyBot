@@ -28,6 +28,7 @@ from data import (
     get_species,
     assumed_forme,
     mega_stones,
+    mega_forme_for_stone,
     note_gap,
     drain_gaps,
 )
@@ -365,6 +366,25 @@ class TestMegaStones:
         stones = mega_stones()
         assert len(stones) > 30
         assert isinstance(stones, frozenset)
+
+
+class TestMegaFormeForStone:
+    """mega_forme_for_stone() maps a revealed stone back to its -Mega forme."""
+
+    def test_known_stone_maps_to_forme(self):
+        assert mega_forme_for_stone("Charizardite Y") == "Charizard-Mega-Y"
+        assert mega_forme_for_stone("Charizardite X") == "Charizard-Mega-X"
+        assert mega_forme_for_stone("Lopunnite") == "Lopunny-Mega"
+
+    def test_non_stone_returns_none(self):
+        assert mega_forme_for_stone("Focus Sash") is None
+        assert mega_forme_for_stone("Eviolite") is None
+
+    def test_every_stone_round_trips(self):
+        """Every stone in mega_stones() resolves to a -Mega forme."""
+        for stone in mega_stones():
+            forme = mega_forme_for_stone(stone)
+            assert forme is not None and "-Mega" in forme
 
 
 # ── Data-gap diagnostics (battle-log "data_gaps" flags) ──────────────────────

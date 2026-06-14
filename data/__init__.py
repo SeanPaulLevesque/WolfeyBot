@@ -36,7 +36,7 @@ from .species import (
 
 # Sets / usage data
 from .sets import (
-    get_sets, assumed_forme, mega_stones,
+    get_sets, assumed_forme, mega_stones, mega_forme_for_stone,
     spread_distribution, item_distribution,
     ability_distribution, move_distribution,
     teammate_distribution,
@@ -94,7 +94,7 @@ __all__ = [
     "get_species", "base_stats", "base_spe", "types_of", "ability_of",
     "all_species", "is_legal", "get_weight",
     # sets
-    "get_sets", "assumed_forme", "mega_stones",
+    "get_sets", "assumed_forme", "mega_stones", "mega_forme_for_stone",
     "spread_distribution", "item_distribution",
     "ability_distribution", "move_distribution",
     "teammate_distribution",

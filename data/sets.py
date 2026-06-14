@@ -273,6 +273,29 @@ def mega_stones() -> frozenset:
     return _MEGA_STONES
 
 
+_STONE_TO_FORME: Optional[dict] = None
+
+
+def mega_forme_for_stone(stone: str) -> Optional[str]:
+    """Return the ``-Mega`` forme that holds *stone*, or None.
+
+    Each mega stone is forme-specific (Charizardite-X → Charizard-Mega-X,
+    Delphoxite → Delphox-Mega), so a Pokémon *revealed* to be holding one will
+    evolve to exactly that forme — letting the engine commit to the mega's
+    stats before the ``|detailschange|`` arrives, instead of falling back to the
+    population-weighted guess (which can be the base forme).
+    """
+    global _STONE_TO_FORME
+    if _STONE_TO_FORME is None:
+        _load()
+        m: dict[str, str] = {}
+        for k, e in _SETS.items():
+            if "-Mega" in k and e["items"]:
+                m.setdefault(e["items"][0][0], k)
+        _STONE_TO_FORME = m
+    return _STONE_TO_FORME.get(stone)
+
+
 def get_sets(name: str) -> Optional[dict]:
     """Return full usage data dict for a Pokémon, resolving forme / Mega name
     aliases (see :func:`_resolve_name`), or None if nothing matches.

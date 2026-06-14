@@ -28,6 +28,7 @@ from data import (
     item_distribution as _item_distribution,
     assumed_forme as _assumed_forme,
     mega_stones as _mega_stones,
+    mega_forme_for_stone as _mega_forme_for_stone,
     note_gap as _note_gap,
 )
 from team import find_member
@@ -202,11 +203,17 @@ def _assumed_item(species: str) -> Optional[str]:
 def _assumed_species(mon: "Pokemon") -> str:
     """Forme to assume for *mon* in all damage / data inference.
 
-    Revealed mega (``|detailschange|`` already rewrote ``mon.species``) wins.
-    A revealed non-stone item means it cannot mega → base forme.  Otherwise
-    the population-weighted likely forme (``assumed_forme``) — the usage data
-    files megas as separate entries, so a pre-mega "Charizard" is 99% likely
-    a stone holder and should be modelled as Charizard-Mega-Y.
+    Resolution order:
+      1. Revealed mega (``|detailschange|`` already rewrote ``mon.species``).
+      2. Revealed mega *stone* → that stone's mega forme directly: we know it
+         will evolve, so commit to the mega's stats now rather than guessing
+         (the population rule can land on the base forme for swing species like
+         Venusaur).
+      3. Revealed non-stone item → it cannot mega → base forme.
+      4. No item known → the population-weighted likely forme
+         (``assumed_forme``): the usage data files megas as separate entries,
+         so a pre-mega "Charizard" is ~99% a stone holder and is modelled as
+         Charizard-Mega-Y.
 
     (``item_consumed`` needs no special case: a consumed item leaves
     ``mon.item is None``, and a mon that popped a berry/Sash was never a
@@ -215,8 +222,13 @@ def _assumed_species(mon: "Pokemon") -> str:
     """
     if "-Mega" in mon.species:
         return mon.species
-    if mon.item and mon.item not in _mega_stones():
-        return mon.species
+    if mon.item:
+        if mon.item in _mega_stones():
+            forme = _mega_forme_for_stone(mon.item)
+            if forme:
+                return forme
+        else:
+            return mon.species
     return _assumed_forme(mon.species)
 
 

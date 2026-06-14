@@ -2325,6 +2325,15 @@ class TestAssumedSpecies:
         mon = make_mon("Charizard", item="Charizardite Y")
         assert _assumed_species(mon) == "Charizard-Mega-Y"
 
+    def test_revealed_stone_forces_mega_for_base_dominant_species(self):
+        """Venusaur is base-dominant by population (resolves to base when its
+        item is unknown), but a REVEALED Venusaurite means it WILL mega-evolve —
+        so it must resolve straight to Venusaur-Mega, not fall back to base."""
+        from data.sets import item_distribution
+        stone = item_distribution("Venusaur-Mega")[0][0]   # the actual stone string
+        assert _assumed_species(make_mon("Venusaur", item=None)) == "Venusaur"
+        assert _assumed_species(make_mon("Venusaur", item=stone)) == "Venusaur-Mega"
+
     def test_minority_mega_stays_base(self):
         """Aerodactyl is only 21.9% mega — stays base."""
         mon = make_mon("Aerodactyl", item=None)
