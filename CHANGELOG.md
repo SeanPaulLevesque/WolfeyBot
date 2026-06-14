@@ -1,5 +1,34 @@
 # WolfeyBot Changelog
 
+## 0.8.10 — 2026-06-14
+
+### In-battle forme stats: Palafin-Hero and Aegislash stance
+
+The species data only carries each Pokémon's **base** forme stats — the
+suffix-strip fallback in `get_species` returned base stats for transform formes,
+so `Palafin-Hero` was modelled with Zero-form **Atk 70** (real Hero is **160**)
+and `Aegislash-Blade` with Shield's **50/140** (backwards from Blade's 140/50).
+This is why the 50-game sample showed Palafin-Hero Wave Crash → Garchomp at
+55% predicted / 86% actual.
+
+- **`data.species._BATTLE_FORME_STATS`** — correct base-stat overrides for the
+  Champions-legal stat-changing battle formes, consulted by `base_stats` before
+  the generic lookup: `Palafin-Hero` (100/160/97/106/87/100) and
+  `Aegislash-Blade` (60/140/50/140/50/60).  Types and base Speed are unchanged,
+  so only stats are overridden; usage *spreads* still resolve to the base name.
+  Palafin is fully fixed by this — it's revealed as `Palafin-Hero`, so the right
+  stats just flow through (now Atk ~233 vs the old ~134).
+- **Aegislash stance** (`_offense_species` / `_defense_species` in modules.py):
+  Stance Change is dynamic (Blade when it attacks, Shield when it defends) and
+  we can't know the live stance, so the safe/simple rule — **always Shield for
+  the damage it receives, always Blade for the damage it deals** — is applied at
+  every damage fact site (incoming → Blade attacker stats; outgoing → Shield
+  defender bulk).  Keyed off the base name, so a revealed `Aegislash-Blade`
+  still resolves both ways.  Non-stance species pass through unchanged
+  (mega-forme inference preserved).
+- Tests: `TestBattleFormeStats` (data) + `TestStanceForme` (modules).  Turn-1
+  table byte-identical (neither species is a turn-1 lead).  Full suite 778.
+
 ## 0.8.9 — 2026-06-14
 
 ### Assume the weather an active weather-setter brings

@@ -43,5 +43,7 @@ from decision.modules import (  # noqa: F401
     _assumed_item,
     _effective_item,
     _assumed_species,
+    _offense_species,
+    _defense_species,
     make_engine,
 )

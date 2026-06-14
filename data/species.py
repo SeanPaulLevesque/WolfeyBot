@@ -228,8 +228,24 @@ def get_species(name: str) -> Optional[dict]:
     return None
 
 
+# In-battle formes whose stats the species data does NOT distinguish from the
+# base entry — the suffix-strip fallback in get_species returns base-forme stats
+# (e.g. "Palafin-Hero" -> Palafin's Zero-form Atk 70, "Aegislash-Blade" ->
+# Shield's 50/140).  These are the canonical Champions-legal stat-changing
+# transformers; values are the forme's real base stats.  Types and base Speed
+# are unchanged from the base entry for both, so only stats need overriding.
+_BATTLE_FORME_STATS: dict[str, dict[str, int]] = {
+    # Zero-to-Hero: Hero is the permanent post-switch forme (huge Atk).
+    "Palafin-Hero":    {"hp": 100, "atk": 160, "def": 97, "spa": 106, "spd": 87, "spe": 100},
+    # Stance Change: Blade is the offensive forme; Shield form = base "Aegislash".
+    "Aegislash-Blade": {"hp": 60,  "atk": 140, "def": 50, "spa": 140, "spd": 50, "spe": 60},
+}
+
+
 def base_stats(name: str) -> Optional[dict[str, int]]:
     """Return ``{'hp','atk','def','spa','spd','spe'}`` or None."""
+    if name in _BATTLE_FORME_STATS:
+        return dict(_BATTLE_FORME_STATS[name])
     entry = get_species(name)
     if entry is None:
         return None

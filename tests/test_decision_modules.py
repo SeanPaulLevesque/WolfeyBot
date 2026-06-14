@@ -41,6 +41,8 @@ from decision import (
     _assumed_item,
     _effective_item,
     _assumed_species,
+    _offense_species,
+    _defense_species,
 )
 from decision.modules import (
     _TR_SETTER_SPECIES,
@@ -2373,6 +2375,30 @@ class TestAssumedSpecies:
         """Base Lopunny has no data entry — population is 100% mega."""
         mon = make_mon("Lopunny", item=None)
         assert _assumed_species(mon) == "Lopunny-Mega"
+
+
+class TestStanceForme:
+    """Aegislash uses Blade (140/50) for the damage it DEALS and Shield (50/140)
+    for the damage it RECEIVES — the safe/simple fixed rule, regardless of its
+    currently-revealed stance.  Other species pass straight through."""
+
+    def test_aegislash_offense_is_blade_defense_is_shield(self):
+        ae = make_mon("Aegislash")
+        assert _offense_species(ae) == "Aegislash-Blade"
+        assert _defense_species(ae) == "Aegislash"
+
+    def test_revealed_blade_still_resolves_both_ways(self):
+        ae = make_mon("Aegislash-Blade")
+        assert _offense_species(ae) == "Aegislash-Blade"   # deals → Blade
+        assert _defense_species(ae) == "Aegislash"         # receives → Shield
+
+    def test_non_stance_species_pass_through(self):
+        gar = make_mon("Garchomp")
+        assert _offense_species(gar) == _defense_species(gar) == "Garchomp"
+        # passthrough still honours the mega forme inference
+        chari = make_mon("Charizard", item=None)
+        assert _offense_species(chari) == "Charizard-Mega-Y"
+        assert _defense_species(chari) == "Charizard-Mega-Y"
 
 
 # ══════════════════════════════════════════════════════════════════════════════

@@ -387,6 +387,23 @@ class TestMegaFormeForStone:
             assert forme is not None and "-Mega" in forme
 
 
+class TestBattleFormeStats:
+    """In-battle transform formes carry their own base stats, not the base
+    entry's (which the suffix-strip fallback would otherwise return)."""
+
+    def test_palafin_hero_uses_hero_attack(self):
+        from data import base_stats
+        assert base_stats("Palafin-Hero")["atk"] == 160      # Hero, not Zero's 70
+        assert base_stats("Palafin")["atk"] == 70            # base unchanged
+
+    def test_aegislash_blade_is_offensive_not_shield(self):
+        from data import base_stats
+        blade = base_stats("Aegislash-Blade")
+        assert blade["atk"] == 140 and blade["def"] == 50    # Blade, not 50/140
+        shield = base_stats("Aegislash")
+        assert shield["atk"] == 50 and shield["def"] == 140  # Shield base unchanged
+
+
 # ── Data-gap diagnostics (battle-log "data_gaps" flags) ──────────────────────
 
 class TestDataGapDiagnostics:

@@ -233,6 +233,30 @@ def _assumed_species(mon: "Pokemon") -> str:
     return _assumed_forme(mon.species)
 
 
+# Stance-changing formes: (offensive forme, defensive forme).  Aegislash is
+# Blade (140/50) when it attacks and Shield (50/140) when it defends.  We can't
+# know which stance it's in on a given turn, so use the safe/simple rule —
+# always Shield for the damage it RECEIVES, always Blade for the damage it
+# DEALS — keyed off the base name (so a revealed Aegislash-Blade still resolves
+# both ways).  Other species pass through unchanged.
+_STANCE_FORME = {
+    "Aegislash":       ("Aegislash-Blade", "Aegislash"),
+    "Aegislash-Blade": ("Aegislash-Blade", "Aegislash"),
+}
+
+
+def _offense_species(mon: "Pokemon") -> str:
+    """Assumed species for computing the damage *mon* DEALS (Aegislash → Blade)."""
+    sp = _assumed_species(mon)
+    return _STANCE_FORME.get(sp, (sp, sp))[0]
+
+
+def _defense_species(mon: "Pokemon") -> str:
+    """Assumed species for computing the damage *mon* RECEIVES (Aegislash → Shield)."""
+    sp = _assumed_species(mon)
+    return _STANCE_FORME.get(sp, (sp, sp))[1]
+
+
 def _effective_item(mon: "Pokemon") -> Optional[str]:
     """Item to assume for *mon*: revealed > consumed(None) > usage-stats guess."""
     if mon.item:
@@ -361,7 +385,7 @@ class DamageOutputModule(ScoringModule):
             cur_hp = (opp.hp if (not opp.hp_is_percentage and opp.hp > 0) else None)
             results = outgoing_damage(
                 our_species=mon.species, our_stats=stats, our_moves=[move_name],
-                opp_species=_assumed_species(opp), our_ability=tm.ability, our_item=tm.item,
+                opp_species=_defense_species(opp), our_ability=tm.ability, our_item=tm.item,
                 opp_ability=_effective_ability(opp) or "", opp_item=_effective_item(opp),
                 weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                 opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
@@ -915,7 +939,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 opp_at_full = (opp.hp >= opp.max_hp) or (opp.hp_is_percentage and opp.hp >= 100)
                 results = outgoing_damage(
                     our_species=mon.species, our_stats=stats, our_moves=[move],
-                    opp_species=_assumed_species(opp), our_ability=tm.ability, our_item=tm.item,
+                    opp_species=_defense_species(opp), our_ability=tm.ability, our_item=tm.item,
                     opp_ability=_effective_ability(opp) or "", opp_item=_effective_item(opp),
                     weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                     opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
@@ -959,7 +983,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
             if opp is None or opp.fainted:
                 continue
             threats = incoming_damage(
-                opp_species=_assumed_species(opp),
+                opp_species=_offense_species(opp),
                 our_species=mon.species,
                 our_stats=stats,
                 opp_ability=_effective_ability(opp) or "",
@@ -1141,7 +1165,7 @@ class SwitchModule(ScoringModule):
                 results = outgoing_damage(
                     our_species=species, our_stats=stats, our_moves=[mv],
                     our_ability=ability or "", our_item=item,
-                    opp_species=_assumed_species(opp), opp_ability=_effective_ability(opp) or "",
+                    opp_species=_defense_species(opp), opp_ability=_effective_ability(opp) or "",
                     opp_item=_effective_item(opp), weather=_assumed_weather(state),
                     ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                 )
@@ -1163,7 +1187,7 @@ class SwitchModule(ScoringModule):
             if opp is None or opp.fainted:
                 continue
             threats = incoming_damage(
-                opp_species=_assumed_species(opp), our_species=species,
+                opp_species=_offense_species(opp), our_species=species,
                 our_stats=bench_tm.stats, opp_ability=_effective_ability(opp) or "",
                 opp_item=_effective_item(opp), our_ability=bench_tm.ability or "",
                 our_item=bench_item, weather=_assumed_weather(state),
