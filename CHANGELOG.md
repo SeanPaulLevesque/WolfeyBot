@@ -1,5 +1,77 @@
 # WolfeyBot Changelog
 
+## 0.8.3 — 2026-06-14
+
+### Soften the SwitchModule tempo tax (0.6 → 0.8)
+
+- **`SwitchModule.TEMPO_FACTOR` 0.6 → 0.8.**  Battle-log analysis (0.8.1 run)
+  showed the bot grinding a 15%-into-walls attack rather than pivoting — a
+  Choice-locked Garchomp threw Stomping Tantrum at a Ground-walling stall core
+  (Aggron-Mega Def 230, Sinistcha resist, Pelipper immune) for ~12 turns
+  because switch scores couldn't compete: a switch maxed ~0.6×(1+gain) while
+  attacks stack turn-order/Tailwind/OHKO multipliers to 2–3+.  The flat ×0.6
+  tax was the biggest drag.  Softening to ×0.8 keeps a gentle turn-forfeit
+  cost (so switching still respects the conceded free hit) while letting a
+  clearly-better pivot win.  Full removal was tested but moved 59/120 turn-1
+  cells and risked over-switching; ×0.8 is the chosen middle ground.
+- **41 turn-1 cells changed** — the expected switch-favoring pattern:
+  gratuitous-Protect → Switch, and weak attacks → pivots into better matchups
+  (e.g. Sneasler → Venusaur vs a Grass/Fairy Whimsicott).  No other tests
+  affected.
+- Note: this does not fix the underlying Choice-lock blindness (a locked mon
+  still can't change moves and the engine doesn't model the lock) — that
+  remains a backlog item; ×0.8 just makes pivoting off a bad position easier.
+
+## 0.8.2 — 2026-06-13
+
+### Garchomp Scarf spread rebuild + `h0` instrumentation
+
+- **Garchomp → Adamant `6 HP / 32 Atk / 28 Spe`** (was the leftover even
+  `14/13/13/-/13/13` Jolly spread from the Soft Sand build).  28 Speed SP is
+  the minimum to clear the user's 224 effective-speed target — Scarf-boosted
+  speed lands at **225** (224 isn't reachable: `floor(raw×1.5)` skips from 223
+  to 225), with Atk maxed at 200 and 6 leftover SP into HP.  The old spread
+  only reached Scarf-speed 222 *and* wasted ~37 Atk — it was never built for a
+  Choice item.  **42 turn-1 cells changed**, all the expected "Garchomp hits
+  harder" pattern: weight increases plus a few re-prioritisations onto
+  super-effective targets (Poison Jab → Whimsicott at 4×, Rock Tomb →
+  Charizard) and the partner now preferring to pivot to the stronger Garchomp.
+- **`ev` events now carry `h0`** (target HP fraction before the hit), so a
+  predicted guaranteed-OHKO is verifiable (`d >= h0`) and predicted-vs-actual
+  damage compares on the correct remaining-HP denominator — the gap that made
+  the first turn-order/damage accuracy pass unmeasurable.
+- *Observed (not fixed here):* a Choice-locked Garchomp can exhaust its locked
+  move's PP and be forced to Struggle in long games (confirmed: 12 Stomping
+  Tantrums = its exact 12 PP, then Struggle) — a concrete failure mode of the
+  unmodeled Choice-lock backlog item; the engine should switch a Choice-locked
+  mon out before its move runs dry.
+
+## 0.8.1 — 2026-06-13
+
+### Actual move-resolution instrumentation (for prediction-accuracy analysis)
+
+Pure observation — **no decision-making change**, turn-1 table byte-identical.
+Adds the data needed to measure how often the engine is right about turn order
+and damage, which the logs previously couldn't answer (only predictions were
+recorded, never actuals).
+
+- `BattleState` gains `turn_events` (the moves resolving this turn, in order)
+  and `events_log` (`{turn: [events]}`).  `battle.py:_on_move` records each
+  resolving move with its actor/move/target and the target's HP before the
+  hit; `_apply_hp_update` attributes the resulting HP drop to that move
+  (linked to the immediately-preceding `|move|`, cleared after one hit so
+  residual/item damage isn't double-counted).  `_on_turn`/`_on_win` flush the
+  turn's events into `events_log`.
+- The recorder writes them as an optional per-turn `"ev"` array — actual
+  order (`o`), side (`sd`), actor (`a`), move (`mv`), target (`tg`), and
+  observed damage fraction (`d`).  Paired with the existing prediction reason
+  strings (`damage_output: …% HP`, `turn_order: pos X/4`, guaranteed-OHKO),
+  this makes turn-order and damage accuracy directly computable.
+- Known approximation: a spread move hitting two targets records damage for
+  the first only; switches aren't recorded as events (only `|move|`).
+- Tests: `TestMoveInstrumentation` (parser capture, order, damage, flush,
+  residual-not-attributed) and `TestMoveEventsInLog` (recorder output).
+
 ## 0.8.0 — 2026-06-13
 
 ### SP→stat formula correction (major) + Choice Scarf Garchomp

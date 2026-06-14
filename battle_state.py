@@ -142,6 +142,15 @@ class BattleState:
     # Reset to [] at the start of every new request.
     my_slot_decisions: list = field(default_factory=list)
 
+    # Actual move-resolution instrumentation (since 0.8.1) — records what the
+    # engine got RIGHT/WRONG vs its predictions.  ``turn_events`` accumulates
+    # the moves that resolve during the current turn (in order); ``_on_turn`` /
+    # ``_on_win`` flush it into ``events_log[turn]`` so the recorder can store
+    # actual order + damage alongside the logged predictions.  No effect on
+    # decision-making — pure observation.
+    turn_events: list = field(default_factory=list)
+    events_log: dict = field(default_factory=dict)
+
     # Current request data (from most recent |request| message)
     # moves_per_slot[i] = list of move dicts for active slot i
     moves_per_slot: list[list[dict]] = field(default_factory=list)

@@ -197,6 +197,7 @@ def _make_mock_state(turn=1):
                                     status=None, fainted=False,
                                     moves=["Earthquake"])]
     state.my_team = [MagicMock(species="Garganacl", hp=300, max_hp=300)]
+    state.events_log = {}   # real dict (0.8.1) — MagicMock would break _build_turn
     return state
 
 
@@ -261,6 +262,49 @@ class TestDataGapsInLog:
                 with open(path, encoding="utf-8") as f:
                     data = json.load(f)
                 assert "data_gaps" not in data
+
+
+class TestMoveEventsInLog:
+    """The optional per-turn "ev" field carries actual move order + damage
+    (0.8.1), read from state.events_log at save time."""
+
+    def test_events_written_to_turn(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                rec = BattleRecorder("battle-ev-test", "0.8.1")
+                state = _make_mock_state(turn=1)
+                state.events_log = {1: [
+                    {"o": 0, "sd": "us", "a": "Garchomp", "mv": "Earthquake",
+                     "tg": "Incineroar", "_tgt_ident": "p2: Incineroar",
+                     "hp0": 1.0, "dmg": 0.6},
+                    {"o": 1, "sd": "opp", "a": "Incineroar", "mv": "Flare Blitz",
+                     "tg": "Garchomp", "_tgt_ident": "p1: Garchomp",
+                     "hp0": 1.0, "dmg": 0.25},
+                ]}
+                rec.record_decision(state, slot=0, ranked_actions=_make_actions())
+                rec.record_outcome(won=True)
+                with open(os.path.join(tmpdir, "Battle Data", "0.8.1",
+                                       "battle-ev-test.json"), encoding="utf-8") as f:
+                    data = json.load(f)
+                ev = data["turns"][0]["ev"]
+                assert [e["o"] for e in ev] == [0, 1]
+                assert ev[0] == {"o": 0, "sd": "us", "a": "Garchomp",
+                                 "mv": "Earthquake", "tg": "Incineroar",
+                                 "h0": 1.0, "d": 0.6}
+                # internal linkage key must be stripped (raw hp0 renamed to h0)
+                assert "_tgt_ident" not in ev[0] and "hp0" not in ev[0]
+
+    def test_no_ev_key_when_no_events(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                rec = BattleRecorder("battle-noev-test", "0.8.1")
+                state = _make_mock_state(turn=1)   # events_log = {}
+                rec.record_decision(state, slot=0, ranked_actions=_make_actions())
+                rec.record_outcome(won=True)
+                with open(os.path.join(tmpdir, "Battle Data", "0.8.1",
+                                       "battle-noev-test.json"), encoding="utf-8") as f:
+                    data = json.load(f)
+                assert "ev" not in data["turns"][0]
 
 
 class TestBattleRecorder:

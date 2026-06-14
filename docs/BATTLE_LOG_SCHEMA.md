@@ -40,9 +40,35 @@ Also emitted as a `WARNING` log line when the battle is saved.
   "my":   [ <active>, ... ],   // our active slot(s), index = slot
   "opp":  [ <active>, ... ],   // opponent actives, index = slot
   "team": [ <active>, ... ],   // full 4-mon team snapshot (including actives)
-  "dec":  [ <decision>, ... ]  // one entry per active slot that had a choice
+  "dec":  [ <decision>, ... ], // one entry per active slot that had a choice
+  "ev":   [ <event>, ... ]     // OPTIONAL (0.8.1) actual move resolution (omitted if none)
 }
 ```
+
+### Move-resolution event object (`ev`, 0.8.1+)
+
+The actual moves that resolved this turn, in order — for comparing the
+engine's *predictions* (in `dec[].acts[].r` reason strings: `damage_output:
+…% HP`, `turn_order: pos X/4`, guaranteed-OHKO) against what really happened.
+
+```
+{
+  "o":  0,            // resolution order index within the turn (0 = acted first)
+  "sd": "us",         // "us" | "opp"
+  "a":  "Garchomp",   // actor species
+  "mv": "Earthquake", // move used
+  "tg": "Incineroar", // target species (omitted if no single target)
+  "h0": 1.0,          // target HP fraction BEFORE the hit (omitted if no target; 0.8.2+)
+  "d":  0.6           // observed damage as a fraction of target max HP (omitted if none)
+}
+```
+
+With `h0` + `d`, a predicted guaranteed-OHKO is verifiable (`d >= h0` ⇒ the
+hit removed the target's remaining HP), and predicted-vs-actual damage can be
+compared on the correct remaining-HP denominator.
+
+Known limits: a spread move hitting two targets records `d` for the first
+target only; switches are not recorded as events (only `|move|` actions).
 
 ### Active mon object (`my`, `opp`, `team`)
 

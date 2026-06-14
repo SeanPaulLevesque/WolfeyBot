@@ -126,6 +126,58 @@ class TestDamageHeal:
         assert mon.hp == 0
 
 
+# ── Actual move-resolution instrumentation (0.8.1) ───────────────────────────
+
+class TestMoveInstrumentation:
+    """|move| + |-damage| events are captured in resolution order with actual
+    damage, then flushed into events_log[turn] for the recorder."""
+
+    def _battle(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p1a: Garchomp|Garchomp, L50, M|200/200"))
+        run(parser.feed("|switch|p2a: Incineroar|Incineroar, L50, M|100/100"))
+        run(parser.feed("|turn|1"))
+        run(parser.feed("|move|p1a: Garchomp|Earthquake|p2a: Incineroar"))
+        run(parser.feed("|-damage|p2a: Incineroar|40/100"))
+        run(parser.feed("|move|p2a: Incineroar|Flare Blitz|p1a: Garchomp"))
+        run(parser.feed("|-damage|p1a: Garchomp|150/200"))
+        return parser
+
+    def test_events_captured_in_order_with_damage(self):
+        parser = self._battle()
+        run(parser.feed("|turn|2"))   # flush turn 1
+        ev = parser.state.events_log[1]
+        assert [e["o"] for e in ev] == [0, 1]
+        assert ev[0]["sd"] == "us" and ev[0]["a"] == "Garchomp"
+        assert ev[0]["mv"] == "Earthquake" and ev[0]["tg"] == "Incineroar"
+        assert ev[0]["dmg"] == pytest.approx(0.6, abs=0.01)   # 100% -> 40%
+        assert ev[1]["sd"] == "opp" and ev[1]["a"] == "Incineroar"
+        assert ev[1]["dmg"] == pytest.approx(0.25, abs=0.01)  # 200 -> 150
+
+    def test_turn_events_cleared_after_flush(self):
+        parser = self._battle()
+        run(parser.feed("|turn|2"))
+        assert parser.state.turn_events == []
+        assert 2 not in parser.state.events_log
+
+    def test_win_flushes_final_turn(self):
+        parser = self._battle()
+        run(parser.feed("|win|TestBot"))   # no |turn| follows the last turn
+        assert 1 in parser.state.events_log
+        assert len(parser.state.events_log[1]) == 2
+
+    def test_residual_damage_not_attributed_to_a_move(self):
+        """A second -damage on the same target (e.g. recoil/residual) must not
+        overwrite the move's recorded damage — the link clears after one hit."""
+        parser = self._battle()
+        run(parser.feed("|-damage|p1a: Garchomp|130/200"))  # extra hit, no preceding move
+        run(parser.feed("|turn|2"))
+        ev = parser.state.events_log[1]
+        # Flare Blitz's recorded damage stays the original 200->150 = 0.25
+        assert ev[1]["dmg"] == pytest.approx(0.25, abs=0.01)
+
+
 # ── Status ───────────────────────────────────────────────────────────────────
 
 class TestStatusMessages:

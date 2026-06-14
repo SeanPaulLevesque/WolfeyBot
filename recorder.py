@@ -203,6 +203,10 @@ class BattleRecorder:
         #   {"snap": dict (immutable state snapshot), "slots": {slot: [Action]}}
         self._turns: dict[int, dict] = defaultdict(lambda: {"snap": None, "slots": {}})
         self._outcome: Optional[str] = None
+        # Live reference to the battle state (set on first record_decision) so
+        # _save can read state.events_log — the actual move order + damage that
+        # resolved each turn (0.8.1 instrumentation).
+        self._state = None
         # Team preview selection — set by record_preview() and written to "preview"
         # in the top-level JSON payload.  None if team preview was never recorded.
         self._preview: Optional[dict] = None
@@ -247,6 +251,7 @@ class BattleRecorder:
         snapshot (taken from whichever slot fires first — the state is
         identical for both within a single request cycle).
         """
+        self._state = state   # live ref; events_log filled as the turn resolves
         entry = self._turns[state.turn]
         if entry["snap"] is None:
             entry["snap"] = _snapshot_state(state)   # freeze now, not at save time
@@ -352,6 +357,24 @@ class BattleRecorder:
             dec_list.append(dec)
         if dec_list:
             t["dec"] = dec_list
+
+        # Actual move-resolution events for this turn (0.8.1) — order, actor,
+        # move, target, and observed damage fraction — for comparing the
+        # engine's predictions against what really happened.  Internal linkage
+        # keys (``_tgt_ident``) and null damage are stripped.
+        events = getattr(self._state, "events_log", {}).get(turn_num) if self._state else None
+        if events:
+            ev_list = []
+            for e in events:
+                ev = {"o": e["o"], "sd": e["sd"], "a": e["a"], "mv": e["mv"]}
+                if e.get("tg"):
+                    ev["tg"] = e["tg"]
+                if e.get("hp0") is not None:
+                    ev["h0"] = round(e["hp0"], 3)   # target HP fraction before the hit
+                if e.get("dmg") is not None:
+                    ev["d"] = e["dmg"]
+                ev_list.append(ev)
+            t["ev"] = ev_list
 
         return t
 

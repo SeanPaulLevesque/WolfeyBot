@@ -195,6 +195,12 @@ class BattleParser:
         ]
 
     async def _on_turn(self, args: list[str]):
+        # Flush the resolving turn's actual move events under its turn number
+        # before advancing (0.8.1 instrumentation).
+        if self.state.turn_events:
+            self.state.events_log[self.state.turn] = self.state.turn_events
+            self.state.turn_events = []
+        self._pending_event = None
         self.state.turn = int(args[0]) if args else self.state.turn + 1
         # Decrement field-condition counters so decision modules see the
         # correct remaining-turn count when the request arrives.
@@ -262,6 +268,25 @@ class BattleParser:
             return
         ident, move_name = args[0], args[1]
         side = _side_from_ident(ident)
+
+        # ── Actual-move instrumentation (0.8.1) ──────────────────────────────
+        # Record this move in resolution order so offline analysis can compare
+        # actual turn order + damage against the engine's logged predictions.
+        actor = self._find_mon(ident)
+        tgt_ident = args[2] if len(args) > 2 else ""
+        tgt_mon = self._find_mon(tgt_ident) if tgt_ident else None
+        event = {
+            "o":   len(self.state.turn_events),
+            "sd":  "us" if side == self.state.my_side else "opp",
+            "a":   actor.species if actor else _normalize_ident(ident),
+            "mv":  move_name,
+            "tg":  tgt_mon.species if tgt_mon else "",
+            "_tgt_ident": _normalize_ident(tgt_ident) if tgt_ident else "",
+            "hp0": (tgt_mon.hp_fraction if tgt_mon else None),
+            "dmg": None,
+        }
+        self.state.turn_events.append(event)
+        self._pending_event = event
         if side != self.state.my_side:
             mon = self._find_mon(ident)
             if mon and move_name not in mon.moves:
@@ -439,6 +464,11 @@ class BattleParser:
             mon.hp = 0
 
     async def _on_win(self, args: list[str]):
+        # Flush the final turn's move events before the battle is recorded
+        # (no |turn| follows the last turn to trigger the normal flush).
+        if self.state.turn_events:
+            self.state.events_log[self.state.turn] = self.state.turn_events
+            self.state.turn_events = []
         winner = args[0] if args else "unknown"
         won = (winner.strip() == self.my_username.strip())
         _log.info("Battle over — %s (winner: %s)", "WIN" if won else "LOSS", winner.strip())
@@ -664,9 +694,21 @@ class BattleParser:
     def _apply_hp_update(self, ident: str, condition: str):
         mon = self._find_mon(ident)
         if mon:
+            hp_before_frac = mon.hp_fraction
             mon.hp, mon.max_hp = _parse_hp(condition)
             mon.status = _parse_status(condition)
             mon.fainted = (condition.strip() == "0 fnt")
+            # Attribute this HP drop to the move currently resolving, if it
+            # targeted this mon (0.8.1 actual-damage instrumentation).  Linked
+            # by the immediately-preceding |move|; cleared once attributed so
+            # residual / item damage doesn't double-count.
+            pending = getattr(self, "_pending_event", None)
+            if (pending is not None and pending.get("dmg") is None
+                    and pending.get("_tgt_ident") == _normalize_ident(ident)):
+                drop = (pending["hp0"] if pending["hp0"] is not None
+                        else hp_before_frac) - mon.hp_fraction
+                pending["dmg"] = round(max(drop, 0.0), 3)
+                self._pending_event = None
 
 
 # ─── Handler Registry ────────────────────────────────────────────────────────

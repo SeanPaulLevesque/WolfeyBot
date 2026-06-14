@@ -922,21 +922,25 @@ class SwitchModule(ScoringModule):
 
     Four multiplicative rows:
 
-      1. TEMPO_FACTOR (0.6) — forfeiting this turn + conceding a free hit.
+      1. TEMPO_FACTOR (0.8) — forfeiting this turn + conceding a free hit.
+         Softened from 0.6 → 0.8 in 0.8.3: the old tax made the bot too
+         reluctant to pivot out of a low-value position (it would grind a 15%
+         attack into walls rather than switch), so the cost is now a gentle
+         nudge rather than a near-veto.
       2. (1 + g) where g = max(0, bench_offense − cur_offense) — offense gain.
       3. ESCAPE_FACTOR (4.0) — escaping a connecting OHKO into a surviving switch-in.
       4. DANGER_FACTOR (0.3) — the switch-in is itself OHKO'd by an active opponent.
 
     A switch the partner already committed to (same bench target) is vetoed (×0).
 
-    Net effect: a switch wins only when the incoming mon is meaningfully better
-    than staying — escaping a KO into a healthy threat, or pivoting a walled /
-    Struggling mon — and loses to a current-mon attack that does real work.
+    Net effect: a switch wins when the incoming mon is meaningfully better than
+    staying — escaping a KO into a healthy threat, or pivoting a walled /
+    Struggling mon.
     """
 
     name = "switch_eval"
 
-    TEMPO_FACTOR  = 0.6   # switching forfeits this turn + concedes a free hit
+    TEMPO_FACTOR  = 0.8   # switching forfeits this turn + concedes a free hit
     ESCAPE_FACTOR = 4.0   # escaping a connecting OHKO into a surviving switch-in
     DANGER_FACTOR = 0.3   # switching into a mon that is itself OHKO'd
 
