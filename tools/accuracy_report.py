@@ -99,7 +99,14 @@ def report(version, slop=0.15):
                 e = us_ev.get((ch, ct))
                 if not (md and e and not e.get("cr")):
                     continue
-                pred = min(int(md.group(1)) / 100.0, e.get("h0", 1.0) or 1.0)
+                # `damage_output` is % of the opponent's CURRENT HP (the calc
+                # overrides the HP denominator with observed current HP), but the
+                # logged `d` is % of MAX HP.  A Roosting / chipped target would
+                # otherwise look badly over-predicted (e.g. 60% of a 48%-HP mon
+                # vs 14% of max).  Scale the prediction to % of max by ×h0 (the
+                # pre-hit HP fraction), capping the per-current fraction at 1.0.
+                h0 = e.get("h0", 1.0) or 1.0
+                pred = min(int(md.group(1)) / 100.0, 1.0) * h0
                 z = e.get("z")
                 if z == "immune":
                     # We predicted damage but the target was IMMUNE — a wrong
