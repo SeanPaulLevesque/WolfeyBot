@@ -1,5 +1,25 @@
 # WolfeyBot Changelog
 
+## 0.8.12 — 2026-06-14
+
+### Mega-evolution refreshes the ability (systematic)
+
+`_effective_ability` returned a *revealed* ability directly — but mega-evolution
+**replaces** the base ability, so an ability revealed *before* a mon megas is
+stale.  Altaria reveals Cloud Nine / Natural Cure pre-mega; once it megas it's
+**Pixilate**, but we kept the base ability, so its Hyper Voice stayed Normal-type
+and we under-predicted incoming by ~50% (50-game 0.8.11 sample: Altaria-Mega
+Hyper Voice → Aerodactyl 12% predicted / 62% actual, → Garchomp 25% / 68%).
+
+Fix (one place, no per-species list): for any assumed `-Mega` forme,
+`_effective_ability` uses the **mega forme's** ability regardless of what was
+revealed (megas carry exactly one ability).  Applies to every mega whose ability
+differs from its base — Altaria/Gardevoir → Pixilate, Charizard-Y → Drought, etc.
+
+Turn-1 table byte-identical (turn-1 opponents have no revealed ability, so the
+assumed-mega ability was already used).  Tests: `TestMegaAbilityRefresh`.  Full
+suite 781.
+
 ## 0.8.11 — 2026-06-14
 
 ### Garchomp spread: hit the 226 Scarf-speed benchmark

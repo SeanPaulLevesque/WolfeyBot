@@ -2401,6 +2401,25 @@ class TestStanceForme:
         assert _defense_species(chari) == "Charizard-Mega-Y"
 
 
+class TestMegaAbilityRefresh:
+    """Mega-evolution replaces the base ability; a base ability revealed BEFORE
+    a mon megas is stale, so any assumed -Mega forme uses the mega's ability
+    (systematic — no per-species list)."""
+
+    def test_stale_base_ability_overridden_on_mega(self):
+        # Altaria reveals Cloud Nine pre-mega; post-mega it's Pixilate.
+        mon = make_mon("Altaria-Mega"); mon.ability = "Cloud Nine"
+        assert _effective_ability(mon) == "Pixilate"
+
+    def test_unrevealed_assumed_mega_uses_mega_ability(self):
+        mon = make_mon("Altaria"); mon.ability = None   # population -> Altaria-Mega
+        assert _effective_ability(mon) == "Pixilate"
+
+    def test_non_mega_revealed_ability_unchanged(self):
+        mon = make_mon("Garchomp"); mon.ability = "Sand Veil"
+        assert _effective_ability(mon) == "Sand Veil"
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # _assumed_item / _effective_item
 # ══════════════════════════════════════════════════════════════════════════════

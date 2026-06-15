@@ -269,16 +269,23 @@ def _effective_item(mon: "Pokemon") -> Optional[str]:
 def _effective_ability(mon: "Pokemon") -> Optional[str]:
     """Return the ability to assume for *mon*.
 
-    If the ability has been revealed in battle (``mon.ability is not None``),
-    return it directly.  Otherwise fall back to the highest-usage-rate ability
-    of the *assumed forme* (mega-holders are assumed pre-mega, so an
-    unrevealed Charizard is assumed Drought, not Solar Power).
+    A revealed ability (``mon.ability``) is normally used directly; otherwise we
+    fall back to the highest-usage-rate ability of the *assumed forme*
+    (mega-holders are assumed pre-mega, so an unrevealed Charizard is Drought,
+    not Solar Power).
 
-    Returns None only for species not present in the usage data.
+    **Mega exception (systematic, no per-species list):** mega-evolution
+    *replaces* the base ability (Altaria's Natural Cure/Cloud Nine → Pixilate,
+    Charizard's Blaze → Drought, …).  An ability revealed *before* a mon megas
+    is therefore stale, so for any assumed ``-Mega`` forme we use the mega
+    forme's ability regardless of what was revealed (megas have exactly one).
     """
+    species = _assumed_species(mon)
+    if "-Mega" in species:
+        return _assumed_ability(species) or mon.ability
     if mon.ability is not None:
         return mon.ability
-    return _assumed_ability(_assumed_species(mon))
+    return _assumed_ability(species)
 
 
 # Weather-setting abilities → the weather they put up on switch-in / mega-evolve.
