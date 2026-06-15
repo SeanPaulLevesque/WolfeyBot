@@ -27,49 +27,33 @@ The 0.8.5 batches wired every ability that keys off move flags, move type, categ
 -Out of format, revisit only if the legal pool changes (no Champions-legal holder today): Slow Start (Regigigas), Orichalcum Pulse (Koraidon), Hadron Engine (Miraidon; also needs Electric Terrain), Flower Gift (Cherrim). Any of these would also need turns-active and/or terrain tracking that we deliberately skipped.
 
 model calibration:
--Opponent spread calibration (DECISION NEEDED — pick an approach below). We
- systematically OVER-predict our damage into bulky walls.
+-[RULED OUT 0.8.12] Opponent spread calibration was suspected as the cause of
+ offense over-prediction into bulky walls (Corviknight/Sinistcha/Milotic). It is
+ NOT. Pulled the full chaos JSON (2026-05, the complete untruncated spread
+ distribution — the moveset .txt is capped at 6 spreads + ~76% "Other", same in
+ bo1 and bo3) and computed the full-distribution defensive stats. Even the
+ p90-bulk Corviknight (Def 161 over 8119 spreads) predicts ~34% to our Kowtow
+ Cleave, while the observed actual is ~14% — a 2-3x gap NO spread explains. The
+ weighted-average barely moves the modal (Corviknight 43%->39%) and can even
+ lower a SpD-wall's Def (Incineroar 124->119). So a spread-calibration re-derive
+ would not fix the headline cases; do not chase it.
 
- ROOT CAUSE: `_most_common_stats` (damage.py) returns `spread_distribution(sp)[0]`
- — the single MODAL spread — and uses it for BOTH the opponent's offense AND its
- defense. But a mon's modal spread is often an *attacker* set even when the mon
- is overwhelmingly played as a *wall*, so the one modal pick is the frailest-on-
- defense option. Conflating offense and defense in one spread is the structural
- bug.
-
- WORKED EXAMPLE — Corviknight (assumed base forme, no mega):
-   * base stats HP98/Def105/SpD85; the engine uses modal spread
-     `Adamant: 32/13/0/0/13/8` -> Def 125 (a physical ATTACKER set, 0 Def EVs).
-   * that spread is only 4.6% usage; ~73% of Corviknight usage is bulk-invested
-     (Impish/Careful walls): Def up to 172, usage-weighted-mean Def ~145.
-   * so we calc Kowtow Cleave into a Def-125 attacker; the real Corviknight is a
-     Def-160+ wall -> predicted 92%, actual 20%.
-
- EVIDENCE (50-game 0.8.7 ladder sample, accuracy report): the offense
- over-predictions are dominated by bulky walls — Kowtow Cleave -> Corviknight x5
- (92->20%, 60->19%, ...), Earth Power -> Archaludon x3, Dragon Claw -> Rotom-Wash
- x2, plus Sinistcha, Milotic, Pelipper, Skarmory. (Earlier samples: Delphox-Mega
- 100->41%, Sinistcha 73->19%.) Defense is NOT similarly biased — the model only
- had 6 [known] under-predictions in 50 games — so the fix should target the
- OPPONENT-DEFENSE spread used by outgoing_damage, and likely leave the offensive
- (incoming) spread alone.
-
- OPTIONS for the opponent-DEFENSE spread:
-   (a) usage-weighted AVERAGE of defensive stats across the mon's spreads
-       (Corviknight -> Def ~145) — data-driven, but a synthetic stat line.
-   (b) the most-used BULK-INVESTED spread (Corviknight -> Def 172) — assumes the
-       common wall set; principled but ignores the attacker minority.
-   (c) a Def/SpD PERCENTILE (e.g. median) across spreads.
- Key design point: split the spread choice — defensive spread for OUR outgoing
- damage into them, offensive/modal spread for THEIR incoming damage into us.
-
- CAVEAT: the usage file lists only each mon's top ~6 spreads (~17% of its total
- usage), so any aggregate is over a partial sample; direction is unambiguous but
- magnitudes are approximate.
-
- (Supersedes the earlier loose "Milotic over-prediction" note — direction is: we
- assume FRAILER than reality.) Land in ISOLATION per the regression note so the
- win-rate delta is attributable.
+ ACTUAL causes of the offense over-predictions, in order:
+   1. Opponent DEFENSIVE SETUP — Corviknight runs Bulk Up/Iron Defense, Sinistcha
+      Calm Mind + Strength Sap, Milotic Coil/Recover. These ARE modeled
+      end-to-end (parser |-boost|/|-unboost| -> mon.boosts -> build_turn_context
+      -> full_damage_calc; opp Def +4 correctly gives ~15%). The residual is an
+      INHERENT ~1-2 stage prediction lag: we score at turn start, before the
+      opponent's same-turn Bulk Up, and a Roost-staller caps at +6 while we track
+      ~+4. Can't be fully fixed (we don't predict the opponent's move).
+   2. Accuracy-report HP-denominator artifact — FIXED in 0.8.12 (bea2e1f):
+      damage_output is % of CURRENT HP, logged actual d is % of MAX HP, so a
+      Roosting target looked ~3x worse than reality. Now scaled to % of max.
+   3. Residual tail (a real but separate, smaller item): some over-predictions
+      aren't boosts — e.g. Ice Fang -> Garchomp 90->32% (Yache Berry? we don't
+      assume defensive resist-berries), Dual Wingbeat -> Venusaur 100->18%
+      (bulky-mega / Tera / screen?). Candidate follow-up: model defensive items
+      (Yache/Occa/etc. resist berries) and Tera typing. NOT spread.
 
 -In-battle forme modeling — remaining cases after 0.8.10. 0.8.10 fixed the
  STAT-changing transformers (Palafin-Hero stats; Aegislash Blade-offense /
