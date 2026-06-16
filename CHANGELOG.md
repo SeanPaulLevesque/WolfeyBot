@@ -1,5 +1,35 @@
 # WolfeyBot Changelog
 
+## 0.9.0 — 2026-06-16
+
+### Named teams + A/B data separation
+
+Adds a **team-name / team-version** axis, independent of the engine version, so
+team A/B tests no longer mix in the battle-data folder or ELO log.  Three axes
+now: engine version (`version.py`), **team name** (a distinct roster, bound to
+**one account**), and **team version** (roster iterations A/B'd on the **same**
+account).  See `teams/README.md`.
+
+- **`teams/<name>/v<n>.txt`** pastes + **`teams/teams.json`** manifest (name →
+  `label`, `account`, `current` version).  Seeded `meta-team/v1` from `team.txt`
+  (byte-identical) and an empty `off-meta-team` slot.
+- **`team.py`** — active-team selector (`set_active_team` / `get_team`), manifest
+  readers (`list_teams`, `team_versions`, `current_version`, `team_account`,
+  `team_label`), `resolve_team_spec` (`name` / `name@vN`), `validate_team`.  With
+  no team selected, `get_team` falls back to the `team.txt` **frozen baseline** —
+  so `turn1_summary.md` and every decision test are unaffected.
+- **`recorder.py`** — `BattleRecorder(id, version, team=None, team_version=None)`
+  files battles under `Battle Data/<version>/<team>/<team_version>/` and tags the
+  payload, **only when set**; the legacy 2-arg call stays flat + untagged.
+- **`main.py`** — `--team` / `--account` / `--list-teams`.  Account profiles via
+  `bot_secrets.PROFILES`; an explicitly-bound account with no usable creds
+  **refuses to run** (no wrong-account laddering).  ELO entries gain
+  `team` / `team_version` / `username` tags.
+
+Engine behaviour unchanged: `turn1_summary.md` diff is the header version line
+only (all 120 decision rows byte-identical).  Tests: `tests/test_teams.py` +
+`TestNamedTeamPath`.  Full suite 801.
+
 ## 0.8.12 — 2026-06-14
 
 ### Mega-evolution refreshes the ability (systematic)

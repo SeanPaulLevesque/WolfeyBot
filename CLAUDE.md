@@ -41,8 +41,9 @@ to make green by editing expectations. This is a hard rule:
 | `battle.py` / `battle_state.py` | `BattleState` and `Pokemon` dataclasses; battle protocol parser |
 | `decision/engine.py` | `Action`, `ScoringModule`, `DecisionEngine`, `_build_actions` |
 | `decision/modules.py` | All 13 concrete modules + `make_engine()` factory |
-| `team.py` | `find_member(species)` — returns team member data from `team.txt` |
-| `team.txt` | Pokémon Showdown paste of the current 6-mon roster |
+| `team.py` | `find_member(species)` + active-team selector (`set_active_team`, `get_team`, `list_teams`, `validate_team`, `resolve_team_spec`) |
+| `team.txt` | Pokémon Showdown paste — the **frozen baseline** roster (`turn1_summary.md` + tests build from this); used when no `--team` is selected |
+| `teams/` | Named teams for A/B testing: `teams/<name>/v<n>.txt` pastes + `teams.json` manifest (name → label, account, current version). See `teams/README.md` |
 | `damage.py` | `outgoing_damage()`, `incoming_damage()`, `type_effectiveness()` |
 | `turn_order.py` | `will_outspeed()`, `priority_bracket()`, `Combatant` dataclass |
 | `data/` | `smogon_champions_slim.json` (218 Champions-legal species) + move/type data |
@@ -192,13 +193,17 @@ best = ranked[0]                              # Action with .move_name / .switch
 ## Running things
 
 ```
-# Run the bot
+# Run the bot (defaults to --team meta-team; baseline team.txt if that can't resolve)
 .venv\Scripts\python.exe main.py
+.venv\Scripts\python.exe main.py --team meta-team@v1   # pin a version to A/B
+.venv\Scripts\python.exe main.py --team off-meta-team  # runs on its bound account
+.venv\Scripts\python.exe main.py --list-teams          # teams + accounts + validation
+.venv\Scripts\python.exe main.py --team ""             # force the team.txt baseline
 
 # Run tests
 .venv\Scripts\pytest
 
-# Regenerate turn1_summary.md
+# Regenerate turn1_summary.md (only after an approved behavior change)
 .venv\Scripts\python.exe _gen_turn1_summary.py
 ```
 
