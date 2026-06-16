@@ -510,3 +510,59 @@ class TestBattleRecorder:
                 hp_val = data["turns"][0]["my"][0]["hp"]
                 assert isinstance(hp_val, float)
                 assert hp_val == 0.5
+
+
+class TestNamedTeamPath:
+    """Named-team A/B tagging (0.9.0): a tagged recorder nests the file under
+    <version>/<team>/<team_version>/ and stamps team/team_version into the
+    payload; an untagged recorder keeps the legacy flat path with no team keys
+    (so every pre-0.9.0 test and battle stays byte-shaped as before)."""
+
+    def test_nested_path_and_payload_tags(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                rec = BattleRecorder("battle-team-test", "0.9.0",
+                                     team="meta-team", team_version="v1")
+                state = _make_mock_state(turn=1)
+                rec.record_decision(state, slot=0, ranked_actions=_make_actions())
+                rec.record_outcome(won=True)
+
+                path = os.path.join(tmpdir, "Battle Data", "0.9.0",
+                                    "meta-team", "v1", "battle-team-test.json")
+                assert os.path.exists(path), "battle should be filed under team/version"
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                assert data["team"] == "meta-team"
+                assert data["team_version"] == "v1"
+
+    def test_team_without_version_nests_one_level(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                rec = BattleRecorder("battle-team-noverp", "0.9.0", team="meta-team")
+                state = _make_mock_state(turn=1)
+                rec.record_decision(state, slot=0, ranked_actions=_make_actions())
+                rec.record_outcome(won=True)
+
+                path = os.path.join(tmpdir, "Battle Data", "0.9.0",
+                                    "meta-team", "battle-team-noverp.json")
+                assert os.path.exists(path)
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                assert data["team"] == "meta-team"
+                assert "team_version" not in data
+
+    def test_flat_path_no_team_keys_when_untagged(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                rec = BattleRecorder("battle-untagged", "0.9.0")   # legacy 2-arg
+                state = _make_mock_state(turn=1)
+                rec.record_decision(state, slot=0, ranked_actions=_make_actions())
+                rec.record_outcome(won=True)
+
+                path = os.path.join(tmpdir, "Battle Data", "0.9.0",
+                                    "battle-untagged.json")
+                assert os.path.exists(path), "untagged battle keeps the flat path"
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+                assert "team" not in data
+                assert "team_version" not in data

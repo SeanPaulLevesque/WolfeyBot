@@ -1,0 +1,12 @@
+{
+  "meta-team": {
+    "label": "meta team",
+    "account": "main",
+    "current": "v1"
+  },
+  "off-meta-team": {
+    "label": "off-meta team",
+    "account": "alt",
+    "current": "v1"
+  }
+}

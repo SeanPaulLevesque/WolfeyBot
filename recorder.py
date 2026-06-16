@@ -192,9 +192,15 @@ def _snapshot_state(state: "BattleState") -> dict:
 class BattleRecorder:
     """Records decisions and outcomes for one battle and persists them to disk."""
 
-    def __init__(self, battle_id: str, version: str):
+    def __init__(self, battle_id: str, version: str,
+                 team: Optional[str] = None, team_version: Optional[str] = None):
         self.battle_id   = battle_id
         self.version     = version
+        # Named-team A/B tags.  When set, the battle is filed under
+        # Battle Data/<version>/<team>/<team_version>/ and tagged in the
+        # payload.  Both None → flat Battle Data/<version>/ (legacy path).
+        self.team         = team
+        self.team_version = team_version
         self._started_at = datetime.now(timezone.utc).isoformat()
         # Discard data-gap flags left over from a previous battle (or an
         # aborted one) so this battle's "data_gaps" reflects only itself.
@@ -391,7 +397,13 @@ class BattleRecorder:
         return t
 
     def _save(self) -> None:
-        dir_path  = os.path.join(_PROJECT_ROOT, "Battle Data", self.version)
+        # Nest under team / team_version when tagged; flat otherwise (legacy).
+        parts = [_PROJECT_ROOT, "Battle Data", self.version]
+        if self.team:
+            parts.append(self.team)
+            if self.team_version:
+                parts.append(self.team_version)
+        dir_path  = os.path.join(*parts)
         os.makedirs(dir_path, exist_ok=True)
         file_path = os.path.join(dir_path, f"{self.battle_id}.json")
 
@@ -406,6 +418,11 @@ class BattleRecorder:
             "t":       self._started_at,
             "outcome": self._outcome,
         }
+        # Named-team A/B tags (present only when running a named team).
+        if self.team:
+            payload["team"] = self.team
+            if self.team_version:
+                payload["team_version"] = self.team_version
         if self._preview is not None:
             payload["preview"] = self._preview
         payload["turns"] = turns

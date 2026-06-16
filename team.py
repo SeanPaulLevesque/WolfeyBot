@@ -17,13 +17,21 @@ Usage::
 """
 from __future__ import annotations
 
-import pathlib, re
+import json, pathlib, re
 from dataclasses import dataclass, field
 from typing import Optional
 
 from data import calc_all_stats, base_stats as get_base_stats, get_species
 
+# Repo-root ``team.txt`` is the *frozen baseline* — the roster that
+# ``turn1_summary.md`` and the test suite are built from.  It is the fallback
+# used whenever no named team is selected (see ``get_team``).
 TEAM_FILE = pathlib.Path(__file__).parent / "team.txt"
+
+# Named teams for A/B testing live under ``teams/<name>/v<n>.txt`` with a
+# ``teams/teams.json`` manifest binding each to an account.  See teams/README.md.
+TEAMS_DIR     = pathlib.Path(__file__).parent / "teams"
+TEAMS_MANIFEST = TEAMS_DIR / "teams.json"
 
 # Showdown EV abbreviation → internal stat key
 _ABBREV = {
@@ -187,16 +195,153 @@ def load_team(path: Optional[pathlib.Path] = None) -> list[TeamMember]:
     return members
 
 
-# ── Cached singleton ──────────────────────────────────────────────────────────
+# ── Named teams / manifest ──────────────────────────────────────────────────
+
+def _load_manifest() -> dict:
+    """Parse ``teams/teams.json`` (name → {label, account, current}); {} if absent."""
+    if TEAMS_MANIFEST.exists():
+        try:
+            return json.loads(TEAMS_MANIFEST.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return {}
+    return {}
+
+
+def list_teams() -> list[str]:
+    """Named teams that have a directory under ``teams/`` (sorted)."""
+    if not TEAMS_DIR.exists():
+        return []
+    return sorted(p.name for p in TEAMS_DIR.iterdir() if p.is_dir())
+
+
+def team_versions(name: str) -> list[str]:
+    """Version slugs available for *name* (``v1``, ``v2`` …), sorted naturally."""
+    d = TEAMS_DIR / name
+    if not d.exists():
+        return []
+    vers = [p.stem for p in d.glob("v*.txt")]
+    # Natural sort by the integer after the leading 'v' (v2 < v10).
+    return sorted(vers, key=lambda v: int(re.sub(r"\D", "", v) or 0))
+
+
+def current_version(name: str) -> Optional[str]:
+    """The manifest's ``current`` version for *name*, else the highest on disk."""
+    declared = _load_manifest().get(name, {}).get("current")
+    if declared:
+        return declared
+    vers = team_versions(name)
+    return vers[-1] if vers else None
+
+
+def team_account(name: str) -> Optional[str]:
+    """The account-profile name bound to *name* in the manifest, or None."""
+    return _load_manifest().get(name, {}).get("account")
+
+
+def team_label(name: str) -> str:
+    """Human label for *name* (manifest ``label``, else the slug)."""
+    return _load_manifest().get(name, {}).get("label", name)
+
+
+def resolve_team_spec(spec: str) -> tuple[str, Optional[str]]:
+    """Split a ``--team`` spec into (name, version).
+
+    ``"meta-team"``      → ("meta-team", <current version>)
+    ``"meta-team@v2"``   → ("meta-team", "v2")
+    """
+    if "@" in spec:
+        name, ver = spec.split("@", 1)
+        name, ver = name.strip(), ver.strip()
+    else:
+        name, ver = spec.strip(), None
+    if not ver:
+        ver = current_version(name)
+    return name, ver
+
+
+def team_file(name: str, version: Optional[str]) -> pathlib.Path:
+    """Path to ``teams/<name>/<version>.txt`` (version defaults to current)."""
+    version = version or current_version(name)
+    return TEAMS_DIR / name / f"{version}.txt"
+
+
+def validate_team(name: str, version: Optional[str] = None) -> tuple[bool, str]:
+    """Try to load *name*[@version]; return (ok, message).
+
+    Used by ``--list-teams`` to surface a roster that is missing, empty, or has
+    a member whose stats failed to compute (the classic ``None`` data bug).
+    """
+    version = version or current_version(name)
+    if version is None:
+        return False, "no version files (add v1.txt)"
+    fpath = team_file(name, version)
+    if not fpath.exists():
+        return False, f"{version}.txt missing"
+    try:
+        members = load_team(fpath)
+    except Exception as exc:                                   # pragma: no cover
+        return False, f"parse error: {exc}"
+    if not members:
+        return False, "empty paste"
+    for m in members:
+        if not m.stats or any(v is None for v in m.stats.values()):
+            return False, f"{m.name}: stats failed to compute"
+    return True, f"{len(members)} mons OK"
+
+
+# ── Active team + cached singleton ────────────────────────────────────────────
 
 _CACHED_TEAM: Optional[list[TeamMember]] = None
+_ACTIVE_NAME: Optional[str] = None
+_ACTIVE_VERSION: Optional[str] = None
+
+
+def set_active_team(spec: Optional[str], version: Optional[str] = None) -> tuple[Optional[str], Optional[str]]:
+    """Select the active named team for this process.
+
+    *spec* may be ``"name"`` or ``"name@version"``; an explicit *version*
+    argument overrides the ``@`` suffix.  Passing ``None`` clears the selection
+    (reverting to the ``team.txt`` baseline).  Invalidates the cache and returns
+    the resolved (name, version).
+    """
+    global _ACTIVE_NAME, _ACTIVE_VERSION, _CACHED_TEAM
+    if spec is None:
+        _ACTIVE_NAME = _ACTIVE_VERSION = None
+    else:
+        name, ver = resolve_team_spec(spec)
+        if version is not None:
+            ver = version
+        _ACTIVE_NAME, _ACTIVE_VERSION = name, ver
+    _CACHED_TEAM = None
+    return _ACTIVE_NAME, _ACTIVE_VERSION
+
+
+def active_team() -> Optional[str]:
+    return _ACTIVE_NAME
+
+
+def active_team_version() -> Optional[str]:
+    return _ACTIVE_VERSION
+
+
+def active_team_file() -> Optional[pathlib.Path]:
+    """Resolved paste path for the active team, or None for the baseline."""
+    if _ACTIVE_NAME is None:
+        return None
+    return team_file(_ACTIVE_NAME, _ACTIVE_VERSION)
 
 
 def get_team(reload: bool = False) -> list[TeamMember]:
-    """Return the cached team, loading from team.txt on first call."""
+    """Return the cached team.
+
+    Loads the active named team (set via :func:`set_active_team`) if one is
+    selected, otherwise the ``team.txt`` baseline.  No selection → identical to
+    the historical behaviour, so tests and ``turn1_summary`` are unaffected.
+    """
     global _CACHED_TEAM
     if _CACHED_TEAM is None or reload:
-        _CACHED_TEAM = load_team()
+        fpath = active_team_file()           # None → load_team() uses TEAM_FILE
+        _CACHED_TEAM = load_team(fpath)
     return _CACHED_TEAM
 
 

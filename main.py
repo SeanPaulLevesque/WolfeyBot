@@ -17,6 +17,7 @@ Guest mode note:
     Alternatively change BATTLE_FORMAT to "gen9unratedrandombattle" for guest play.
 """
 
+import argparse
 import asyncio
 import json as _json
 import logging
@@ -31,7 +32,10 @@ import aiohttp
 
 from battle import BattleParser, BattleState
 from decision import make_engine, Action
-from team import get_team
+from team import (
+    get_team, set_active_team, list_teams, team_versions, current_version,
+    team_account, team_label, validate_team, active_team_file,
+)
 from team_preview import select_team, select_leads, select_mega
 from tools.pack_team import to_packed
 from recorder import BattleRecorder
@@ -63,12 +67,47 @@ if not (USERNAME and PASSWORD):
         PASSWORD = PASSWORD or getattr(_secrets, "PASSWORD", "")
     except ImportError:
         pass
+
+
+def _resolve_account(profile: Optional[str]) -> tuple[str, str]:
+    """Resolve an account-profile name to (username, password).
+
+    Looks *profile* up in ``bot_secrets.PROFILES`` (name → {username, password}).
+    When ``profile`` is None (no account binding) this falls back to the
+    module-level USERNAME/PASSWORD (env / legacy bot_secrets vars).  But an
+    *explicitly named* profile that is missing or has no creds returns
+    ``("", "")`` — never the default — so the caller can refuse rather than
+    silently ladder on the wrong account.
+    """
+    if profile:
+        try:
+            import bot_secrets as _s
+            profiles = getattr(_s, "PROFILES", {}) or {}
+            if profile in profiles:
+                p = profiles[profile]
+                return p.get("username", ""), p.get("password", "")
+        except ImportError:
+            pass
+        return "", ""           # explicit profile unresolved → no silent fallback
+    return USERNAME, PASSWORD
+
+
 BATTLE_FORMAT  = "gen9championsvgc2026regma"  # ← Champions 2026 Reg M-A format slug
 WS_URL         = "wss://sim3.psim.us/showdown/websocket"
 LOGIN_URL      = "https://play.pokemonshowdown.com/api/login"
 
-# Packed team string sent via /utm before every search.
-# Loaded automatically from team.txt — no manual export step needed.
+# Active named team for this run — set by _apply_team_selection() after parsing
+# --team.  None means the unnamed team.txt baseline (filed flat, untagged).
+ACTIVE_TEAM: Optional[str] = None
+ACTIVE_TEAM_VERSION: Optional[str] = None
+
+# Default named team when --team is omitted, so live runs are always tagged and
+# data never lands in the untagged baseline path.  team.txt remains the fallback
+# only if this team can't be resolved.
+DEFAULT_TEAM = "meta-team"
+
+# Packed team string sent via /utm before every search.  Defaults to the
+# baseline team.txt; main() recomputes it for the selected named team.
 PACKED_TEAM: str = to_packed()
 
 REQUEUE_DELAY  = 20                    # seconds to wait between battles before searching again
@@ -203,11 +242,15 @@ class EloTracker:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
-    def record(self, battle_id: str, version: str, elo_before: Optional[int], won: Optional[bool]):
+    def record(self, battle_id: str, version: str, elo_before: Optional[int], won: Optional[bool],
+               team: Optional[str] = None, team_version: Optional[str] = None,
+               username: Optional[str] = None):
         """
         Append one battle result to the log file and update session counters.
 
         *won* can be ``True`` (win), ``False`` (loss), or ``None`` (tie / forfeit).
+        *team* / *team_version* / *username* tag the entry for A/B filtering;
+        omitted (None) when running the unnamed ``team.txt`` baseline.
         """
         outcome = "win" if won is True else ("loss" if won is False else "tie")
 
@@ -228,6 +271,14 @@ class EloTracker:
             "elo_before": elo_before,
             "outcome":    outcome,
         }
+        # A/B tags — added only when running a named team, so the existing
+        # baseline-era entries stay byte-shaped as before.
+        if team:
+            entry["team"] = team
+            if team_version:
+                entry["team_version"] = team_version
+        if username:
+            entry["username"] = username
 
         # Load → append → write  (atomic enough for a single-threaded bot)
         try:
@@ -735,7 +786,10 @@ class ShowdownClient:
         if battle_id not in self.parsers:
             self.log.info("NEW BATTLE  %s", battle_id)
             self._joining_battles.discard(battle_id)
-            self._recorders[battle_id] = BattleRecorder(battle_id, VERSION)
+            self._recorders[battle_id] = BattleRecorder(
+                battle_id, VERSION,
+                team=ACTIVE_TEAM, team_version=ACTIVE_TEAM_VERSION,
+            )
             self.parsers[battle_id] = BattleParser(
                 battle_id=battle_id,
                 my_username=self.username,
@@ -860,8 +914,12 @@ class ShowdownClient:
             parser = self.parsers.get(battle_id)
             elo_before = parser.state.my_elo if parser is not None else None
 
-            # Record ELO + outcome
-            self._elo.record(battle_id, VERSION, elo_before, won)
+            # Record ELO + outcome (tagged with the active team for A/B)
+            self._elo.record(
+                battle_id, VERSION, elo_before, won,
+                team=ACTIVE_TEAM, team_version=ACTIVE_TEAM_VERSION,
+                username=self.username,
+            )
 
             # Persist battle data before removing state
             recorder = self._recorders.pop(battle_id, None)
@@ -1002,5 +1060,77 @@ async def main():
         await client.shutdown()
 
 
+def _print_teams() -> None:
+    """``--list-teams``: enumerate named teams with account + version + validation."""
+    teams = list_teams()
+    if not teams:
+        print("No named teams found under teams/.")
+        return
+    print("Named teams (teams/):")
+    for name in teams:
+        acct = team_account(name) or "—"
+        cur  = current_version(name) or "—"
+        vers = ", ".join(team_versions(name)) or "(none)"
+        ok, msg = validate_team(name)
+        flag = "ok " if ok else "!! "
+        print(f"  {flag}{name:16} account={acct:8} current={cur or '—':4} "
+              f"versions=[{vers}]  — {msg}")
+
+
+def _apply_team_selection(team_spec: Optional[str], account_override: Optional[str]) -> None:
+    """Resolve --team / --account into the active-team + credential globals.
+
+    A None *team_spec* leaves the team.txt baseline (legacy creds) in place.
+    An unresolvable named team logs an error and falls back to that baseline
+    rather than crashing.
+    """
+    global ACTIVE_TEAM, ACTIVE_TEAM_VERSION, PACKED_TEAM, USERNAME, PASSWORD
+    if not team_spec:
+        return
+    name, version = set_active_team(team_spec)
+    ok, msg = validate_team(name, version)
+    if not ok:
+        log.error("Team '%s@%s' is not usable (%s) — falling back to team.txt baseline.",
+                  name, version, msg)
+        set_active_team(None)
+        return
+    ACTIVE_TEAM, ACTIVE_TEAM_VERSION = name, version
+    PACKED_TEAM = to_packed(active_team_file())
+    # Account: explicit --account wins, else the team's manifest binding.
+    profile = account_override or team_account(name)
+    user, pw = _resolve_account(profile)
+    if profile and not (user and pw):
+        # An explicitly-bound account with no usable creds must NOT silently
+        # fall back to the default account — that would ladder the wrong
+        # account.  Stop and tell the user to fill in the password.
+        log.error("Account profile '%s' (bound to team '%s') has no usable credentials "
+                  "in bot_secrets.PROFILES — refusing to run so it can't ladder the "
+                  "wrong account.  Add the username+password for '%s' and retry.",
+                  profile, name, profile)
+        sys.exit(1)
+    if user and pw:
+        USERNAME, PASSWORD = user, pw
+    log.info("Active team: %s@%s (%s) — account profile '%s' as %s",
+             name, version, team_label(name), profile or "—", USERNAME or "Guest")
+
+
+def _parse_args(argv=None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(description="WolfeyBot — Showdown Champions VGC bot")
+    p.add_argument("--team", default=DEFAULT_TEAM,
+                   help="named team to run, 'name' or 'name@vN' (default: %(default)s). "
+                        "Use '' to run the team.txt baseline.")
+    p.add_argument("--account", default=None,
+                   help="override the account profile (bot_secrets.PROFILES key); "
+                        "defaults to the team's manifest binding.")
+    p.add_argument("--list-teams", action="store_true",
+                   help="list named teams (with accounts/versions/validation) and exit.")
+    return p.parse_args(argv)
+
+
 if __name__ == "__main__":
+    _args = _parse_args()
+    if _args.list_teams:
+        _print_teams()
+        sys.exit(0)
+    _apply_team_selection(_args.team or None, _args.account)
     asyncio.run(main())
