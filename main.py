@@ -590,7 +590,7 @@ def _build_choice(
 
 class ShowdownClient:
 
-    def __init__(self):
+    def __init__(self, max_games: Optional[int] = None):
         self.username: str = USERNAME or "Guest"
         self.ws = None
         self.parsers: dict[str, BattleParser] = {}
@@ -602,6 +602,11 @@ class ShowdownClient:
         self._recorders: dict[str, BattleRecorder] = {}    # one recorder per active battle
         self._elo: EloTracker = EloTracker()               # persists ELO across sessions
         self._stopping: bool = False                       # set by shutdown() to break the reconnect loop
+        # Bounded runs: stop after this many completed games (None = unbounded).
+        # The bot shuts ITSELF down when the count is reached, so a run can't
+        # over-play if no one is watching to stop it.
+        self._max_games: Optional[int] = max_games
+        self._games_done: int = 0
 
     # ── Connection / Auth ─────────────────────────────────────────────────────
 
@@ -629,6 +634,9 @@ class ShowdownClient:
                 REQUEUE_DELAY, BATTLE_FORMAT,
             )
             await asyncio.sleep(REQUEUE_DELAY)
+            if self._stopping:                       # max-games / shutdown raced in during the wait
+                self.log.info("Requeue suppressed — shutting down.")
+                return
             self.log.info("Requeue delay complete — searching for %s", BATTLE_FORMAT)
             await self._queue_search()
         except asyncio.CancelledError:
@@ -935,6 +943,16 @@ class ShowdownClient:
             self.parsers.pop(battle_id, None)
             self.finished_battles.add(battle_id)  # suppress all future msgs for this room
             # Requeue is handled by updatesearch arriving naturally after battle end
+
+            # Bounded run: stop ourselves once we've played the requested number
+            # of games, so the bot can't keep laddering unattended.  Done here
+            # (after the game is fully recorded + state popped) so shutdown has
+            # no active battle to forfeit.
+            self._games_done += 1
+            if self._max_games is not None and self._games_done >= self._max_games:
+                self.log.info("Reached --max-games (%d) — shutting down after %d game(s).",
+                              self._max_games, self._games_done)
+                await self.shutdown()
         return on_battle_end
 
     # ── Graceful shutdown ─────────────────────────────────────────────────────
@@ -1043,10 +1061,12 @@ class ShowdownClient:
 
 # ─── Entry Point ─────────────────────────────────────────────────────────────
 
-async def main():
+async def main(max_games: Optional[int] = None):
     # Install the custom asyncio exception handler now that the loop is running.
     asyncio.get_running_loop().set_exception_handler(_asyncio_exception_handler)
-    client = ShowdownClient()
+    if max_games is not None:
+        log.info("Bounded run: will stop after %d game(s).", max_games)
+    client = ShowdownClient(max_games=max_games)
     try:
         await client.run()
     except (KeyboardInterrupt, asyncio.CancelledError):
@@ -1124,6 +1144,9 @@ def _parse_args(argv=None) -> argparse.Namespace:
                         "defaults to the team's manifest binding.")
     p.add_argument("--list-teams", action="store_true",
                    help="list named teams (with accounts/versions/validation) and exit.")
+    p.add_argument("--max-games", type=int, default=None, metavar="N",
+                   help="play N games then shut down automatically (default: unbounded). "
+                        "The bot stops itself, so a bounded run won't over-play if unattended.")
     return p.parse_args(argv)
 
 
@@ -1133,4 +1156,4 @@ if __name__ == "__main__":
         _print_teams()
         sys.exit(0)
     _apply_team_selection(_args.team or None, _args.account)
-    asyncio.run(main())
+    asyncio.run(main(max_games=_args.max_games))

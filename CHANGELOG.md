@@ -21,10 +21,12 @@ account).  See `teams/README.md`.
 - **`recorder.py`** — `BattleRecorder(id, version, team=None, team_version=None)`
   files battles under `Battle Data/<version>/<team>/<team_version>/` and tags the
   payload, **only when set**; the legacy 2-arg call stays flat + untagged.
-- **`main.py`** — `--team` / `--account` / `--list-teams`.  Account profiles via
-  `bot_secrets.PROFILES`; an explicitly-bound account with no usable creds
-  **refuses to run** (no wrong-account laddering).  ELO entries gain
-  `team` / `team_version` / `username` tags.
+- **`main.py`** — `--team` / `--account` / `--list-teams` / `--max-games N`.
+  Account profiles via `bot_secrets.PROFILES`; an explicitly-bound account with
+  no usable creds **refuses to run** (no wrong-account laddering).  ELO entries
+  gain `team` / `team_version` / `username` tags.  `--max-games N` makes the bot
+  **shut itself down** after N completed games (run control only — zero effect on
+  decisions/scoring), so a bounded test run can't keep laddering unattended.
 
 Engine behaviour unchanged: `turn1_summary.md` diff is the header version line
 only (all 120 decision rows byte-identical).  Tests: `tests/test_teams.py` +

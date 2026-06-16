@@ -57,7 +57,7 @@ class TestManifest:
 
     def test_versions_on_disk(self):
         assert team.team_versions("meta-team") == ["v1"]
-        assert team.team_versions("off-meta-team") == []     # no v*.txt yet
+        assert team.team_versions("off-meta-team") == ["v1"]   # roster added 2026-06-16
 
     def test_current_version(self):
         assert team.current_version("meta-team") == "v1"
@@ -71,14 +71,18 @@ class TestManifest:
 # ── validate_team ─────────────────────────────────────────────────────────────
 
 class TestValidate:
-    def test_meta_team_validates(self):
-        ok, msg = team.validate_team("meta-team")
-        assert ok
-        assert "6" in msg          # 6 mons OK
+    def test_both_teams_validate(self):
+        # Both rosters are present (meta seeded from team.txt; off-meta added
+        # 2026-06-16), so both must load 6 mons with computable stats.
+        for name in ("meta-team", "off-meta-team"):
+            ok, msg = team.validate_team(name)
+            assert ok, f"{name}: {msg}"
+            assert "6" in msg
 
-    def test_off_meta_missing_roster(self):
-        ok, msg = team.validate_team("off-meta-team")
-        assert not ok              # v1.txt not added yet
+    def test_validate_detects_missing_team(self):
+        # The missing/empty-roster guard, independent of off-meta's state.
+        ok, msg = team.validate_team("no-such-team")
+        assert not ok
 
 
 # ── active-team selector ──────────────────────────────────────────────────────
@@ -141,3 +145,39 @@ class TestEloTagging:
             assert "team" not in e
             assert "team_version" not in e
             assert "username" not in e
+
+
+# ── --max-games bounded run (main.ShowdownClient) ─────────────────────────────
+
+class TestMaxGames:
+    """The bot must stop ITSELF after --max-games completed games, so an
+    unattended run can't keep laddering (the 0.9.0 single-game-run incident)."""
+
+    def test_arg_parses(self):
+        import main
+        assert main._parse_args(["--max-games", "3"]).max_games == 3
+        assert main._parse_args([]).max_games is None
+
+    def _play(self, client, battle_id, won):
+        """Drive one battle-end through the handler on a fresh event loop."""
+        import asyncio
+        asyncio.run(client._make_battle_end_handler(battle_id)(won))
+
+    def test_stops_after_max_games(self):
+        import main
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("main.ELO_LOG_PATH", Path(tmp) / "elo.json"):
+                client = main.ShowdownClient(max_games=2)
+                self._play(client, "b1", True)
+                assert client._games_done == 1 and not client._stopping
+                self._play(client, "b2", False)
+                assert client._games_done == 2 and client._stopping   # self-terminated
+
+    def test_unbounded_never_stops(self):
+        import main
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("main.ELO_LOG_PATH", Path(tmp) / "elo.json"):
+                client = main.ShowdownClient(max_games=None)
+                for i in range(5):
+                    self._play(client, f"b{i}", True)
+                assert client._games_done == 5 and not client._stopping
