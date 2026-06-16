@@ -56,4 +56,4 @@ Timid Nature
 - Hurricane
 - Weather Ball
 - Ice Beam
-- Protect
+- U-turn
