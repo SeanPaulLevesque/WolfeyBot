@@ -111,7 +111,9 @@ def _chk(action, dec: str, opp_a: str, opp_b: str, wt: float) -> None:
 
     Decision string formats:
       "MoveName → TargetSpecies"   — attacking move; target_slot is checked
-      "Protect → ?"               — Protect; target not checked
+      "MoveName → ?"               — no-target move (any Protect-family move:
+                                     Protect/King's Shield/Spiky Shield/…, or a
+                                     self/field move); target_slot must be None
       "Switch → BenchSpecies"     — switch action; switch_target is checked
     """
     label, _, target = dec.partition(" → ")
@@ -119,12 +121,17 @@ def _chk(action, dec: str, opp_a: str, opp_b: str, wt: float) -> None:
         assert action.switch_target == target, (
             f"Expected Switch→{target!r}, got Switch→{action.switch_target!r}"
         )
-    elif label == "Protect":
-        assert action.move_name == "Protect", (
-            f"Expected Protect, got {action.move_name!r}"
+    elif target == "?":
+        # No-target move (Protect-family or self/field): the renderer emits "→ ?"
+        # whenever target_slot is None.  Check the move name, not a target slot.
+        assert action.move_name == label, (
+            f"Expected no-target move {label!r}, got {action.move_name!r}"
+        )
+        assert action.target_slot is None, (
+            f"{label!r}: expected no target, got target_slot {action.target_slot}"
         )
     else:
-        # Attacking move
+        # Attacking move with a specific target
         assert action.move_name == label, (
             f"Expected move {label!r}, got {action.move_name!r}"
         )

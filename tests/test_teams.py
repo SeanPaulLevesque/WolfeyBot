@@ -290,3 +290,33 @@ class TestLoginFallback:
             asyncio.run(client._handle_global("|challstr|abc|def"))
             assert client._stopping is False
             client._queue_search.assert_called_once()   # legacy guest fallback intact
+
+
+# ── per-team scenario lead enumeration (Phase 2b) ─────────────────────────────
+
+class TestScenarioAllPairsLeads:
+    """The generic per-team lead enumeration: all C(n,2) pairs with mega-variant
+    expansion (used to generate snapshots for any roster)."""
+
+    class _M:                                   # minimal TeamMember stand-in
+        def __init__(self, name, mega):
+            self.name, self.mega_name = name, mega
+
+    def test_no_stones_one_config_per_pair(self):
+        from scenarios.turn1_openings import _all_pairs_leads
+        leads = _all_pairs_leads([self._M("A", None), self._M("B", None), self._M("C", None)])
+        assert sorted(leads) == sorted([("A", "B", None), ("A", "C", None), ("B", "C", None)])
+
+    def test_one_stone_holder_is_the_mega(self):
+        from scenarios.turn1_openings import _all_pairs_leads
+        leads = _all_pairs_leads([self._M("A", None), self._M("B", "B-Mega"), self._M("C", None)])
+        assert ("A", "B", "B") in leads          # B holds the only stone in A+B
+        assert ("B", "C", "B") in leads
+        assert ("A", "C", None) in leads
+        assert len(leads) == 3
+
+    def test_both_holders_emit_both_variants(self):
+        from scenarios.turn1_openings import _all_pairs_leads
+        leads = _all_pairs_leads([self._M("A", "A-Mega"), self._M("B", "B-Mega")])
+        assert ("A", "B", "A") in leads and ("A", "B", "B") in leads
+        assert len(leads) == 2

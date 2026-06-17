@@ -11,8 +11,10 @@ NOTE: the lead configurations below are specific to the baseline roster.
 Deriving leads per-team (so this scenario runs against any team) is Phase 2;
 for now ``gen_snapshot --team baseline`` is the supported invocation.
 """
+import itertools
+
 from battle import BattleState, Pokemon
-from team import find_member
+from team import find_member, get_team, active_team
 
 NAME = "turn1_openings"
 
@@ -78,8 +80,28 @@ def _moves(sp):
     return [{"move": m} for m in tm.moves] if tm else []
 
 
-def _run_lead(engine, our_a, our_b, opp_a, opp_b, designated_mega):
-    bench = [s for s in ALL_TEAM if s not in (our_a, our_b)]
+def _all_pairs_leads(members):
+    """All C(n,2) lead pairs for *members*, with mega-variant expansion.
+
+    A mon "holds a mega stone" if its TeamMember has a mega forme.  Both holders
+    → one config per mega choice; one holder → that mega; none → no mega.
+    """
+    by_name = {m.name: m for m in members}
+    leads = []
+    for a, b in itertools.combinations([m.name for m in members], 2):
+        holders = [n for n in (a, b) if by_name[n].mega_name]
+        if len(holders) == 2:
+            leads.append((a, b, a))
+            leads.append((a, b, b))
+        elif holders:
+            leads.append((a, b, holders[0]))
+        else:
+            leads.append((a, b, None))
+    return leads
+
+
+def _run_lead(engine, our_a, our_b, opp_a, opp_b, designated_mega, all_team):
+    bench = [s for s in all_team if s not in (our_a, our_b)]
 
     s = BattleState(battle_id="test", my_side="p1")
     s.my_actives = [_our_mon(our_a), _our_mon(our_b)]
@@ -123,7 +145,18 @@ def _run_lead(engine, our_a, our_b, opp_a, opp_b, designated_mega):
 
 
 def render(engine, version) -> str:
-    """Render the full turn-1 opening snapshot as markdown (for the active team)."""
+    """Render the full turn-1 opening snapshot as markdown (for the active team).
+
+    Baseline (no active team) uses the frozen curated leads + base-name bench, so
+    snapshots/turn1_openings/baseline.md stays stable.  A named active team gets
+    exhaustive all-pairs leads with the bench derived from its actual roster.
+    """
+    if active_team() is None:
+        leads, all_team = OUR_LEADS, ALL_TEAM
+    else:
+        members = get_team()
+        leads, all_team = _all_pairs_leads(members), [m.name for m in members]
+
     lines = []
     lines.append("# Turn 1 First-Turn Decision Summary")
     lines.append("")
@@ -144,8 +177,8 @@ def render(engine, version) -> str:
                  "reflect actual in-game behaviour.")
     lines.append("")
 
-    for section, (our_a, our_b, designated_mega) in enumerate(OUR_LEADS, start=1):
-        bench_str = ", ".join(s for s in ALL_TEAM if s not in (our_a, our_b))
+    for section, (our_a, our_b, designated_mega) in enumerate(leads, start=1):
+        bench_str = ", ".join(s for s in all_team if s not in (our_a, our_b))
         mega_label = f" *(mega: {designated_mega})*" if designated_mega else ""
         lines.append("---")
         lines.append("")
@@ -156,7 +189,7 @@ def render(engine, version) -> str:
         lines.append("|---|---|---|---|---|")
         for row, (opp_a, opp_b) in enumerate(OPP_LEADS, start=1):
             try:
-                dec_a, dec_b = _run_lead(engine, our_a, our_b, opp_a, opp_b, designated_mega)
+                dec_a, dec_b = _run_lead(engine, our_a, our_b, opp_a, opp_b, designated_mega, all_team)
             except Exception as e:
                 dec_a = f"ERROR: {e}"
                 dec_b = "—"
