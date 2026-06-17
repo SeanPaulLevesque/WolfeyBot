@@ -28,9 +28,22 @@ account).  See `teams/README.md`.
   **shut itself down** after N completed games (run control only — zero effect on
   decisions/scoring), so a bounded test run can't keep laddering unattended.
 
+**Audit hardening** (post-feature review, no decision impact):
+- **Login failure on a named-team run now aborts** instead of falling back to
+  guest — a wrong account password was silently guest-playing and saving the
+  game mis-tagged as that team's data.  The baseline (no `--team`) keeps the
+  legacy guest fallback.
+- **Single source of truth for the active team**: dropped the duplicate
+  `main.ACTIVE_TEAM` globals; the recorder + ELO tag sites read
+  `team.active_team()` / `active_team_version()` directly.
+- **`--list-teams` now validates the account binding** (flags `[NO CREDS]` when
+  a team's profile has no credentials), the manifest is cached for the process,
+  and the resolution/selector tests run against a temp fixture `teams/` dir so
+  they no longer break when real rosters are added/renamed.
+
 Engine behaviour unchanged: `turn1_summary.md` diff is the header version line
-only (all 120 decision rows byte-identical).  Tests: `tests/test_teams.py` +
-`TestNamedTeamPath`.  Full suite 801.
+only (all 120 decision rows byte-identical).  Tests: `tests/test_teams.py`
+(fixture-based) + `TestNamedTeamPath`.  Full suite 809.
 
 ## 0.8.12 — 2026-06-14
 

@@ -1,66 +1,127 @@
 """test_teams.py — Named-team infrastructure (0.9.0).
 
 Covers team.py's manifest/version resolution, the active-team selector (and its
-baseline fallback), team validation, and the ELO-log A/B tagging in
-main.EloTracker.  Recorder path-nesting is covered in test_recorder.py
+baseline fallback), validation, the ELO-log A/B tagging and --max-games bounded
+run in main, and the named-team login-failure abort.
+
+The resolution/manifest/validation/selector tests run against a **temp fixture
+``teams/`` directory** (see the ``fixture_teams`` fixture) rather than the live
+repo rosters, so they stay green as real teams are added / renamed / versioned.
+A single smoke test (TestRealTeams) checks the actually-shipped teams without
+hardcoding their names.  Recorder path-nesting lives in test_recorder.py
 (TestNamedTeamPath).
 """
+import asyncio
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 import pytest
 
 import team
 
 
-# The active-team selector mutates process-global state (team._ACTIVE_NAME and
-# the cached singleton) that other test modules rely on resolving to the
-# team.txt baseline.  Reset after every test here so nothing leaks out.
+# A minimal but real Champions-legal paste — enough for validate_team / get_team
+# to compute stats.  One mon keeps the fixtures small.
+_FIXTURE_PASTE = """Garchomp @ Choice Scarf
+Ability: Rough Skin
+Level: 50
+EVs: 5 HP / 32 Atk / 29 Spe
+Adamant Nature
+- Dragon Claw
+- Stomping Tantrum
+- Poison Jab
+- Rock Tomb
+"""
+
+
+# The active-team selector and manifest cache are process-global; reset after
+# every test so nothing leaks between tests (or out to other modules that expect
+# the real team.txt baseline).
 @pytest.fixture(autouse=True)
-def _reset_active_team():
+def _reset_team_state():
     yield
     team.set_active_team(None)
+    team._reset_manifest_cache()
     team.get_team(reload=True)
+
+
+@pytest.fixture
+def fixture_teams(monkeypatch, tmp_path):
+    """A self-contained temp ``teams/`` tree, so tests don't couple to the live
+    repo rosters.  Layout:
+
+        alpha/        v1, v2, v10   (manifest: acctA, current v1)   ← natural sort
+        beta/         v1            (manifest: acctB, current v1)
+        nomanifest/   v1, v3        (NOT in manifest)               ← disk fallback
+        empty-team/   (no versions) (manifest: acctA, current v1)   ← missing roster
+    """
+    root = tmp_path / "teams"
+    for name, versions in {
+        "alpha": ("v1", "v2", "v10"),
+        "beta": ("v1",),
+        "nomanifest": ("v1", "v3"),
+    }.items():
+        (root / name).mkdir(parents=True, exist_ok=True)
+        for v in versions:
+            (root / name / f"{v}.txt").write_text(_FIXTURE_PASTE, encoding="utf-8")
+    (root / "empty-team").mkdir(parents=True, exist_ok=True)
+    manifest = {
+        "alpha":      {"label": "Alpha Team", "account": "acctA", "current": "v1"},
+        "beta":       {"label": "Beta Team",  "account": "acctB", "current": "v1"},
+        "empty-team": {"label": "Empty",      "account": "acctA", "current": "v1"},
+    }
+    (root / "teams.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+    monkeypatch.setattr(team, "TEAMS_DIR", root)
+    monkeypatch.setattr(team, "TEAMS_MANIFEST", root / "teams.json")
+    team._reset_manifest_cache()
+    team.set_active_team(None)
+    return root
 
 
 # ── resolve_team_spec ─────────────────────────────────────────────────────────
 
+@pytest.mark.usefixtures("fixture_teams")
 class TestResolveSpec:
     def test_plain_name_uses_current_version(self):
-        assert team.resolve_team_spec("meta-team") == ("meta-team", "v1")
+        assert team.resolve_team_spec("alpha") == ("alpha", "v1")
 
     def test_at_version_pins_explicitly(self):
-        assert team.resolve_team_spec("meta-team@v2") == ("meta-team", "v2")
+        assert team.resolve_team_spec("alpha@v2") == ("alpha", "v2")
+        assert team.resolve_team_spec("alpha@v10") == ("alpha", "v10")
 
     def test_whitespace_tolerant(self):
-        assert team.resolve_team_spec("  meta-team @ v3 ".replace(" @ ", "@").strip()) \
-            == ("meta-team", "v3")
+        assert team.resolve_team_spec("  alpha @ v2 ") == ("alpha", "v2")
 
 
 # ── manifest readers ──────────────────────────────────────────────────────────
 
+@pytest.mark.usefixtures("fixture_teams")
 class TestManifest:
-    def test_list_teams(self):
-        teams = team.list_teams()
-        assert "meta-team" in teams
-        assert "off-meta-team" in teams
+    def test_list_teams_sorted(self):
+        assert team.list_teams() == ["alpha", "beta", "empty-team", "nomanifest"]
 
     def test_account_binding(self):
-        assert team.team_account("meta-team") == "main"
-        assert team.team_account("off-meta-team") == "alt"
+        assert team.team_account("alpha") == "acctA"
+        assert team.team_account("beta") == "acctB"
+        assert team.team_account("nomanifest") is None      # not in manifest
 
-    def test_human_label(self):
-        assert team.team_label("meta-team") == "meta team"
-        assert team.team_label("off-meta-team") == "off-meta team"
+    def test_human_label_falls_back_to_slug(self):
+        assert team.team_label("alpha") == "Alpha Team"
+        assert team.team_label("nomanifest") == "nomanifest"
 
-    def test_versions_on_disk(self):
-        assert team.team_versions("meta-team") == ["v1"]
-        assert team.team_versions("off-meta-team") == ["v1"]   # roster added 2026-06-16
+    def test_versions_natural_sorted(self):
+        assert team.team_versions("alpha") == ["v1", "v2", "v10"]   # v10 after v2
+        assert team.team_versions("beta") == ["v1"]
+        assert team.team_versions("empty-team") == []
 
-    def test_current_version(self):
-        assert team.current_version("meta-team") == "v1"
+    def test_current_version_prefers_manifest(self):
+        assert team.current_version("alpha") == "v1"
+
+    def test_current_version_falls_back_to_highest_on_disk(self):
+        assert team.current_version("nomanifest") == "v3"
 
     def test_unknown_team_is_empty(self):
         assert team.team_account("nope") is None
@@ -70,51 +131,65 @@ class TestManifest:
 
 # ── validate_team ─────────────────────────────────────────────────────────────
 
+@pytest.mark.usefixtures("fixture_teams")
 class TestValidate:
-    def test_both_teams_validate(self):
-        # Both rosters are present (meta seeded from team.txt; off-meta added
-        # 2026-06-16), so both must load 6 mons with computable stats.
-        for name in ("meta-team", "off-meta-team"):
-            ok, msg = team.validate_team(name)
-            assert ok, f"{name}: {msg}"
-            assert "6" in msg
+    def test_roster_validates(self):
+        ok, msg = team.validate_team("alpha")
+        assert ok and "1 mons" in msg
 
-    def test_validate_detects_missing_team(self):
-        # The missing/empty-roster guard, independent of off-meta's state.
+    def test_missing_version_file(self):
+        ok, msg = team.validate_team("empty-team")        # manifest current v1, no file
+        assert not ok
+
+    def test_unknown_team(self):
         ok, msg = team.validate_team("no-such-team")
         assert not ok
 
 
 # ── active-team selector ──────────────────────────────────────────────────────
 
+@pytest.mark.usefixtures("fixture_teams")
 class TestActiveTeam:
     def test_select_resolves_file_and_members(self):
-        name, ver = team.set_active_team("meta-team")
-        assert (name, ver) == ("meta-team", "v1")
-        assert team.active_team() == "meta-team"
+        name, ver = team.set_active_team("alpha")
+        assert (name, ver) == ("alpha", "v1")
+        assert team.active_team() == "alpha"
         assert team.active_team_version() == "v1"
         assert team.active_team_file().name == "v1.txt"
-        members = [m.name for m in team.get_team()]
-        assert "Garchomp" in members and len(members) == 6
+        assert [m.name for m in team.get_team()] == ["Garchomp"]
 
     def test_explicit_version_arg_overrides_suffix(self):
-        name, ver = team.set_active_team("meta-team@v1", version="v9")
-        assert (name, ver) == ("meta-team", "v9")
+        assert team.set_active_team("alpha@v1", version="v9") == ("alpha", "v9")
 
     def test_clear_reverts_to_baseline(self):
-        team.set_active_team("meta-team")
+        team.set_active_team("alpha")
         team.set_active_team(None)
         assert team.active_team() is None
         assert team.active_team_file() is None
-        # baseline (team.txt) still loads a full team
-        assert len(team.get_team()) == 6
+        assert len(team.get_team()) >= 1          # baseline team.txt still loads
 
     def test_switch_invalidates_cache(self):
-        team.set_active_team("meta-team")
+        team.set_active_team("alpha")
         first = team.get_team()
         team.set_active_team(None)
         second = team.get_team()
-        assert first is not second     # rebuilt, not the stale cached object
+        assert first is not second                # rebuilt, not the stale object
+
+
+# ── live shipped teams (no fixture — guards the real rosters) ─────────────────
+
+class TestRealTeams:
+    """Smoke-test the actually-shipped teams *without hardcoding names*, so this
+    stays green as teams are added / renamed / versioned."""
+
+    def test_shipped_teams_with_a_roster_validate(self):
+        checked = 0
+        for name in team.list_teams():
+            if team.team_versions(name):          # skip not-yet-filled slots
+                ok, msg = team.validate_team(name)
+                assert ok, f"{name}: {msg}"
+                checked += 1
+        assert checked >= 1                       # at least one real team exists
 
 
 # ── ELO-log A/B tagging (main.EloTracker) ─────────────────────────────────────
@@ -159,8 +234,6 @@ class TestMaxGames:
         assert main._parse_args([]).max_games is None
 
     def _play(self, client, battle_id, won):
-        """Drive one battle-end through the handler on a fresh event loop."""
-        import asyncio
         asyncio.run(client._make_battle_end_handler(battle_id)(won))
 
     def test_stops_after_max_games(self):
@@ -181,3 +254,39 @@ class TestMaxGames:
                 for i in range(5):
                     self._play(client, f"b{i}", True)
                 assert client._games_done == 5 and not client._stopping
+
+
+# ── named-team login-failure abort (no guest fallback) ────────────────────────
+
+class TestLoginFallback:
+    """Fix: a named-team run must ABORT on login failure (a wrong password would
+    otherwise guest-play and mis-tag the data — the off-meta incident).  The
+    baseline (no named team) keeps the legacy guest fallback."""
+
+    def _client(self):
+        import main
+        client = main.ShowdownClient()
+        client.ws = AsyncMock()                 # so shutdown()'s ws.close() works
+        client._login = AsyncMock(return_value=False)   # simulate a bad password
+        client._queue_search = AsyncMock()
+        return client
+
+    def test_named_team_login_failure_aborts(self, fixture_teams):
+        team.set_active_team("alpha")
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch("main.ELO_LOG_PATH", Path(tmp) / "e.json"), \
+                patch("main.USERNAME", "u"), patch("main.PASSWORD", "p"):
+            client = self._client()
+            asyncio.run(client._handle_global("|challstr|abc|def"))
+            assert client._stopping is True             # shut itself down
+            client._queue_search.assert_not_called()    # did NOT guest-search
+
+    def test_baseline_login_failure_falls_back_to_guest(self):
+        team.set_active_team(None)
+        with tempfile.TemporaryDirectory() as tmp, \
+                patch("main.ELO_LOG_PATH", Path(tmp) / "e.json"), \
+                patch("main.USERNAME", "u"), patch("main.PASSWORD", "p"):
+            client = self._client()
+            asyncio.run(client._handle_global("|challstr|abc|def"))
+            assert client._stopping is False
+            client._queue_search.assert_called_once()   # legacy guest fallback intact

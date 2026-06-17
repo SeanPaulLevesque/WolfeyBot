@@ -197,14 +197,33 @@ def load_team(path: Optional[pathlib.Path] = None) -> list[TeamMember]:
 
 # ── Named teams / manifest ──────────────────────────────────────────────────
 
+_MANIFEST_CACHE: Optional[dict] = None
+
+
 def _load_manifest() -> dict:
-    """Parse ``teams/teams.json`` (name → {label, account, current}); {} if absent."""
-    if TEAMS_MANIFEST.exists():
-        try:
-            return json.loads(TEAMS_MANIFEST.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            return {}
-    return {}
+    """Parse ``teams/teams.json`` (name → {label, account, current}); {} if absent.
+
+    Cached for the process — the manifest doesn't change during a run, and a
+    single ``set_active_team`` otherwise re-reads it several times (via
+    ``current_version`` / ``team_account`` / ``team_file``).  Tests that swap
+    ``TEAMS_MANIFEST`` must call :func:`_reset_manifest_cache`.
+    """
+    global _MANIFEST_CACHE
+    if _MANIFEST_CACHE is None:
+        if TEAMS_MANIFEST.exists():
+            try:
+                _MANIFEST_CACHE = json.loads(TEAMS_MANIFEST.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                _MANIFEST_CACHE = {}
+        else:
+            _MANIFEST_CACHE = {}
+    return _MANIFEST_CACHE
+
+
+def _reset_manifest_cache() -> None:
+    """Drop the cached manifest (for tests that point ``TEAMS_MANIFEST`` elsewhere)."""
+    global _MANIFEST_CACHE
+    _MANIFEST_CACHE = None
 
 
 def list_teams() -> list[str]:

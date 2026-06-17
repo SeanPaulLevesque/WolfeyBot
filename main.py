@@ -34,7 +34,8 @@ from battle import BattleParser, BattleState
 from decision import make_engine, Action
 from team import (
     get_team, set_active_team, list_teams, team_versions, current_version,
-    team_account, team_label, validate_team, active_team_file,
+    team_account, team_label, validate_team, active_team, active_team_version,
+    active_team_file,
 )
 from team_preview import select_team, select_leads, select_mega
 from tools.pack_team import to_packed
@@ -55,18 +56,21 @@ for _stream in (sys.stdout, sys.stderr):
 # ─── Config ──────────────────────────────────────────────────────────────────
 
 import os as _os
-# Credentials, in priority order: env vars (PS_USERNAME / PS_PASSWORD), then a
-# local git-ignored bot_secrets.py.  This keeps the password out of the repo
-# while still logging in automatically.  Blank on both → guest mode.
+# Local Showdown credentials live in a git-ignored bot_secrets.py (optional).
+# Imported once here; both the default-cred resolution below and
+# _resolve_account() reference this single handle.
+try:
+    import bot_secrets as _bot_secrets        # local only — listed in .gitignore
+except ImportError:
+    _bot_secrets = None
+
+# Credentials, in priority order: env vars (PS_USERNAME / PS_PASSWORD), then the
+# bot_secrets.py module-level vars.  Blank on both → guest mode.
 USERNAME       = _os.environ.get("PS_USERNAME", "")
 PASSWORD       = _os.environ.get("PS_PASSWORD", "")
-if not (USERNAME and PASSWORD):
-    try:
-        import bot_secrets as _secrets        # local only — listed in .gitignore
-        USERNAME = USERNAME or getattr(_secrets, "USERNAME", "")
-        PASSWORD = PASSWORD or getattr(_secrets, "PASSWORD", "")
-    except ImportError:
-        pass
+if not (USERNAME and PASSWORD) and _bot_secrets is not None:
+    USERNAME = USERNAME or getattr(_bot_secrets, "USERNAME", "")
+    PASSWORD = PASSWORD or getattr(_bot_secrets, "PASSWORD", "")
 
 
 def _resolve_account(profile: Optional[str]) -> tuple[str, str]:
@@ -80,14 +84,12 @@ def _resolve_account(profile: Optional[str]) -> tuple[str, str]:
     silently ladder on the wrong account.
     """
     if profile:
-        try:
-            import bot_secrets as _s
-            profiles = getattr(_s, "PROFILES", {}) or {}
-            if profile in profiles:
-                p = profiles[profile]
-                return p.get("username", ""), p.get("password", "")
-        except ImportError:
-            pass
+        profiles = {}
+        if _bot_secrets is not None:
+            profiles = getattr(_bot_secrets, "PROFILES", {}) or {}
+        if profile in profiles:
+            p = profiles[profile]
+            return p.get("username", ""), p.get("password", "")
         return "", ""           # explicit profile unresolved → no silent fallback
     return USERNAME, PASSWORD
 
@@ -96,14 +98,11 @@ BATTLE_FORMAT  = "gen9championsvgc2026regma"  # ← Champions 2026 Reg M-A forma
 WS_URL         = "wss://sim3.psim.us/showdown/websocket"
 LOGIN_URL      = "https://play.pokemonshowdown.com/api/login"
 
-# Active named team for this run — set by _apply_team_selection() after parsing
-# --team.  None means the unnamed team.txt baseline (filed flat, untagged).
-ACTIVE_TEAM: Optional[str] = None
-ACTIVE_TEAM_VERSION: Optional[str] = None
-
 # Default named team when --team is omitted, so live runs are always tagged and
 # data never lands in the untagged baseline path.  team.txt remains the fallback
-# only if this team can't be resolved.
+# only if this team can't be resolved.  The active selection itself is owned by
+# team.py (active_team() / active_team_version()) — single source of truth; the
+# recorder + ELO tag sites read it from there.
 DEFAULT_TEAM = "meta-team"
 
 # Packed team string sent via /utm before every search.  Defaults to the
@@ -796,7 +795,7 @@ class ShowdownClient:
             self._joining_battles.discard(battle_id)
             self._recorders[battle_id] = BattleRecorder(
                 battle_id, VERSION,
-                team=ACTIVE_TEAM, team_version=ACTIVE_TEAM_VERSION,
+                team=active_team(), team_version=active_team_version(),
             )
             self.parsers[battle_id] = BattleParser(
                 battle_id=battle_id,
@@ -829,6 +828,18 @@ class ShowdownClient:
                     self._requeue_pending = True
                     ok = await self._login(challstr_val)
                     if not ok:
+                        if active_team() is not None:
+                            # A named team is bound to a specific account.  Guest-
+                            # playing would save games mis-tagged as that team's
+                            # A/B data (the off-meta incident).  Abort instead of
+                            # laddering as a guest on the wrong identity.
+                            self.log.error(
+                                "Login failed for the account bound to team '%s' — "
+                                "refusing to guest-play (would mis-tag A/B data). "
+                                "Check that account's password in bot_secrets.PROFILES. "
+                                "Shutting down.", active_team())
+                            await self.shutdown()
+                            return
                         self.log.warning("Login failed - falling back to guest search")
                         self._requeue_pending = True
                         await self._queue_search()
@@ -925,7 +936,7 @@ class ShowdownClient:
             # Record ELO + outcome (tagged with the active team for A/B)
             self._elo.record(
                 battle_id, VERSION, elo_before, won,
-                team=ACTIVE_TEAM, team_version=ACTIVE_TEAM_VERSION,
+                team=active_team(), team_version=active_team_version(),
                 username=self.username,
             )
 
@@ -1081,19 +1092,34 @@ async def main(max_games: Optional[int] = None):
 
 
 def _print_teams() -> None:
-    """``--list-teams``: enumerate named teams with account + version + validation."""
+    """``--list-teams``: enumerate named teams with account + version + validation.
+
+    Checks both the roster (loads + computes stats) *and* the account binding
+    (its profile resolves to credentials in bot_secrets.PROFILES), so a team
+    that can't actually launch is flagged here rather than at run time.  Note:
+    this confirms creds are *present*, not *correct* — a wrong password still
+    only surfaces at login (where a named-team run now aborts cleanly).
+    """
     teams = list_teams()
     if not teams:
         print("No named teams found under teams/.")
         return
     print("Named teams (teams/):")
     for name in teams:
-        acct = team_account(name) or "—"
+        acct = team_account(name)
         cur  = current_version(name) or "—"
         vers = ", ".join(team_versions(name)) or "(none)"
-        ok, msg = validate_team(name)
-        flag = "ok " if ok else "!! "
-        print(f"  {flag}{name:16} account={acct:8} current={cur or '—':4} "
+        roster_ok, msg = validate_team(name)
+        # Account binding: does the bound profile resolve to usable creds?
+        if acct:
+            user, pw = _resolve_account(acct)
+            acct_ok  = bool(user and pw)
+            acct_str = f"account={acct}" + ("" if acct_ok else " [NO CREDS]")
+        else:
+            acct_ok  = True                      # no binding → default creds
+            acct_str = "account=—"
+        flag = "ok " if (roster_ok and acct_ok) else "!! "
+        print(f"  {flag}{name:16} {acct_str:22} current={cur:4} "
               f"versions=[{vers}]  — {msg}")
 
 
@@ -1104,17 +1130,16 @@ def _apply_team_selection(team_spec: Optional[str], account_override: Optional[s
     An unresolvable named team logs an error and falls back to that baseline
     rather than crashing.
     """
-    global ACTIVE_TEAM, ACTIVE_TEAM_VERSION, PACKED_TEAM, USERNAME, PASSWORD
+    global PACKED_TEAM, USERNAME, PASSWORD
     if not team_spec:
         return
-    name, version = set_active_team(team_spec)
+    name, version = set_active_team(team_spec)   # active selection now lives in team.py
     ok, msg = validate_team(name, version)
     if not ok:
         log.error("Team '%s@%s' is not usable (%s) — falling back to team.txt baseline.",
                   name, version, msg)
         set_active_team(None)
         return
-    ACTIVE_TEAM, ACTIVE_TEAM_VERSION = name, version
     PACKED_TEAM = to_packed(active_team_file())
     # Account: explicit --account wins, else the team's manifest binding.
     profile = account_override or team_account(name)
