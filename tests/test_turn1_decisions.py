@@ -32,10 +32,13 @@ from decision.modules import (
     _ko_before_acting,
     _PROTECT_MOVES,
 )
-from team import find_member
+from team import find_member, get_team
+import team as _team
 
 # ── Shared engine (stateless — safe to share across all tests) ─────────────────
 
+# Baseline roster bench, base-name form (matches the frozen baseline snapshot).
+# For a non-baseline active team, the bench is derived from get_team() instead.
 _ALL_TEAM = ["Aerodactyl", "Kingambit", "Sneasler", "Basculegion", "Venusaur", "Garchomp"]
 _ENGINE = make_engine()
 
@@ -65,7 +68,10 @@ def _moves(sp: str) -> list[dict]:
 
 def _make_state(our_a: str, our_b: str, opp_a: str, opp_b: str, mega) -> BattleState:
     """Build a fresh Turn-1 BattleState for the given lead/opponent pairing."""
-    bench = [s for s in _ALL_TEAM if s not in (our_a, our_b)]
+    # Baseline (no active team) uses the frozen base-name roster; a named active
+    # team derives its bench from the actual roster (so per-team snapshots work).
+    roster = _ALL_TEAM if _team.active_team() is None else [m.name for m in get_team()]
+    bench = [s for s in roster if s not in (our_a, our_b)]
     s = BattleState(battle_id="test", my_side="p1")
     s.my_actives         = [_our_mon(our_a),  _our_mon(our_b)]
     s.my_team            = list(s.my_actives)
@@ -130,6 +136,16 @@ def _chk(action, dec: str, opp_a: str, opp_b: str, wt: float) -> None:
     assert action.weight == pytest.approx(wt, abs=0.05), (
         f"{dec}: expected weight ≈{wt}, got {action.weight:.4f}"
     )
+
+
+@pytest.fixture(autouse=True)
+def _reset_to_baseline_team():
+    """Every test runs against the baseline roster unless it selects another.
+    The snapshot-cell test picks a team per row; this resets afterward so the
+    targeted engine guards below always see the baseline."""
+    _team.set_active_team(None)
+    yield
+    _team.set_active_team(None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -280,196 +296,77 @@ def test_summary_header_matches_version():
     )
 
 
-# ==============================================================================
-# Section 1 — Aerodactyl [A] + Venusaur [B]  (mega: Aerodactyl)
-# ==============================================================================
+# ═══════════════════════════════════════════════════════════════════════════════
+# Auto-discovered snapshot regression — replaces the old hand-maintained per-
+# section tables.  Every committed snapshots/<scenario>/<team>.md is parsed and
+# the engine must reproduce each cell (move/target exact, weight within ±0.05).
+# The snapshot file is now the single source of truth; regenerate it with
+# tools/gen_snapshot.py after an *approved* behaviour change (per CLAUDE.md).
+# Dropping a new snapshot file in automatically extends coverage.
+# ═══════════════════════════════════════════════════════════════════════════════
 
-@pytest.mark.parametrize("opp_a,opp_b,dec_a,wt_a,dec_b,wt_b", [
-    ("Incineroar", "Sneasler", "Dual Wingbeat → Sneasler", 28.48, "Switch → Basculegion", 6.78),
-    ("Incineroar", "Whimsicott", "Dual Wingbeat → Whimsicott", 37.78, "Switch → Kingambit", 3.20),
-    ("Incineroar", "Garchomp", "Ice Fang → Garchomp", 3.86, "Switch → Basculegion", 6.10),
-    ("Incineroar", "Farigiraf", "Rock Tomb → Incineroar", 4.91, "Switch → Basculegion", 6.03),
-    ("Incineroar", "Kingambit", "Protect → ?", 5.00, "Protect → ?", 5.00),
-    ("Incineroar", "Aerodactyl", "Rock Tomb → Aerodactyl", 4.74, "Switch → Basculegion", 9.44),
-    ("Farigiraf", "Sneasler", "Dual Wingbeat → Sneasler", 56.96, "Sludge Bomb → Farigiraf", 3.91),
-    ("Farigiraf", "Garchomp", "Ice Fang → Garchomp", 15.44, "Sludge Bomb → Farigiraf", 3.91),
-    ("Whimsicott", "Garchomp", "Dual Wingbeat → Whimsicott", 75.56, "Giga Drain → Garchomp", 2.00),
-    ("Whimsicott", "Kingambit", "Dual Wingbeat → Whimsicott", 75.56, "Earth Power → Kingambit", 3.42),
-    ("Sneasler", "Garchomp", "Dual Wingbeat → Sneasler", 28.48, "Switch → Basculegion", 1.70),
-    ("Sneasler", "Kingambit", "Dual Wingbeat → Sneasler", 28.48, "Earth Power → Kingambit", 2.28),
-    ("Aerodactyl", "Garchomp", "Rock Tomb → Aerodactyl", 9.48, "Switch → Basculegion", 2.36),
-    ("Lopunny", "Garchomp", "Dual Wingbeat → Lopunny", 16.25, "Giga Drain → Garchomp", 1.33),
-    ("Weavile", "Garchomp", "Rock Tomb → Weavile", 3.35, "Switch → Kingambit", 1.67),
-    ("Talonflame", "Garchomp", "Rock Tomb → Talonflame", 84.58, "Switch → Basculegion", 8.57),
-    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 26.31, "Protect → ?", 7.50),
-    ("Rotom-Wash", "Garchomp", "Ice Fang → Garchomp", 7.72, "Giga Drain → Rotom-Wash", 2.71),
-    ("Glimmora", "Incineroar", "Protect → ?", 7.50, "Earth Power → Glimmora", 11.97),
-    ("Pelipper", "Dragonite", "Rock Tomb → Pelipper", 10.57, "Switch → Basculegion", 3.35),
-], ids=[f"1.{i}" for i in range(1, 21)])
-def test_section1(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
-    best_a, best_b = _run("Aerodactyl", "Venusaur", opp_a, opp_b, "Aerodactyl")
+import re as _re
+import pathlib as _pathlib
+
+_SNAP_DIR = _pathlib.Path(__file__).resolve().parent.parent / "snapshots"
+_HDR_RE = _re.compile(
+    r"^## \d+\. My Lead: \*\*(.+?)\*\* \[A\]  \+  \*\*(.+?)\*\* \[B\]"
+    r"(?: \*\(mega: (.+?)\)\*)?\s*$"
+)
+_ROW_RE = _re.compile(r"^\| \d+\.\d+ \| (.+?) \| (.+?) \| (.+?) \| (.+?) \|\s*$")
+_DEC_RE = _re.compile(r"^(.*?) `([\d.]+)`$")
+
+
+def _split_dec(raw: str):
+    """'Dual Wingbeat → Sneasler `28.48`' -> ('Dual Wingbeat → Sneasler', 28.48)."""
+    m = _DEC_RE.match(raw.strip())
+    return m.group(1).strip(), float(m.group(2))
+
+
+def _load_snapshot_cells():
+    """Parse every committed snapshot into per-cell expectations.
+
+    Yields (team_label, our_a, our_b, mega, opp_a, opp_b, dec_a, wt_a, dec_b, wt_b).
+    *team_label* is the file stem ('baseline' or 'name@vN') and selects the team.
+    """
+    cells = []
+    for md in sorted(_SNAP_DIR.glob("*/*.md")):
+        team_label = md.stem
+        our_a = our_b = mega = None
+        for line in md.read_text(encoding="utf-8").splitlines():
+            h = _HDR_RE.match(line)
+            if h:
+                our_a, our_b, mega = h.group(1), h.group(2), h.group(3)
+                continue
+            r = _ROW_RE.match(line)
+            if r and our_a:
+                opp_a, opp_b, raw_a, raw_b = r.groups()
+                dec_a, wt_a = _split_dec(raw_a)
+                dec_b, wt_b = _split_dec(raw_b)
+                cells.append((team_label, our_a, our_b, mega,
+                              opp_a, opp_b, dec_a, wt_a, dec_b, wt_b))
+    return cells
+
+
+_SNAPSHOT_CELLS = _load_snapshot_cells()
+
+
+@pytest.mark.parametrize(
+    "team_label,our_a,our_b,mega,opp_a,opp_b,dec_a,wt_a,dec_b,wt_b",
+    _SNAPSHOT_CELLS,
+    ids=[f"{c[0]}:{c[1]}+{c[2]}({c[3] or '-'})|{c[4]}+{c[5]}" for c in _SNAPSHOT_CELLS],
+)
+def test_snapshot_cell(team_label, our_a, our_b, mega, opp_a, opp_b,
+                       dec_a, wt_a, dec_b, wt_b):
+    """The engine must reproduce each committed snapshot cell."""
+    _team.set_active_team(None if team_label == "baseline" else team_label)
+    best_a, best_b = _run(our_a, our_b, opp_a, opp_b, mega)
     _chk(best_a, dec_a, opp_a, opp_b, wt_a)
     _chk(best_b, dec_b, opp_a, opp_b, wt_b)
 
 
-# ==============================================================================
-# Section 2 — Aerodactyl [A] + Venusaur [B]  (mega: Venusaur)
-# ==============================================================================
-
-@pytest.mark.parametrize("opp_a,opp_b,dec_a,wt_a,dec_b,wt_b", [
-    ("Incineroar", "Sneasler", "Dual Wingbeat → Sneasler", 18.27, "Earth Power → Incineroar", 2.10),
-    ("Incineroar", "Whimsicott", "Dual Wingbeat → Whimsicott", 24.35, "Earth Power → Incineroar", 3.15),
-    ("Incineroar", "Garchomp", "Ice Fang → Garchomp", 3.37, "Earth Power → Incineroar", 2.10),
-    ("Incineroar", "Farigiraf", "Rock Tomb → Incineroar", 4.33, "Sludge Bomb → Farigiraf", 6.55),
-    ("Incineroar", "Kingambit", "Protect → ?", 5.00, "Protect → ?", 2.00),
-    ("Incineroar", "Aerodactyl", "Rock Tomb → Aerodactyl", 4.04, "Earth Power → Incineroar", 3.15),
-    ("Farigiraf", "Sneasler", "Dual Wingbeat → Sneasler", 36.54, "Sludge Bomb → Farigiraf", 4.37),
-    ("Farigiraf", "Garchomp", "Ice Fang → Garchomp", 13.48, "Sludge Bomb → Farigiraf", 4.37),
-    ("Whimsicott", "Garchomp", "Dual Wingbeat → Whimsicott", 48.69, "Giga Drain → Garchomp", 2.24),
-    ("Whimsicott", "Kingambit", "Dual Wingbeat → Whimsicott", 48.69, "Earth Power → Kingambit", 3.89),
-    ("Sneasler", "Garchomp", "Dual Wingbeat → Sneasler", 18.27, "Switch → Basculegion", 1.60),
-    ("Sneasler", "Kingambit", "Dual Wingbeat → Sneasler", 18.27, "Earth Power → Kingambit", 2.60),
-    ("Aerodactyl", "Garchomp", "Ice Fang → Garchomp", 7.58, "Giga Drain → Aerodactyl", 2.74),
-    ("Lopunny", "Garchomp", "Ice Fang → Garchomp", 2.53, "Sludge Bomb → Lopunny", 1.91),
-    ("Weavile", "Garchomp", "Switch → Kingambit", 5.41, "Protect → ?", 2.00),
-    ("Talonflame", "Garchomp", "Rock Tomb → Talonflame", 71.42, "Giga Drain → Garchomp", 2.24),
-    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 22.55, "Earth Power → Incineroar", 4.21),
-    ("Rotom-Wash", "Garchomp", "Ice Fang → Garchomp", 6.74, "Giga Drain → Rotom-Wash", 3.05),
-    ("Glimmora", "Incineroar", "Switch → Garchomp", 7.67, "Earth Power → Glimmora", 13.80),
-    ("Pelipper", "Dragonite", "Rock Tomb → Pelipper", 9.16, "Switch → Kingambit", 3.20),
-], ids=[f"2.{i}" for i in range(1, 21)])
-def test_section2(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
-    best_a, best_b = _run("Aerodactyl", "Venusaur", opp_a, opp_b, "Venusaur")
-    _chk(best_a, dec_a, opp_a, opp_b, wt_a)
-    _chk(best_b, dec_b, opp_a, opp_b, wt_b)
-
-
-# ==============================================================================
-# Section 3 — Garchomp [A]   + Kingambit [B]  (no mega)
-# ==============================================================================
-
-@pytest.mark.parametrize("opp_a,opp_b,dec_a,wt_a,dec_b,wt_b", [
-    ("Incineroar", "Sneasler", "Stomping Tantrum → Sneasler", 28.48, "Low Kick → Incineroar", 1.82),
-    ("Incineroar", "Whimsicott", "Poison Jab → Whimsicott", 10.53, "Iron Head → Whimsicott", 3.38),
-    ("Incineroar", "Garchomp", "Dragon Claw → Garchomp", 3.79, "Low Kick → Incineroar", 1.82),
-    ("Incineroar", "Farigiraf", "Stomping Tantrum → Incineroar", 6.26, "Kowtow Cleave → Farigiraf", 8.25),
-    ("Incineroar", "Kingambit", "Stomping Tantrum → Incineroar", 3.13, "Low Kick → Kingambit", 2.56),
-    ("Incineroar", "Aerodactyl", "Stomping Tantrum → Incineroar", 4.69, "Iron Head → Aerodactyl", 6.55),
-    ("Farigiraf", "Sneasler", "Stomping Tantrum → Sneasler", 56.96, "Kowtow Cleave → Farigiraf", 8.25),
-    ("Farigiraf", "Garchomp", "Dragon Claw → Garchomp", 15.16, "Kowtow Cleave → Farigiraf", 8.25),
-    ("Whimsicott", "Garchomp", "Poison Jab → Whimsicott", 21.07, "Iron Head → Whimsicott", 3.38),
-    ("Whimsicott", "Kingambit", "Poison Jab → Whimsicott", 21.07, "Iron Head → Whimsicott", 4.51),
-    ("Sneasler", "Garchomp", "Stomping Tantrum → Sneasler", 28.48, "Kowtow Cleave → Garchomp", 1.71),
-    ("Sneasler", "Kingambit", "Stomping Tantrum → Sneasler", 28.48, "Low Kick → Kingambit", 2.56),
-    ("Aerodactyl", "Garchomp", "Dragon Claw → Garchomp", 11.37, "Iron Head → Aerodactyl", 6.55),
-    ("Lopunny", "Garchomp", "Dragon Claw → Garchomp", 3.79, "Switch → Basculegion", 4.33),
-    ("Weavile", "Garchomp", "Dragon Claw → Garchomp", 3.79, "Low Kick → Weavile", 4.67),
-    ("Talonflame", "Garchomp", "Rock Tomb → Talonflame", 82.69, "Kowtow Cleave → Garchomp", 2.57),
-    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 25.48, "Protect → ?", 7.50),
-    ("Rotom-Wash", "Garchomp", "Dragon Claw → Garchomp", 7.58, "Kowtow Cleave → Rotom-Wash", 2.15),
-    ("Glimmora", "Incineroar", "Stomping Tantrum → Glimmora", 35.28, "Low Kick → Incineroar", 1.82),
-    ("Pelipper", "Dragonite", "Dragon Claw → Dragonite", 6.18, "Kowtow Cleave → Pelipper", 3.14),
-], ids=[f"3.{i}" for i in range(1, 21)])
-def test_section3(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
-    best_a, best_b = _run("Garchomp", "Kingambit", opp_a, opp_b, None)
-    _chk(best_a, dec_a, opp_a, opp_b, wt_a)
-    _chk(best_b, dec_b, opp_a, opp_b, wt_b)
-
-
-# ==============================================================================
-# Section 4 — Aerodactyl [A] + Sneasler [B]  (mega: Aerodactyl)
-# ==============================================================================
-
-@pytest.mark.parametrize("opp_a,opp_b,dec_a,wt_a,dec_b,wt_b", [
-    ("Incineroar", "Sneasler", "Dual Wingbeat → Sneasler", 28.48, "Close Combat → Incineroar", 3.77),
-    ("Incineroar", "Whimsicott", "Dual Wingbeat → Whimsicott", 37.78, "Close Combat → Incineroar", 5.65),
-    ("Incineroar", "Garchomp", "Ice Fang → Garchomp", 3.86, "Switch → Basculegion", 4.37),
-    ("Incineroar", "Farigiraf", "Dual Wingbeat → Farigiraf", 4.11, "Close Combat → Incineroar", 11.31),
-    ("Incineroar", "Kingambit", "Rock Tomb → Incineroar", 2.46, "Close Combat → Kingambit", 4.97),
-    ("Incineroar", "Aerodactyl", "Rock Tomb → Aerodactyl", 4.74, "Close Combat → Incineroar", 5.65),
-    ("Farigiraf", "Sneasler", "Dual Wingbeat → Sneasler", 56.96, "Switch → Basculegion", 7.32),
-    ("Farigiraf", "Garchomp", "Ice Fang → Garchomp", 15.44, "Close Combat → Farigiraf", 4.85),
-    ("Whimsicott", "Garchomp", "Dual Wingbeat → Whimsicott", 75.56, "Switch → Venusaur", 4.67),
-    ("Whimsicott", "Kingambit", "Dual Wingbeat → Whimsicott", 75.56, "Close Combat → Kingambit", 4.97),
-    ("Sneasler", "Garchomp", "Dual Wingbeat → Sneasler", 28.48, "Switch → Basculegion", 7.34),
-    ("Sneasler", "Kingambit", "Dual Wingbeat → Sneasler", 28.48, "Close Combat → Kingambit", 3.32),
-    ("Aerodactyl", "Garchomp", "Rock Tomb → Aerodactyl", 9.48, "Switch → Basculegion", 8.20),
-    ("Lopunny", "Garchomp", "Ice Fang → Garchomp", 2.90, "Close Combat → Lopunny", 19.71),
-    ("Weavile", "Garchomp", "Ice Fang → Garchomp", 2.90, "Close Combat → Weavile", 10.09),
-    ("Talonflame", "Garchomp", "Rock Tomb → Talonflame", 84.58, "Protect → ?", 7.50),
-    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 35.08, "Close Combat → Incineroar", 5.65),
-    ("Rotom-Wash", "Garchomp", "Ice Fang → Garchomp", 7.72, "Switch → Garchomp", 3.90),
-    ("Glimmora", "Incineroar", "Switch → Garchomp", 7.41, "Close Combat → Incineroar", 2.83),
-    ("Pelipper", "Dragonite", "Rock Tomb → Pelipper", 10.57, "Switch → Basculegion", 4.00),
-], ids=[f"4.{i}" for i in range(1, 21)])
-def test_section4(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
-    best_a, best_b = _run("Aerodactyl", "Sneasler", opp_a, opp_b, "Aerodactyl")
-    _chk(best_a, dec_a, opp_a, opp_b, wt_a)
-    _chk(best_b, dec_b, opp_a, opp_b, wt_b)
-
-
-# ==============================================================================
-# Section 5 — Garchomp [A]   + Venusaur [B]  (mega: Venusaur)
-# ==============================================================================
-
-@pytest.mark.parametrize("opp_a,opp_b,dec_a,wt_a,dec_b,wt_b", [
-    ("Incineroar", "Sneasler", "Stomping Tantrum → Sneasler", 28.48, "Earth Power → Incineroar", 2.10),
-    ("Incineroar", "Whimsicott", "Poison Jab → Whimsicott", 10.53, "Sludge Bomb → Whimsicott", 9.15),
-    ("Incineroar", "Garchomp", "Dragon Claw → Garchomp", 3.79, "Earth Power → Incineroar", 2.10),
-    ("Incineroar", "Farigiraf", "Stomping Tantrum → Incineroar", 6.26, "Sludge Bomb → Farigiraf", 6.55),
-    ("Incineroar", "Kingambit", "Stomping Tantrum → Incineroar", 3.13, "Earth Power → Kingambit", 3.89),
-    ("Incineroar", "Aerodactyl", "Stomping Tantrum → Incineroar", 4.69, "Giga Drain → Aerodactyl", 3.66),
-    ("Farigiraf", "Sneasler", "Stomping Tantrum → Sneasler", 56.96, "Sludge Bomb → Farigiraf", 4.37),
-    ("Farigiraf", "Garchomp", "Dragon Claw → Garchomp", 15.16, "Sludge Bomb → Farigiraf", 4.37),
-    ("Whimsicott", "Garchomp", "Poison Jab → Whimsicott", 21.07, "Sludge Bomb → Whimsicott", 6.86),
-    ("Whimsicott", "Kingambit", "Poison Jab → Whimsicott", 21.07, "Sludge Bomb → Whimsicott", 9.15),
-    ("Sneasler", "Garchomp", "Stomping Tantrum → Sneasler", 28.48, "Switch → Basculegion", 1.60),
-    ("Sneasler", "Kingambit", "Stomping Tantrum → Sneasler", 28.48, "Earth Power → Kingambit", 2.60),
-    ("Aerodactyl", "Garchomp", "Dragon Claw → Garchomp", 11.37, "Giga Drain → Aerodactyl", 2.74),
-    ("Lopunny", "Garchomp", "Dragon Claw → Garchomp", 3.79, "Sludge Bomb → Lopunny", 1.91),
-    ("Weavile", "Garchomp", "Switch → Kingambit", 5.43, "Protect → ?", 2.00),
-    ("Talonflame", "Garchomp", "Rock Tomb → Talonflame", 82.69, "Giga Drain → Garchomp", 2.24),
-    ("Charizard", "Incineroar", "Rock Tomb → Charizard", 25.48, "Earth Power → Incineroar", 3.15),
-    ("Rotom-Wash", "Garchomp", "Dragon Claw → Garchomp", 7.58, "Giga Drain → Rotom-Wash", 3.05),
-    ("Glimmora", "Incineroar", "Stomping Tantrum → Incineroar", 3.13, "Earth Power → Glimmora", 27.59),
-    ("Pelipper", "Dragonite", "Rock Tomb → Pelipper", 8.02, "Switch → Kingambit", 3.20),
-], ids=[f"5.{i}" for i in range(1, 21)])
-def test_section5(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
-    best_a, best_b = _run("Garchomp", "Venusaur", opp_a, opp_b, "Venusaur")
-    _chk(best_a, dec_a, opp_a, opp_b, wt_a)
-    _chk(best_b, dec_b, opp_a, opp_b, wt_b)
-
-
-# ==============================================================================
-# Section 6 — Sneasler [A]   + Kingambit [B]  (no mega)
-# ==============================================================================
-
-@pytest.mark.parametrize("opp_a,opp_b,dec_a,wt_a,dec_b,wt_b", [
-    ("Incineroar", "Sneasler", "Close Combat → Incineroar", 2.83, "Switch → Basculegion", 6.48),
-    ("Incineroar", "Whimsicott", "Dire Claw → Whimsicott", 8.96, "Iron Head → Whimsicott", 3.38),
-    ("Incineroar", "Garchomp", "Protect → ?", 5.00, "Protect → ?", 2.00),
-    ("Incineroar", "Farigiraf", "Close Combat → Incineroar", 7.54, "Kowtow Cleave → Farigiraf", 8.25),
-    ("Incineroar", "Kingambit", "Close Combat → Incineroar", 3.77, "Low Kick → Kingambit", 2.56),
-    ("Incineroar", "Aerodactyl", "Close Combat → Incineroar", 4.24, "Iron Head → Aerodactyl", 6.55),
-    ("Farigiraf", "Sneasler", "Switch → Basculegion", 7.32, "Protect → ?", 5.00),
-    ("Farigiraf", "Garchomp", "Close Combat → Garchomp", 7.22, "Kowtow Cleave → Farigiraf", 8.25),
-    ("Whimsicott", "Garchomp", "Dire Claw → Whimsicott", 11.95, "Kowtow Cleave → Garchomp", 2.57),
-    ("Whimsicott", "Kingambit", "Dire Claw → Whimsicott", 17.93, "Iron Head → Whimsicott", 4.51),
-    ("Sneasler", "Garchomp", "Switch → Garchomp", 6.21, "Switch → Basculegion", 6.48),
-    ("Sneasler", "Kingambit", "Close Combat → Kingambit", 2.49, "Switch → Garchomp", 5.35),
-    ("Aerodactyl", "Garchomp", "Switch → Basculegion", 8.20, "Iron Head → Aerodactyl", 6.55),
-    ("Lopunny", "Garchomp", "Close Combat → Lopunny", 13.14, "Protect → ?", 7.50),
-    ("Weavile", "Garchomp", "Close Combat → Weavile", 6.72, "Low Kick → Weavile", 1.87),
-    ("Talonflame", "Garchomp", "Switch → Basculegion", 7.02, "Kowtow Cleave → Talonflame", 3.59),
-    ("Charizard", "Incineroar", "Protect → ?", 5.00, "Switch → Aerodactyl", 5.95),
-    ("Rotom-Wash", "Garchomp", "Switch → Garchomp", 3.90, "Kowtow Cleave → Rotom-Wash", 2.15),
-    ("Glimmora", "Incineroar", "Close Combat → Incineroar", 3.77, "Iron Head → Glimmora", 3.05),
-    ("Pelipper", "Dragonite", "Switch → Basculegion", 4.00, "Kowtow Cleave → Pelipper", 3.14),
-], ids=[f"6.{i}" for i in range(1, 21)])
-def test_section6(opp_a, opp_b, dec_a, wt_a, dec_b, wt_b):
-    best_a, best_b = _run("Sneasler", "Kingambit", opp_a, opp_b, None)
-    _chk(best_a, dec_a, opp_a, opp_b, wt_a)
-    _chk(best_b, dec_b, opp_a, opp_b, wt_b)
-
-
-
+def test_snapshot_parse_is_not_empty():
+    """Guard against a silently-empty parse (format drift breaking the regex):
+    the baseline snapshot alone must contribute its full 6×20 = 120-cell grid,
+    else test_snapshot_cell would vacuously pass with zero cases."""
+    assert len(_SNAPSHOT_CELLS) >= 120
