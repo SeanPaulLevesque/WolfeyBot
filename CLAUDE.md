@@ -23,7 +23,7 @@ to make green by editing expectations. This is a hard rule:
   1. **Real regression** → fix the **code**, not the test.
   2. **Intended behavior change** → update the test *only after the user agrees*
      the new behavior is correct.
-- **This applies to generated/bulk expectation tables too** (`turn1_summary.md`,
+- **This applies to generated/bulk expectation tables too** (`snapshots/turn1_openings/baseline.md`,
   `tests/test_turn1_decisions.py`, etc.). Do **not** regenerate expected values
   wholesale to clear failures. Regeneration is allowed **only after** the user has
   reviewed and approved the behavior change that produced the diff — and even
@@ -42,22 +42,22 @@ to make green by editing expectations. This is a hard rule:
 | `decision/engine.py` | `Action`, `ScoringModule`, `DecisionEngine`, `_build_actions` |
 | `decision/modules.py` | All 13 concrete modules + `make_engine()` factory |
 | `team.py` | `find_member(species)` + active-team selector (`set_active_team`, `get_team`, `list_teams`, `validate_team`, `resolve_team_spec`) |
-| `team.txt` | Pokémon Showdown paste — the **frozen baseline** roster (`turn1_summary.md` + tests build from this); used when no `--team` is selected |
-| `teams/` | Named teams for A/B testing: `teams/<name>/v<n>.txt` pastes + `teams.json` manifest (name → label, account, current version). See `teams/README.md` |
+| `teams/` | Named ladder teams for A/B testing: `teams/<name>/v<n>.txt` pastes + `teams.json` manifest (name → label, account, current version). See `teams/README.md` |
+| `snapshots/` | Decision-snapshot regression subsystem: `baseline_team.txt` (frozen baseline roster, the no-`--team` fallback) + `<scenario>/<team>.md` generated tables |
+| `scenarios/` | Team-agnostic board-state templates; `turn1_openings.py` is the 6-lead × 20-opp turn-1 scenario |
 | `damage.py` | `outgoing_damage()`, `incoming_damage()`, `type_effectiveness()` |
 | `turn_order.py` | `will_outspeed()`, `priority_bracket()`, `Combatant` dataclass |
 | `data/` | `smogon_champions_slim.json` (218 Champions-legal species) + move/type data |
 | `team_preview.py` | Bring-4 selection logic |
 | `docs/DECISION_ARCHITECTURE.md` | Full narrative of how the engine works, with weight tables |
-| `tools/` | Dev/analysis scripts: battle analysis, lead stats, ELO chart, team packing |
+| `tools/` | Dev/analysis scripts: battle analysis, lead stats, ELO chart, team packing, `gen_snapshot.py` |
 | `CHANGELOG.md` | Per-version bug fixes — always check before investigating a bug |
-| `turn1_summary.md` | Generated first-turn decision table (5 our leads × 20 opp leads) |
-| `_gen_turn1_summary.py` | Script that produces `turn1_summary.md` |
+| `snapshots/turn1_openings/baseline.md` | Generated first-turn decision table (6 our leads × 20 opp leads) for the baseline roster |
 | `tests/` | pytest suite — run with `.venv\Scripts\pytest` |
 
 ---
 
-## Current team (team.txt)
+## Current team (snapshots/baseline_team.txt; = teams/meta-team/v1)
 
 | Pokémon | Item | Ability | Nature | Key moves |
 |---|---|---|---|---|
@@ -193,18 +193,19 @@ best = ranked[0]                              # Action with .move_name / .switch
 ## Running things
 
 ```
-# Run the bot (defaults to --team meta-team; baseline team.txt if that can't resolve)
+# Run the bot (defaults to --team meta-team; baseline roster if that can't resolve)
 .venv\Scripts\python.exe main.py
 .venv\Scripts\python.exe main.py --team meta-team@v1   # pin a version to A/B
 .venv\Scripts\python.exe main.py --team off-meta-team  # runs on its bound account
 .venv\Scripts\python.exe main.py --list-teams          # teams + accounts + validation
-.venv\Scripts\python.exe main.py --team ""             # force the team.txt baseline
+.venv\Scripts\python.exe main.py --max-games 5         # play N games then self-stop
+.venv\Scripts\python.exe main.py --team ""             # force the baseline roster
 
 # Run tests
 .venv\Scripts\pytest
 
-# Regenerate turn1_summary.md (only after an approved behavior change)
-.venv\Scripts\python.exe _gen_turn1_summary.py
+# Regenerate a decision snapshot (only after an approved behavior change)
+.venv\Scripts\python.exe tools/gen_snapshot.py --scenario turn1_openings --team baseline
 ```
 
 **Never prefix shell commands with `cd`.** The tool's working directory is
@@ -232,7 +233,7 @@ Run commands bare with relative paths, exactly as in the block above
   stones actually evolves) still ranks by defensive type-delta (≈0 for our team)
   → could reuse the same stat-aware base-vs-mega value. Lower priority now that
   we rarely bring two stones.
-- **Ongoing** — Investigate weight issues surfaced by `turn1_summary.md`. The
+- **Ongoing** — Investigate weight issues surfaced by `snapshots/turn1_openings/baseline.md`. The
   FakeOut over-protection (×0.5 discount looked too aggressive; gratuitous lone
   Protects) is now addressed *via coordination* — `CoordinationModule` (0.6.9)
   flips a gratuitous lone Protect to an attack beside an attacking partner,
@@ -245,7 +246,7 @@ Run commands bare with relative paths, exactly as in the block above
 ## Current version
 
 Single source of truth: **`version.py`** (`__version__`), imported by `main.py`
-(battle-log folder + elo log) and `_gen_turn1_summary.py` (summary header).
+(battle-log folder + elo log) and `tools/gen_snapshot.py` (snapshot header).
 Bump that one line per release and add a `CHANGELOG.md` entry; everything else
 derives from it. See `CHANGELOG.md` for full history.
 

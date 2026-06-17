@@ -23,10 +23,11 @@ from typing import Optional
 
 from data import calc_all_stats, base_stats as get_base_stats, get_species
 
-# Repo-root ``team.txt`` is the *frozen baseline* — the roster that
-# ``turn1_summary.md`` and the test suite are built from.  It is the fallback
-# used whenever no named team is selected (see ``get_team``).
-TEAM_FILE = pathlib.Path(__file__).parent / "team.txt"
+# The *frozen baseline* roster — what the decision snapshots (snapshots/) and the
+# test suite are built from.  It lives under snapshots/ alongside its generated
+# tables (the whole regression subsystem is self-contained there) and is the
+# fallback used whenever no named team is selected (see ``get_team``).
+TEAM_FILE = pathlib.Path(__file__).parent / "snapshots" / "baseline_team.txt"
 
 # Named teams for A/B testing live under ``teams/<name>/v<n>.txt`` with a
 # ``teams/teams.json`` manifest binding each to an account.  See teams/README.md.
@@ -355,7 +356,7 @@ def get_team(reload: bool = False) -> list[TeamMember]:
 
     Loads the active named team (set via :func:`set_active_team`) if one is
     selected, otherwise the ``team.txt`` baseline.  No selection → identical to
-    the historical behaviour, so tests and ``turn1_summary`` are unaffected.
+    the historical behaviour, so tests and the baseline snapshot are unaffected.
     """
     global _CACHED_TEAM
     if _CACHED_TEAM is None or reload:

@@ -13,8 +13,8 @@ correct (don't blind-trust the engine).
 
 Run from anywhere:
     .venv\\Scripts\\python.exe tools/regen_turn1_tests.py
-then regenerate the human summary too:
-    .venv\\Scripts\\python.exe _gen_turn1_summary.py
+then regenerate the human snapshot too:
+    .venv\\Scripts\\python.exe tools/gen_snapshot.py --scenario turn1_openings --team baseline
 """
 import os
 import re
@@ -27,23 +27,11 @@ from battle import BattleState, Pokemon
 from decision.modules import make_engine
 from team import find_member
 
-# Lead configs — kept in sync with _gen_turn1_summary.py (which can't be imported
-# without triggering its summary generation at import time).
-ALL_TEAM = ["Aerodactyl", "Kingambit", "Sneasler", "Basculegion", "Venusaur", "Garchomp"]
-OUR_LEADS = [
-    ("Aerodactyl", "Venusaur", "Aerodactyl"), ("Aerodactyl", "Venusaur", "Venusaur"),
-    ("Garchomp", "Kingambit", None), ("Aerodactyl", "Sneasler", "Aerodactyl"),
-    ("Garchomp", "Venusaur", "Venusaur"), ("Sneasler", "Kingambit", None),
-]
-OPP_LEADS = [
-    ("Incineroar", "Sneasler"), ("Incineroar", "Whimsicott"), ("Incineroar", "Garchomp"),
-    ("Incineroar", "Farigiraf"), ("Incineroar", "Kingambit"), ("Incineroar", "Aerodactyl"),
-    ("Farigiraf", "Sneasler"), ("Farigiraf", "Garchomp"), ("Whimsicott", "Garchomp"),
-    ("Whimsicott", "Kingambit"), ("Sneasler", "Garchomp"), ("Sneasler", "Kingambit"),
-    ("Aerodactyl", "Garchomp"), ("Lopunny", "Garchomp"), ("Weavile", "Garchomp"),
-    ("Talonflame", "Garchomp"), ("Charizard", "Incineroar"), ("Rotom-Wash", "Garchomp"),
-    ("Glimmora", "Incineroar"), ("Pelipper", "Dragonite"),
-]
+# Lead configs — imported from the scenario (single source of truth).  The
+# scenario module has no import-time side effects, unlike the old
+# _gen_turn1_summary.py, so this can no longer drift out of sync.
+from scenarios.turn1_openings import ALL_TEAM, OUR_LEADS, OPP_LEADS
+
 ENGINE = make_engine()
 ARROW = "→"   # → matches the decision-string separator the test parses on
 

@@ -9,7 +9,8 @@ process / regression:
 feature modules:
 -I am thinking about a switch module that switches based on the move type a slot is weak against. For instance it would switch in aerodactyl when opp garchomp is threatening a ground type. Right now it looks at all available moves, but doesn't think about likely moves.
 Add more complete weather and field effects to the engine. ie damage from sandstorm, blizzard accuracy from snow, +fire damage from sun
--I like the way that turn1_summary works, can we create an arbitrary turn test. Collections of various board states and what the bot would yield. This could maybe just be pulled from battle logs to use real examples rather than infer. It should be a mix of popular pokemon, various weather states, different hp, different benches.
+-[IN PROGRESS — scenario/snapshot architecture, 0.9.x] I like the way that turn1_summary works, can we create an arbitrary turn test. Collections of various board states and what the bot would yield. This could maybe just be pulled from battle logs to use real examples rather than infer. It should be a mix of popular pokemon, various weather states, different hp, different benches.
+  -> Phase 1 DONE: generalized into scenarios/ (board-state templates) + snapshots/ (generated tables per scenario × team) + tools/gen_snapshot.py. turn1_openings is the first scenario. Phase 2: per-team snapshots + an auto-discovering regression test. Phase 3 (this idea): arbitrary mid-game scenarios, ideally extracted from real battle logs (weather/HP/bench variety).
 -[DONE 0.7.6] it sounds like pokemon on the bench are assumed to have their items even if they are spent and then switch out. This needs to be tracked.
   -> SwitchModule now evaluates bench mons with the live tracked item (None once consumed); see CHANGELOG 0.7.6.
 -[ANSWERED] Does sneasler's unburden ability get accounted for?

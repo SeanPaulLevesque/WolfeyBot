@@ -37,9 +37,10 @@ python main.py --team off-meta-team        # logs into off-meta's account (DongQ
 python main.py --list-teams                # list teams, versions, accounts (validates each)
 ```
 
-No `--team` falls back to the repo-root `team.txt`, which is the **frozen baseline**
-that `turn1_summary.md` and the test suite are built from. Iterating a team under
-`teams/` does **not** move that baseline.
+No `--team` falls back to `snapshots/baseline_team.txt`, the **frozen baseline**
+roster that the decision snapshots (`snapshots/<scenario>/baseline.md`) and the
+test suite are built from. Iterating a team under `teams/` does **not** move that
+baseline — it lives in the snapshots subsystem, separate from these ladder teams.
 
 ## Data separation
 

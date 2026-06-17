@@ -30,8 +30,8 @@ import pathlib
 import re
 from typing import Optional
 
-# team.txt lives in the project root, one level above this file's directory.
-TEAM_FILE = pathlib.Path(__file__).parent.parent / "team.txt"
+# The frozen baseline roster lives under snapshots/ (one level above tools/).
+TEAM_FILE = pathlib.Path(__file__).parent.parent / "snapshots" / "baseline_team.txt"
 
 # Showdown EV line abbreviation → index in [hp, atk, def, spa, spd, spe]
 _EV_ABBREV: dict[str, int] = {
