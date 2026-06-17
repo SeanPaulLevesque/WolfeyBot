@@ -1,0 +1,6 @@
+# Scratch / working directory — keeps the source root clean.
+# Drop anything ephemeral here: run-log captures, data dumps, one-off scripts,
+# status files, the bot's runtime bot.log, etc.  The whole folder is git-ignored
+# (only this .gitignore is tracked, so the folder always exists on checkout).
+*
+!.gitignore

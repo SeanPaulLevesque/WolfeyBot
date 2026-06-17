@@ -142,7 +142,11 @@ _console_handler = logging.StreamHandler(sys.stdout)
 _console_handler.setFormatter(_CompactFormatter())
 _console_handler.setLevel(logging.INFO)   # no DEBUG noise on the console
 
-_file_handler = logging.FileHandler("bot.log", mode="w", encoding="utf-8")
+# Runtime log lives under scratch/ to keep the source root clean (scratch/ is
+# git-ignored as a folder; see scratch/.gitignore).  makedirs guards a fresh
+# checkout where the empty folder might be absent.
+_os.makedirs("scratch", exist_ok=True)
+_file_handler = logging.FileHandler("scratch/bot.log", mode="w", encoding="utf-8")
 _file_handler.setFormatter(logging.Formatter(
     fmt="%(asctime)s [%(levelname)-5s] %(name)s: %(message)s",
     datefmt="%H:%M:%S",
