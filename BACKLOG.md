@@ -9,8 +9,18 @@ process / regression:
 feature modules:
 -I am thinking about a switch module that switches based on the move type a slot is weak against. For instance it would switch in aerodactyl when opp garchomp is threatening a ground type. Right now it looks at all available moves, but doesn't think about likely moves.
 Add more complete weather and field effects to the engine. ie damage from sandstorm, blizzard accuracy from snow, +fire damage from sun
--[IN PROGRESS — scenario/snapshot architecture, 0.9.x] I like the way that turn1_summary works, can we create an arbitrary turn test. Collections of various board states and what the bot would yield. This could maybe just be pulled from battle logs to use real examples rather than infer. It should be a mix of popular pokemon, various weather states, different hp, different benches.
-  -> Phase 1 DONE: generalized into scenarios/ (board-state templates) + snapshots/ (generated tables per scenario × team) + tools/gen_snapshot.py. turn1_openings is the first scenario. Phase 2: per-team snapshots + an auto-discovering regression test. Phase 3 (this idea): arbitrary mid-game scenarios, ideally extracted from real battle logs (weather/HP/bench variety).
+-[OPEN — Phase 3 of the scenario/snapshot system] Arbitrary mid-game scenarios.
+ Infrastructure is DONE (0.9.x): scenarios/ (board-state templates) + snapshots/
+ (generated tables per scenario × team) + tools/gen_snapshot.py, with an
+ auto-discovering regression test (tests/test_turn1_decisions.py parses every
+ snapshots/<scenario>/<team>.md) and per-team generation (gen_snapshot --team
+ <name>@<vN>).  turn1_openings is the only scenario so far.
+ REMAINING: add arbitrary mid-game scenarios — collections of board states (mix
+ of popular Pokémon, various weather, different HP, different benches), ideally
+ EXTRACTED FROM REAL BATTLE LOGS rather than hand-specified, each runnable
+ against any team.  Needs: a log → scenario extractor (pull a board state out of
+ a Battle Data turn) + a scenarios/<name>.py that replays it.  The snapshot +
+ auto-test machinery then guards them for free.
 -[DONE 0.7.6] it sounds like pokemon on the bench are assumed to have their items even if they are spent and then switch out. This needs to be tracked.
   -> SwitchModule now evaluates bench mons with the live tracked item (None once consumed); see CHANGELOG 0.7.6.
 -[ANSWERED] Does sneasler's unburden ability get accounted for?
