@@ -23,15 +23,17 @@ teams/
     v1.txt
 ```
 
-`teams.json` binds a team to an **account name** (a key in `bot_secrets.PROFILES`),
-never to raw credentials — creds stay in the git-ignored `bot_secrets.py`.
+`teams.json` binds a team to an **account** — the Showdown username, which is
+also the key in `bot_secrets.PROFILES`. It never holds raw credentials; only the
+password lives in the git-ignored `bot_secrets.py`. Keying profiles by username
+keeps `teams.json` self-documenting and scales to any number of accounts.
 
 ## Running
 
 ```
 python main.py --team meta-team           # current version, on meta-team's account
 python main.py --team meta-team@v1         # pin a specific version to A/B vs @v2
-python main.py --team off-meta-team        # logs into the alt account automatically
+python main.py --team off-meta-team        # logs into off-meta's account (DongQuixote3)
 python main.py --list-teams                # list teams, versions, accounts (validates each)
 ```
 
@@ -55,4 +57,5 @@ An A/B comparison is then just diffing two folders (or filtering logs by the
 
 1. Drop a Showdown paste at `teams/<name>/v<n>.txt`.
 2. Add/point the entry in `teams.json` (`account`, `current`).
-3. Add the account to `bot_secrets.PROFILES` if it's new (username + password).
+3. If the account is new, add `"<username>": {"password": "..."}` to
+   `bot_secrets.PROFILES` and reference `"<username>"` as the team's `account`.

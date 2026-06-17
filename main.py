@@ -76,12 +76,13 @@ if not (USERNAME and PASSWORD) and _bot_secrets is not None:
 def _resolve_account(profile: Optional[str]) -> tuple[str, str]:
     """Resolve an account-profile name to (username, password).
 
-    Looks *profile* up in ``bot_secrets.PROFILES`` (name → {username, password}).
-    When ``profile`` is None (no account binding) this falls back to the
-    module-level USERNAME/PASSWORD (env / legacy bot_secrets vars).  But an
-    *explicitly named* profile that is missing or has no creds returns
-    ``("", "")`` — never the default — so the caller can refuse rather than
-    silently ladder on the wrong account.
+    ``bot_secrets.PROFILES`` is keyed by Showdown username (the key *is* the
+    username; only the password lives in the value), so a team's ``account`` in
+    teams.json reads as the account itself.  When ``profile`` is None (no
+    binding) this falls back to the module-level USERNAME/PASSWORD (env / legacy
+    bot_secrets vars).  An *explicitly named* profile that is missing or has no
+    creds returns ``("", "")`` — never the default — so the caller can refuse
+    rather than silently ladder on the wrong account.
     """
     if profile:
         profiles = {}
@@ -89,7 +90,8 @@ def _resolve_account(profile: Optional[str]) -> tuple[str, str]:
             profiles = getattr(_bot_secrets, "PROFILES", {}) or {}
         if profile in profiles:
             p = profiles[profile]
-            return p.get("username", ""), p.get("password", "")
+            # Key is the username; honour an explicit "username" for back-compat.
+            return p.get("username", profile), p.get("password", "")
         return "", ""           # explicit profile unresolved → no silent fallback
     return USERNAME, PASSWORD
 

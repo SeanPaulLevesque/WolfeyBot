@@ -1,12 +1,12 @@
 {
   "meta-team": {
     "label": "meta team",
-    "account": "main",
+    "account": "DongQuixote2",
     "current": "v1"
   },
   "off-meta-team": {
     "label": "off-meta team",
-    "account": "alt",
+    "account": "DongQuixote3",
     "current": "v1"
   }
 }
