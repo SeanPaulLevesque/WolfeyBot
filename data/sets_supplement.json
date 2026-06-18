@@ -1,0 +1,75 @@
+{
+  "_README": [
+    "Hand-entered usage stats for species the main Reg M-A sets file does not cover",
+    "(the new Reg M-B Pokemon and their megas, until Smogon M-B stats land ~July).",
+    "Add one top-level key per species (see _schema and _example below); it is merged",
+    "into the usage data and feeds every inference: items, abilities, spreads, moves,",
+    "teammates, assumed_forme, mega_stones, mega_forme_for_stone.",
+    "",
+    "Rules:",
+    "  - Keys starting with '_' are documentation and are IGNORED by the loader.",
+    "  - Gap-fill only: a species already present in the main sets file is NOT",
+    "    overridden. These keys are for species in _todo below.",
+    "  - Percentages are real usage % (0-100), NOT normalized. You may omit the",
+    "    'Other' bucket. Dicts need not be sorted; the loader sorts by pct desc.",
+    "  - Provide only the fields you have; omit the rest.",
+    "  - A malformed JSON edit fails loud at startup (so a typo can't silently drop",
+    "    data) -- validate your edits."
+  ],
+
+  "_schema": {
+    "<Species Name>": {
+      "raw_count": "int, optional. Relative popularity. Used ONLY to decide base-vs-mega forme for an unrevealed mon: compared against the '<Name>-Mega' entry's raw_count. Set both when a mon megas (higher = more likely forme). Omit if the mon has no mega.",
+      "viability": "int, optional, cosmetic.",
+      "abilities": {"<Ability>": "pct"},
+      "items": {"<Item>": "pct"},
+      "spreads": {"<Nature>:HP/Atk/Def/SpA/SpD/Spe": "pct. EVs are SP units 0-32 (32 = 252 EVs), same format as the main file and parse_spread(). Drives the speed/Choice-Scarf read."},
+      "moves": {"<Move>": "pct"},
+      "teammates": {"<Teammate species>": "pct"},
+      "tera_types": {"<Type>": "pct (optional; rarely used)"}
+    },
+    "_notes": [
+      "For a mega forme, name the entry '<Base>-Mega' (or '-Mega-X' / '-Mega-Y') and",
+      "make its mega STONE the highest-% item -- that is what wires mega_stones() and",
+      "the stone->forme mapping (so a revealed stone commits to the mega's stats).",
+      "Item/ability/move/teammate keys must match the names Showdown uses."
+    ]
+  },
+
+  "_example": {
+    "Scolipede": {
+      "raw_count": 800,
+      "abilities": {"Speed Boost": 88.0, "Swarm": 9.0},
+      "items": {"Focus Sash": 38.0, "Choice Band": 27.0, "Life Orb": 14.0},
+      "spreads": {"Jolly:0/32/0/0/4/28": 52.0, "Adamant:4/32/0/0/0/28": 18.0},
+      "moves": {"Megahorn": 96.0, "Protect": 78.0, "Rock Slide": 61.0, "Earthquake": 30.0},
+      "teammates": {"Incineroar": 28.0}
+    },
+    "Scolipede-Mega": {
+      "raw_count": 1500,
+      "abilities": {"Speed Boost": 100.0},
+      "items": {"Scolipite": 100.0},
+      "spreads": {"Jolly:0/32/0/0/4/28": 60.0},
+      "moves": {"Megahorn": 97.0, "Protect": 80.0, "Rock Slide": 64.0}
+    },
+    "_note": "Illustrative numbers only -- not real data. Delete this _example block's values pattern by copying it as a real top-level key (without the leading underscore) and replacing with measured usage."
+  },
+
+  "_todo": {
+    "_note": "Species with no usage data yet. Move each into a real top-level entry as you compile numbers. Mega-capable bases should also get their '<Base>-Mega' entry.",
+    "base": [
+      "Annihilape", "Barbaracle", "Blaziken", "Dragalge", "Eelektross", "Falinks",
+      "Forretress", "Furfrou", "Garbodor", "Gholdengo", "Grimmsnarl", "Houndstone",
+      "Malamar", "Mawile", "Metagross", "Musharna", "Overqwil", "Pyroar", "Qwilfish",
+      "Rotom", "Samurott", "Sceptile", "Scolipede", "Scrafty", "Simisage", "Simisear",
+      "Slurpuff", "Staraptor", "Stunfisk-Galar", "Swampert", "Tauros",
+      "Tauros-Paldea-Combat", "Vileplume", "Watchog"
+    ],
+    "mega": [
+      "Barbaracle-Mega", "Blaziken-Mega", "Dragalge-Mega", "Eelektross-Mega",
+      "Falinks-Mega", "Malamar-Mega", "Mawile-Mega", "Metagross-Mega", "Pyroar-Mega",
+      "Raichu-Mega-X", "Raichu-Mega-Y", "Sceptile-Mega", "Scolipede-Mega",
+      "Scrafty-Mega", "Staraptor-Mega", "Swampert-Mega"
+    ]
+  }
+}

@@ -480,3 +480,61 @@ class TestAegislashBladeImmunity:
         """Dark is ×2 vs Ghost, ×1 vs Steel (Gen 6+ removed Steel resist) → net ×2."""
         opp_types = types_of("Aegislash-Blade")
         assert type_effectiveness("Dark", opp_types) == 2.0
+
+
+# ── Hand-entered usage supplement (sets_supplement.json) ───────────────────────
+
+class TestSetsSupplement:
+    """The hand-entry supplement merges into the usage data and feeds every
+    accessor; the shipped file is inert (documentation keys only)."""
+
+    def test_shipped_supplement_is_inert_and_valid(self):
+        """The committed file parses and carries no real entries yet — only
+        underscore-prefixed documentation keys (so it changes nothing)."""
+        import json
+        import data.sets as S
+        data = json.loads(S._SUPPLEMENT_FILE.read_text(encoding="utf-8"))
+        real = {k: v for k, v in data.items() if not k.startswith("_")}
+        assert real == {}, f"shipped supplement should have no real entries yet: {list(real)}"
+
+    def _reload_with(self, monkeypatch, tmp_path, payload: dict):
+        """Force data.sets to reload against a temp supplement file."""
+        import json
+        import data.sets as S
+        f = tmp_path / "supp.json"
+        f.write_text(json.dumps(payload), encoding="utf-8")
+        monkeypatch.setattr(S, "_SUPPLEMENT_FILE", f)
+        monkeypatch.setattr(S, "_SETS", {})          # force a full reparse + merge
+        monkeypatch.setattr(S, "_MEGA_STONES", None)
+        monkeypatch.setattr(S, "_STONE_TO_FORME", None)
+        S._load()
+        return S
+
+    def test_supplement_fills_gap_and_feeds_accessors(self, monkeypatch, tmp_path):
+        """A gap-fill entry feeds item/ability/spread distributions, and a
+        '-Mega' entry whose top item is its stone wires the stone↔forme maps."""
+        S = self._reload_with(monkeypatch, tmp_path, {
+            "_README": "ignored",
+            "Scolipede-Mega": {
+                "abilities": {"Speed Boost": 100.0},
+                "items": {"Scolipite": 100.0},
+                "spreads": {"Jolly:0/32/0/0/4/28": 60.0},
+                "moves": {"Megahorn": 97.0, "Protect": 80.0},
+                "raw_count": 1500,
+            },
+        })
+        assert S.item_distribution("Scolipede-Mega")[0] == ("Scolipite", 100.0)
+        assert S.ability_distribution("Scolipede-Mega")[0] == ("Speed Boost", 100.0)
+        assert S.spread_distribution("Scolipede-Mega")[0][0] == "Jolly:0/32/0/0/4/28"
+        assert S.mega_forme_for_stone("Scolipite") == "Scolipede-Mega"
+        assert "Scolipite" in S.mega_stones()
+        assert "_README" not in S._SETS          # documentation keys are skipped
+
+    def test_supplement_does_not_override_main_file(self, monkeypatch, tmp_path):
+        """Gap-fill only: a species already in the main sets file is untouched."""
+        S = self._reload_with(monkeypatch, tmp_path, {
+            "Garchomp": {"items": {"Bogus Item": 99.0}},
+        })
+        items = dict(S.item_distribution("Garchomp"))
+        assert "Bogus Item" not in items          # main file wins
+        assert "Choice Scarf" in items            # real M-A data preserved

@@ -50,7 +50,7 @@ to make green by editing expectations. This is a hard rule:
 | `scenarios/` | Team-agnostic board-state templates; `turn1_openings.py` is the 6-lead × 20-opp turn-1 scenario |
 | `damage.py` | `outgoing_damage()`, `incoming_damage()`, `type_effectiveness()` |
 | `turn_order.py` | `will_outspeed()`, `priority_bracket()`, `Combatant` dataclass |
-| `data/` | `smogon_champions_slim.json` (218 Champions-legal species) + move/type data |
+| `data/` | `smogon_champions_slim.json` (218 Champions-legal species) + move/type data; `sets_supplement.json` = hand-entered usage stats for species the M-A sets file lacks (new M-B mons/megas), merged into `data/sets.py` at load (gap-fill) |
 | `team_preview.py` | Bring-4 selection logic |
 | `docs/DECISION_ARCHITECTURE.md` | Full narrative of how the engine works, with weight tables |
 | `tools/` | Dev/analysis scripts: battle analysis, lead stats, ELO chart, team packing, `gen_snapshot.py` |

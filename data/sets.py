@@ -12,15 +12,25 @@ Per-Pokémon data:
   - teammates    : list of (name, pct)
 
 All lists are sorted by pct descending and exclude the "Other" bucket.
+
+Hand-entered supplement
+-----------------------
+``sets_supplement.json`` (same directory) lets you add usage data for species
+absent from the main file — the new Reg M-B Pokémon/megas, until Smogon M-B
+stats land.  It is merged into the parsed data at load time and feeds **every**
+accessor below (items, abilities, spreads, moves, teammates, ``assumed_forme``,
+``mega_stones``, ``mega_forme_for_stone``).  Gap-fill only: a species already in
+the main file is never overridden.  See that file's ``_README``/``_schema``.
 """
 from __future__ import annotations
-import re, pathlib
+import re, json, pathlib
 from typing import Optional
 
 _DATA_FILE = (
     pathlib.Path(__file__).parent
     / "sets-gen9championsvgc2026regma-1760.txt"
 )
+_SUPPLEMENT_FILE = pathlib.Path(__file__).parent / "sets_supplement.json"
 
 # Spread string pattern: "Jolly:2/32/0/0/0/32"
 _SPREAD_RE = re.compile(
@@ -197,6 +207,47 @@ def _load() -> None:
 
     # Flush final entry
     _flush(current_name, entry)
+
+    # Fold in any hand-entered usage data for species the main file lacks.
+    _merge_supplement()
+
+
+# ── Hand-entered supplement (sets_supplement.json) ────────────────────────────
+
+def _as_sorted_pairs(d: Optional[dict]) -> list[tuple[str, float]]:
+    """Turn a ``{name: pct}`` mapping into a ``[(name, pct), …]`` list sorted by
+    pct descending — matching the shape the main parser produces."""
+    if not d:
+        return []
+    return sorted(((str(k), float(v)) for k, v in d.items()), key=lambda x: -x[1])
+
+
+def _merge_supplement() -> None:
+    """Merge ``sets_supplement.json`` into ``_SETS`` (gap-fill; main file wins).
+
+    Top-level keys beginning with ``_`` are documentation (``_README``,
+    ``_schema``, ``_example``, ``_todo``) and are ignored.  A malformed file
+    raises (fail loud) so a hand-edit typo can't silently drop data.
+    """
+    if not _SUPPLEMENT_FILE.exists():
+        return
+    with open(_SUPPLEMENT_FILE, encoding="utf-8") as fh:
+        data = json.load(fh)
+    for name, raw in data.items():
+        if name.startswith("_"):          # documentation key — not a species
+            continue
+        if name in _SETS:                 # main usage file wins; fill gaps only
+            continue
+        _SETS[name] = {
+            "raw_count":  int(raw.get("raw_count", 0)),
+            "viability":  int(raw.get("viability", 0)),
+            "abilities":  _as_sorted_pairs(raw.get("abilities")),
+            "items":      _as_sorted_pairs(raw.get("items")),
+            "spreads":    _as_sorted_pairs(raw.get("spreads")),
+            "moves":      _as_sorted_pairs(raw.get("moves")),
+            "tera_types": _as_sorted_pairs(raw.get("tera_types")),
+            "teammates":  _as_sorted_pairs(raw.get("teammates")),
+        }
 
 
 # ── Public API ───────────────────────────────────────────────────────────────
