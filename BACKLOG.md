@@ -40,6 +40,26 @@ Add more complete weather and field effects to the engine. ie damage from sandst
 -[ANSWERED] Does sneasler's unburden ability get accounted for?
   -> Yes: turn_order applies the x2 once item_consumed is set (White Herb popped); order is stages -> Scarf -> weather ability -> Unburden -> Tailwind -> paralysis.
 -Take Choice items locking in moves into account. An opponent with a revealed/assumed Choice Scarf/Band/Specs that has already attacked is locked into that one move until it switches: incoming threat should collapse to just the locked move (not their full movepool), Protect/switch value changes when we resist the locked move, and a locked-in opponent that switches out resets the lock. Pairs with the likely-moves switch module idea above and the existing item inference (_effective_item already assumes Choice items at >=40% usage; the lock itself is the unmodeled part).
+-Model redirection: Rage Powder / Follow Me (and the siblings Spotlight, plus the
+ Storm Drain/Lightning Rod ability variants). In doubles these pull ALL of the
+ opponents' single-target moves onto the user for the turn (Follow Me/Rage Powder
+ are +2 priority). The engine doesn't know this: _build_actions emits one
+ (move,target) per live opponent and scores each target independently, so it has
+ no concept that a redirector forces a target.
+   * OPPONENT redirects: when an opp redirector is active, our single-target
+     attacks get pulled onto it, so a damage/KO calc against the *intended*
+     target is invalid that turn — the action should be re-pointed at the
+     redirector (or the slot should play around it: Protect, spread move, or
+     switch). Immunities to respect: Rage Powder does NOT redirect Grass-types,
+     Overcoat holders, or Safety Goggles holders (Follow Me redirects all).
+     Spread moves and self/ally-target moves ignore redirection.
+   * OUR redirects: a support-value signal for using Rage Powder/Follow Me to
+     soak a predicted attack off a threatened/setup partner (pairs with the
+     anti-setup item, Task #20, and the likely-moves switch module above).
+   * Champions-legal redirect users to derive from usage (Amoonguss = Rage
+     Powder; Togekiss/Clefable/Indeedee-F etc. = Follow Me; Storm Drain Gastrodon,
+     Lightning Rod users). Build the user set the same way as _FAKE_OUT_USERS /
+     the setter frozensets.
 
 
 offensive abilities — deferred (need facts atk_modifier/build_turn_context don't yet thread):
