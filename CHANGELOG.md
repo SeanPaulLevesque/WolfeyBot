@@ -1,5 +1,84 @@
 # WolfeyBot Changelog
 
+## 0.12.0 — 2026-06-18
+
+### Observation-driven item inference (prior + evidence)
+
+The 0.11.0 modal item belief was a *static* prior — it never updated when battle
+events contradicted it (a Garchomp assumed Choice Scarf stayed "scarfed" even
+after it was outsped or used two moves). Split the belief into the usage-stats
+**prior** and observed **evidence**, resolved at lookup. General and extensible:
+a new rule is one parser signal + one ruled-out item set.
+
+- **`ItemEvidence`** (battle_state.py) — per-opponent evidence keyed by normalized
+  ident on `BattleState.opp_item_evidence`. Survives switches (the Pokemon object
+  is replaced by `_update_or_add` on every pivot, wiping its `moves`/`item`).
+  Holds `confirmed` (proven held), `consumed` (game-scoped, ≠ Unburden's
+  field-stint `item_consumed`), `ruled_out`, and `stint_moves`.
+- **Rules wired in the parser** (battle.py):
+  - **≥2 distinct moves in one field stint → rule out all Choice items**
+    (`CHOICE_ITEMS`). `stint_moves` resets on switch (a Choice lock frees on
+    pivot); Struggle is excluded.
+  - **Outsped when even the slowest scarfed spread would be faster → rule out
+    Choice Scarf** (`_observe_speed_from_history` in modules.py, run once per turn
+    from `build_turn_context`; reuses `will_outspeed`). Conservative — only fires
+    on an undistorted same-bracket comparison, never a false clear.
+  - **`[from] item: X` on damage/heal → confirm X** (Life Orb recoil, Black
+    Sludge, Leftovers, Rocky Helmet — holder is the `[of]` source if present).
+  - **`-item` reveal → confirm**; **`-enditem` → consumed**. Own-side events
+    ignored (we know our items).
+- **Resolution** (`_effective_item`): held-now > consumed → None > confirmed >
+  field-stint consumed > prior with `ruled_out` removed. `_assumed_item` walks
+  the usage list skipping ruled-out items; the 25% bar gates **only the literal
+  top item** (pure prior), and once a higher-usage item has been ruled out it
+  **commits to the next-most-likely unconditionally** (observation narrowed the
+  field — e.g. Garchomp with Choice Scarf ruled out → Sitrus Berry at 16.5%).
+- Turn-1 / empty-evidence behaviour is unchanged, so the snapshot baselines are
+  byte-identical apart from the version header. Full suite green (+17 tests).
+
+## 0.11.0 — 2026-06-18
+
+### Unified, modal item inference (speed + damage share one belief)
+
+Item assumption was fragmented: damage used a modal `_effective_item` (top-usage
+≥40% else None), while speed carried its own probabilistic Choice-Scarf branch
+baked into `speed_distribution`, and a dead `scarf_probability` helper lingered.
+Generalized everything onto one modal belief and one effect table.
+
+- **`data/speed_tiers.py`** — `speed_distribution` is now a pure **spread**
+  distribution. Removed the scarf branch, the `scarfed` field, `_SCARF_*`
+  constants, `scarf_adjusted_speed`, and the `item_distribution` dependency.
+  Item/field effects are applied downstream, not baked into the prior.
+- **`turn_order.py`** — `_apply_modifiers` takes a single `item` arg and applies
+  `data.items.speed_multiplier(item)` (Choice Scarf ×1.5, Iron Ball / Macho Brace
+  ×0.5); dropped the scarf-filter and the `_SLOW_ITEMS` set.
+- **`decision/modules.py`** — `_opp_combatant` now passes `item=_effective_item(mon)`
+  (the modal assumed item), so the speed and damage pipelines share one item
+  belief instead of two.
+- **Item-effect handling generalized** (no behavior change on its own):
+  `data/items.py` gained `type_boost_multiplier`; `damage.py` and `turn_order.py`
+  now consume the `data/items.py` tables instead of per-item `elif` chains.
+  Gems removed from `TYPE_BOOST_ITEMS` (one-time consumables, not modeled).
+
+### Item-assumption threshold lowered 40% → 25%
+
+Assuming **no item** is not neutral — it is the *optimistic* read (no Choice
+Scarf making a threat faster, no Focus Sash surviving our KO, no Life Orb /
+type-boost on incoming hits). At the 40% floor, 63/245 species fell through to
+None, 34 of them with a *consequential* plurality item. Lowered the floor to
+**25%** (`_ASSUMED_ITEM_MIN_PCT`) so a clear plurality is committed to; only the
+flattest distributions still assume None. Bias flips from optimistic to
+conservative: e.g. an unrevealed Garchomp (Choice Scarf 27.9%) is now assumed
+scarfed, so we play around it rather than into it.
+
+- Turn-1 snapshot diff: **180 / 740 cells** shift (168 weight-only turn-order /
+  damage-magnitude changes; 12 move/target flips, all opponents-now-assumed-Scarf
+  → Protect/switch instead of attacking into a faster mon). Reviewed + spot-checked
+  before regeneration. Regenerated `baseline.md`, `meta-team@v1.md`,
+  `off-meta-team@v1.md`.
+- Clamped `prob_outspeeds` / `prob_faster_than` to [0,1] (float overshoot exposed
+  once the dominant-side mass was no longer split by a scarf branch).
+
 ## 0.10.0 — 2026-06-17
 
 ### Regulation M-B support — 38 new species, 6 moves, 2 abilities

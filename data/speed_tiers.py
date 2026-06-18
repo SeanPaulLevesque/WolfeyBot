@@ -1,11 +1,15 @@
 """speed_tiers.py — Speed tier estimation and Bayesian updater.
 
 Given a Pokémon's name this module builds a probability-weighted distribution
-of Speed stat values at Level 50, drawing on:
+of *raw* Speed stat values at Level 50, drawing on:
 
   * Common SP spread distributions from the sets file
-  * Choice Scarf usage probability from item data
   * Base Speed from species data
+
+This is a pure **spread** distribution.  Item and field effects (Choice Scarf,
+Iron Ball, Tailwind, paralysis, weather abilities) are *not* applied here —
+turn_order applies them from the single modal assumed item.  See
+``data.items.speed_multiplier`` and ``decision.modules._effective_item``.
 
 Turn-order reasoning then uses Bayesian updates each time an actual move
 order is observed in battle.
@@ -18,36 +22,35 @@ Example usage::
     dist = speed_distribution("Garchomp")
     for outcome in dist[:3]:
         print(f"{outcome.speed:3d}  p={outcome.probability:.3f}"
-              f"  {'(scarf)' if outcome.scarfed else ''}"
               f"  {outcome.nature} / spe={outcome.sp}")
 
     # After seeing Garchomp move before our 135-speed Pokémon:
     dist = update_speed_belief(dist, observed_faster_than=135)
 """
 from __future__ import annotations
-import math
 from dataclasses import dataclass, replace
 from typing import Optional
 
 from .species import base_spe
-from .sets import spread_distribution, item_distribution, parse_spread
+from .sets import spread_distribution, parse_spread
 from .stat_calc import calc_speed
-
-_SCARF_MULTIPLIER = 1.5
-_SCARF_NAME       = "Choice Scarf"
 
 
 # ── Data container ───────────────────────────────────────────────────────────
 
 @dataclass
 class SpeedOutcome:
-    """One possible Speed configuration with an associated probability."""
-    speed:       int          # effective Speed (post-item/ability)
-    raw_speed:   int          # Speed before item multiplier
+    """One possible Speed configuration (spread) with an associated probability.
+
+    This is a pure *spread* distribution — item and field modifiers (Choice
+    Scarf, Iron Ball, Tailwind, paralysis, weather abilities) are applied by
+    turn_order from the modal assumed item, not here.
+    """
+    speed:       int          # Speed from this spread (== raw_speed; no item here)
+    raw_speed:   int          # alias kept for turn_order's modifier pipeline
     nature:      str          # e.g. "Jolly"
     sp:          int          # Speed SP value used (0–32)
     probability: float        # relative weight (distribution sums to ~1.0)
-    scarfed:     bool = False # True when Choice Scarf is accounted for
 
 
 # ── Core builder ─────────────────────────────────────────────────────────────
@@ -62,9 +65,9 @@ def speed_distribution(
     """
     Return a probability-weighted list of :class:`SpeedOutcome` for *name*.
 
-    Probability is derived from spread usage % (from sets data) × scarf
-    probability (from item data).  Outcomes with the same effective Speed are
-    merged.
+    Probability is derived from spread usage % (from sets data).  Outcomes with
+    the same Speed are merged.  This is a pure spread distribution — item
+    effects (e.g. Choice Scarf) are applied later by turn_order, not here.
 
     Args:
         name:           Pokémon name (e.g. "Garchomp").
@@ -78,19 +81,13 @@ def speed_distribution(
         return []
 
     spreads = spread_distribution(name)        # [(spread_str, pct), …]
-    items   = item_distribution(name)          # [(item_name,  pct), …]
-
-    # Scarf probability
-    scarf_prob = next(
-        (p / 100.0 for n, p in items if n == _SCARF_NAME), 0.0
-    )
 
     # Filter to meaningful spreads and normalise within known mass
     relevant   = [(s, p) for s, p in spreads if p >= min_spread_pct]
     known_mass = sum(p for _, p in relevant) / 100.0
 
     if not relevant:
-        return _uninformed_distribution(base, scarf_prob, assume_iv, level)
+        return _uninformed_distribution(base, assume_iv, level)
 
     raw_outcomes: list[SpeedOutcome] = []
     for spread_str, spread_pct in relevant:
@@ -104,23 +101,11 @@ def speed_distribution(
 
         raw_spd = calc_speed(base, sp_val, nature, assume_iv, level)
 
-        # No-scarf scenario
         raw_outcomes.append(SpeedOutcome(
             speed=raw_spd, raw_speed=raw_spd,
             nature=nature, sp=sp_val,
-            probability=sp_prob * (1.0 - scarf_prob),
-            scarfed=False,
+            probability=sp_prob,
         ))
-
-        # Scarf scenario
-        if scarf_prob > 0.0:
-            scarf_spd = math.floor(raw_spd * _SCARF_MULTIPLIER)
-            raw_outcomes.append(SpeedOutcome(
-                speed=scarf_spd, raw_speed=raw_spd,
-                nature=nature, sp=sp_val,
-                probability=sp_prob * scarf_prob,
-                scarfed=True,
-            ))
 
     return _merge_and_sort(raw_outcomes)
 
@@ -174,7 +159,8 @@ def prob_faster_than(
         return 0.5
     total   = sum(o.probability for o in dist)
     faster  = sum(o.probability for o in dist if o.speed > threshold_speed)
-    return faster / total if total else 0.5
+    # Clamp: float accumulation can overshoot [0,1] when one side dominates.
+    return min(1.0, max(0.0, faster / total)) if total else 0.5
 
 
 def prob_outspeeds(
@@ -203,7 +189,8 @@ def prob_outspeeds(
             if a.speed > b.speed:
                 result += a.probability * (b.probability / total_b)
     total_a = sum(o.probability for o in dist_a)
-    return result / total_a if total_a else 0.5
+    # Clamp: float accumulation can overshoot [0,1] when one side dominates.
+    return min(1.0, max(0.0, result / total_a)) if total_a else 0.5
 
 
 def most_likely_speed(name: str, **kwargs) -> Optional[int]:
@@ -212,18 +199,13 @@ def most_likely_speed(name: str, **kwargs) -> Optional[int]:
     return dist[0].speed if dist else None
 
 
-def scarf_adjusted_speed(raw_speed: int) -> int:
-    """Return floor(raw_speed × 1.5) — the Choice Scarf speed."""
-    return math.floor(raw_speed * _SCARF_MULTIPLIER)
-
-
 # ── Internal helpers ─────────────────────────────────────────────────────────
 
 def _merge_and_sort(outcomes: list[SpeedOutcome]) -> list[SpeedOutcome]:
-    """Merge outcomes that share the same (speed, scarfed) key, then sort."""
-    merged: dict[tuple[int, bool], SpeedOutcome] = {}
+    """Merge outcomes that share the same Speed, then sort by probability."""
+    merged: dict[int, SpeedOutcome] = {}
     for o in outcomes:
-        key = (o.speed, o.scarfed)
+        key = o.speed
         if key in merged:
             merged[key] = replace(
                 merged[key], probability=merged[key].probability + o.probability
@@ -245,7 +227,6 @@ def _renormalise(outcomes: list[SpeedOutcome]) -> list[SpeedOutcome]:
 
 def _uninformed_distribution(
         base_speed: int,
-        scarf_prob: float,
         iv: int,
         level: int,
 ) -> list[SpeedOutcome]:
@@ -270,12 +251,6 @@ def _uninformed_distribution(
             )
             outcomes.append(SpeedOutcome(
                 speed=raw, raw_speed=raw, nature=nat_name, sp=sp,
-                probability=base_prob * (1.0 - scarf_prob), scarfed=False,
+                probability=base_prob,
             ))
-            if scarf_prob > 0.0:
-                outcomes.append(SpeedOutcome(
-                    speed=math.floor(raw * _SCARF_MULTIPLIER),
-                    raw_speed=raw, nature=nat_name, sp=sp,
-                    probability=base_prob * scarf_prob, scarfed=True,
-                ))
     return _merge_and_sort(outcomes)

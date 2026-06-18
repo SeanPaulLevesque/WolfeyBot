@@ -88,6 +88,30 @@ class Pokemon:
 
 
 @dataclass
+class ItemEvidence:
+    """Observed evidence about one opponent's held item, keyed by ident.
+
+    Lives on :class:`BattleState` (``opp_item_evidence``) rather than on the
+    :class:`Pokemon` object, because the parser *replaces* the opponent's
+    Pokemon object on every switch-in (``_update_or_add``) — so per-mon fields
+    like ``moves`` / ``item`` are wiped each pivot.  Keyed by **normalized
+    ident** (e.g. ``"p2: Garchomp"``, unique per team under Species Clause),
+    this accumulates across the whole battle.
+
+    It separates *observed evidence* from the *usage-stats prior*: the prior
+    proposes the modal item; this rules items out (``ruled_out``) or confirms
+    one (``confirmed`` / ``consumed``).  ``decision.modules._effective_item``
+    resolves the two.  ``consumed`` here is **game-scoped** ("the item is gone
+    for good"), distinct from ``Pokemon.item_consumed`` which is field-stint
+    scoped (it drives Unburden and resets on switch).
+    """
+    confirmed: Optional[str] = None      # item proven held (Frisk/Trick/Knock-Off/Life-Orb recoil)
+    consumed:  bool = False              # item proven used up / removed (game-scoped)
+    ruled_out: set = field(default_factory=set)         # item names proven impossible
+    stint_moves: set = field(default_factory=set)       # distinct moves since last switch-in
+
+
+@dataclass
 class BattleState:
     battle_id: str
     my_side: str  # "p1" or "p2"
@@ -106,6 +130,9 @@ class BattleState:
     # Opponent — built from observed messages only
     opp_team: list[Pokemon] = field(default_factory=list)
     opp_actives: list[Optional[Pokemon]] = field(default_factory=list)
+    # Observed item evidence per opponent, keyed by normalized ident.  Survives
+    # switches (the Pokemon object does not).  See ItemEvidence + evidence_for().
+    opp_item_evidence: dict = field(default_factory=dict)
 
     # Side conditions
     my_tailwind:  bool = False   # Tailwind active on our side
@@ -207,3 +234,14 @@ class BattleState:
     def available_moves(self) -> list[dict]:
         """Slot-0 move list (backwards compat for singles callers)."""
         return self.moves_per_slot[0] if self.moves_per_slot else []
+
+    def evidence_for(self, ident: str) -> ItemEvidence:
+        """Return the :class:`ItemEvidence` for *ident*, creating it on first use.
+
+        *ident* is matched as-is; callers pass the normalized form (``"p2: X"``)
+        so the record survives the per-switch Pokemon-object replacement."""
+        ev = self.opp_item_evidence.get(ident)
+        if ev is None:
+            ev = ItemEvidence()
+            self.opp_item_evidence[ident] = ev
+        return ev

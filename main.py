@@ -96,7 +96,7 @@ def _resolve_account(profile: Optional[str]) -> tuple[str, str]:
     return USERNAME, PASSWORD
 
 
-BATTLE_FORMAT  = "gen9championsvgc2026regma"  # ← Champions 2026 Reg M-A format slug
+BATTLE_FORMAT  = "gen9championsvgc2026regmb"  # ← Champions 2026 Reg M-B format slug (M-A delisted from ladder 2026-06-17)
 WS_URL         = "wss://sim3.psim.us/showdown/websocket"
 LOGIN_URL      = "https://play.pokemonshowdown.com/api/login"
 

@@ -13,7 +13,7 @@ from unittest.mock import patch, MagicMock
 from dataclasses import dataclass, field
 from typing import Optional
 
-from battle import BattleState, Pokemon
+from battle import BattleState, Pokemon, ItemEvidence
 from decision import (
     Action,
     DecisionEngine,
@@ -40,6 +40,7 @@ from decision import (
     _effective_ability,
     _assumed_item,
     _effective_item,
+    _opp_item,
     _assumed_species,
     _offense_species,
     _defense_species,
@@ -2430,12 +2431,18 @@ class TestEffectiveItem:
     # ── _assumed_item ─────────────────────────────────────────────────────────
 
     def test_assumed_item_above_threshold(self):
-        """Whimsicott's top item (Focus Sash, 74.9%) clears the 40% threshold."""
+        """A top item at/above the 25% floor is assumed.
+
+        Whimsicott's Focus Sash (74.9%) is a runaway; Garchomp's Choice Scarf
+        (27.9%) is a mere plurality but still clears 25% — committing to it makes
+        us play around a likely-scarfed Garchomp rather than into it."""
         assert _assumed_item("Whimsicott") == "Focus Sash"
+        assert _assumed_item("Garchomp") == "Choice Scarf"
 
     def test_assumed_item_below_threshold_returns_none(self):
-        """Garchomp's top item (Choice Scarf, 27.9%) is under 40% → None."""
-        assert _assumed_item("Garchomp") is None
+        """Drampa's top item (Silk Scarf, 19.5%) is under the 25% floor → None:
+        the distribution is too flat to commit to one item."""
+        assert _assumed_item("Drampa") is None
 
     def test_assumed_item_no_data_returns_none(self):
         with patch("decision.modules._item_distribution", return_value=[]):
@@ -2466,6 +2473,81 @@ class TestEffectiveItem:
         not KO-preventing) — NOT the base forme's Focus Sash."""
         mon = make_mon("Glimmora", item=None)
         assert _effective_item(mon) == "Glimmoranite"
+
+    # ── _assumed_item with observed rule-outs (fallback always takes next) ────
+
+    def test_assumed_item_ruled_out_falls_to_next_unconditionally(self):
+        """Ruling out the top item drops to the next-most-likely item even when
+        it is below the 25% bar: Garchomp's Choice Scarf (27.9%) ruled out →
+        Sitrus Berry (16.5%), because observation narrowed the field."""
+        assert _assumed_item("Garchomp", {"Choice Scarf"}) == "Sitrus Berry"
+
+    def test_assumed_item_ruling_out_non_top_keeps_threshold(self):
+        """Ruling out an item that wasn't the top pick doesn't bypass the bar:
+        Drampa's top item (Silk Scarf 19.5%) is still below 25% with Choice
+        Scarf ruled out, and nothing higher was skipped → None."""
+        assert _assumed_item("Drampa", {"Choice Scarf"}) is None
+
+    # ── _effective_item with observed evidence ────────────────────────────────
+
+    def test_effective_item_evidence_ruled_out_falls_through(self):
+        """An unrevealed Garchomp whose Choice Scarf is ruled out by evidence
+        resolves to the next-most-likely item."""
+        mon = make_mon("Garchomp", item=None, side="p2")
+        ev = ItemEvidence(ruled_out={"Choice Scarf"})
+        assert _effective_item(mon, ev) == "Sitrus Berry"
+
+    def test_effective_item_evidence_confirmed_wins_over_prior(self):
+        """A confirmed item (e.g. Life Orb recoil seen earlier) is used even
+        after a switch wipes mon.item."""
+        mon = make_mon("Garchomp", item=None, side="p2")
+        ev = ItemEvidence(confirmed="Life Orb")
+        assert _effective_item(mon, ev) == "Life Orb"
+
+    def test_effective_item_evidence_consumed_returns_none(self):
+        """Evidence that the item was used up (game-scoped) → None, overriding
+        the usage-stats prior."""
+        mon = make_mon("Whimsicott", item=None, side="p2")
+        ev = ItemEvidence(consumed=True)
+        assert _effective_item(mon, ev) is None
+
+    def test_effective_item_held_now_beats_evidence(self):
+        """A currently-held item (revealed this stint) wins over stale evidence."""
+        mon = make_mon("Garchomp", item="Choice Band", side="p2")
+        ev = ItemEvidence(confirmed="Life Orb", ruled_out={"Choice Band"})
+        assert _effective_item(mon, ev) == "Choice Band"
+
+    # ── observed turn order refutes a Choice Scarf assumption ─────────────────
+
+    def test_outspeed_rules_out_choice_scarf(self):
+        """An unrevealed Garchomp is assumed scarfed (27.9% plurality); but if our
+        slow Kingambit moved before it last turn in the same priority bracket —
+        and even Garchomp's slowest scarfed spread would outspeed Kingambit — it
+        cannot be scarfed.  build_turn_context's observer rules Scarf out, and the
+        item belief falls through to the next-most-likely item."""
+        s = self._single_slot_state("Kingambit", "Garchomp")
+        garchomp = s.opp_actives[0]
+        assert _opp_item(s, garchomp) == "Choice Scarf"      # prior, pre-observation
+        s.events_log = {1: [
+            {"o": 0, "sd": "us",  "a": "Kingambit", "mv": "Iron Head"},
+            {"o": 1, "sd": "opp", "a": "Garchomp",  "mv": "Dragon Claw"},
+        ]}
+        build_turn_context(s)
+        assert "Choice Scarf" in s.opp_item_evidence["p2: Garchomp"].ruled_out
+        assert _opp_item(s, garchomp) == "Sitrus Berry"      # fell to next item
+
+    def test_no_scarf_ruleout_when_we_move_second(self):
+        """If our mon moved *after* the opponent, the order says nothing against
+        a scarf — leave the assumption intact."""
+        s = self._single_slot_state("Kingambit", "Garchomp")
+        s.events_log = {1: [
+            {"o": 0, "sd": "opp", "a": "Garchomp",  "mv": "Dragon Claw"},
+            {"o": 1, "sd": "us",  "a": "Kingambit", "mv": "Iron Head"},
+        ]}
+        build_turn_context(s)
+        ev = s.opp_item_evidence.get("p2: Garchomp")
+        assert ev is None or "Choice Scarf" not in ev.ruled_out
+        assert _opp_item(s, s.opp_actives[0]) == "Choice Scarf"
 
     # ── integration: forme + item inference feed the OHKO facts ─────────────
 

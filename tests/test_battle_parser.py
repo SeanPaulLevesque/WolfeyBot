@@ -358,6 +358,104 @@ class TestMoveTracking:
         assert parser.state.opp_actives[0].moves.count("Earthquake") == 1
 
 
+# ── Observation-driven item evidence ──────────────────────────────────────────
+
+from data import CHOICE_ITEMS
+
+
+class TestItemEvidence:
+    """Parser signals that refute / confirm an opponent's assumed item."""
+
+    def test_two_distinct_moves_rule_out_choice(self):
+        """Two distinct moves in one field stint prove no Choice lock."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|move|p2a: Garchomp|Dragon Claw|p1a: X"))
+        run(parser.feed("|move|p2a: Garchomp|Earthquake|p1a: X"))
+        ev = parser.state.opp_item_evidence["p2: Garchomp"]
+        assert CHOICE_ITEMS <= ev.ruled_out
+
+    def test_repeated_same_move_keeps_choice_possible(self):
+        """Using the same move twice is consistent with a Choice lock."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|move|p2a: Garchomp|Dragon Claw|p1a: X"))
+        run(parser.feed("|move|p2a: Garchomp|Dragon Claw|p1a: X"))
+        ev = parser.state.opp_item_evidence["p2: Garchomp"]
+        assert not (CHOICE_ITEMS & ev.ruled_out)
+
+    def test_distinct_moves_across_a_switch_dont_rule_out_choice(self):
+        """A Choice lock frees on switch, so two distinct moves in *different*
+        stints are not a contradiction — stint_moves resets on switch-in."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|move|p2a: Garchomp|Dragon Claw|p1a: X"))
+        run(parser.feed("|switch|p2a: Landorus|Landorus, L50, M|175/175"))
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|move|p2a: Garchomp|Earthquake|p1a: X"))
+        ev = parser.state.opp_item_evidence["p2: Garchomp"]
+        assert not (CHOICE_ITEMS & ev.ruled_out)
+
+    def test_struggle_does_not_count_toward_choice_ruleout(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|move|p2a: Garchomp|Dragon Claw|p1a: X"))
+        run(parser.feed("|move|p2a: Garchomp|Struggle|p1a: X"))
+        ev = parser.state.opp_item_evidence["p2: Garchomp"]
+        assert not (CHOICE_ITEMS & ev.ruled_out)
+
+    def test_enditem_marks_consumed(self):
+        """A popped berry / Sash is recorded as game-scoped consumed."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-enditem|p2a: Garchomp|Sitrus Berry"))
+        assert parser.state.opp_item_evidence["p2: Garchomp"].consumed is True
+
+    def test_item_reveal_confirms_item(self):
+        """A |-item| reveal (Trick / Frisk / Knock Off) confirms the held item."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-item|p2a: Garchomp|Choice Scarf|[from] move: Trick"))
+        ev = parser.state.opp_item_evidence["p2: Garchomp"]
+        assert ev.confirmed == "Choice Scarf"
+        assert parser.state.opp_actives[0].item == "Choice Scarf"
+
+    def test_life_orb_recoil_reveals_item(self):
+        """Life Orb recoil (|-damage| … [from] item: Life Orb) confirms Life Orb."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-damage|p2a: Garchomp|160/175|[from] item: Life Orb"))
+        ev = parser.state.opp_item_evidence["p2: Garchomp"]
+        assert ev.confirmed == "Life Orb"
+        assert parser.state.opp_actives[0].item == "Life Orb"
+
+    def test_from_item_with_of_attributes_to_holder(self):
+        """Rocky Helmet damages the attacker; the [of] source is the holder, so
+        the item is attributed to the opponent, not to our damaged mon."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed(
+            "|-damage|p1a: Us|200/250|[from] item: Rocky Helmet|[of] p2a: Garchomp"))
+        ev = parser.state.opp_item_evidence["p2: Garchomp"]
+        assert ev.confirmed == "Rocky Helmet"
+
+    def test_our_side_item_events_ignored(self):
+        """We never infer our own items — own-side events create no evidence."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|-enditem|p1a: Sneasler|White Herb"))
+        run(parser.feed("|-item|p1a: Garchomp|Choice Scarf"))
+        assert parser.state.opp_item_evidence == {}
+
+
 # ── Field conditions ─────────────────────────────────────────────────────────
 
 class TestTrickRoom:

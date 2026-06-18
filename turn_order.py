@@ -10,10 +10,12 @@ Key concepts
 ------------
 - Priority brackets: higher priority always moves before lower priority.
   Trick Room only reverses speed within the same bracket.
-- Speed modifiers applied in order: stages → Choice Scarf → weather ability
-  → Unburden → Tailwind → Paralysis.
-- Opponent speed comes from spread + item usage distributions (probabilistic).
-  Own team speed is computed exactly from team.txt.
+- Speed modifiers applied in order: stages → item → weather ability
+  → Unburden → Tailwind → Paralysis.  The item multiplier comes from the single
+  modal assumed item (data.items.speed_multiplier), not a per-item branch.
+- Opponent speed comes from the spread distribution (probabilistic), with the
+  modal assumed item applied as a flat multiplier.  Own team speed is computed
+  exactly from team.txt.
 
 The decision engine builds :class:`Combatant` objects per slot (see
 ``decision.modules._our_combatant`` / ``_opp_combatant``) and asks
@@ -29,6 +31,7 @@ from typing import Optional
 from data import (
     move_priority as _data_move_priority,
     speed_distribution as _build_dist,
+    speed_multiplier as _item_speed_multiplier,
     WEATHER_SPEED_ABILITIES,
     SpeedOutcome,
 )
@@ -74,8 +77,7 @@ class Combatant:
 def _apply_modifiers(
         raw: int,
         speed_stage: int = 0,
-        scarfed: bool = False,
-        slow_item: bool = False,       # Iron Ball / Macho Brace
+        item: Optional[str] = None,    # modal assumed item (or our exact item)
         ability: Optional[str] = None,
         weather: Optional[str] = None,
         tailwind: bool = False,
@@ -86,6 +88,10 @@ def _apply_modifiers(
     Apply all speed modifiers in game order to a raw speed value.
 
     Order: stat stages → item → weather ability → Unburden → Tailwind → Paralysis.
+
+    The item multiplier (Choice Scarf ×1.5, Iron Ball / Macho Brace ×0.5) comes
+    from the single modal assumed item via ``data.items.speed_multiplier`` — no
+    per-item special-casing here.
     """
     spd = raw
 
@@ -95,11 +101,8 @@ def _apply_modifiers(
     elif speed_stage < 0:
         spd = math.floor(spd * 2 / (2 - speed_stage))
 
-    # 2. Item
-    if scarfed:
-        spd = math.floor(spd * 1.5)
-    elif slow_item:
-        spd = math.floor(spd * 0.5)
+    # 2. Item (modal): Choice Scarf ×1.5, Iron Ball / Macho Brace ×0.5, else ×1.0
+    spd = math.floor(spd * _item_speed_multiplier(item))
 
     # 3. Weather-boosted ability (Swift Swim, Chlorophyll, Sand Rush, Slush Rush…)
     if ability and weather:
@@ -122,23 +125,19 @@ def _apply_modifiers(
     return spd
 
 
-_SLOW_ITEMS = frozenset({"Iron Ball", "Macho Brace"})
-
-
 def _speed_outcomes(c: Combatant) -> list[tuple[int, float]]:
     """
     Return [(effective_speed, probability), …] for a Combatant.
 
     Own team (exact_speed set): one outcome with probability 1.0.
-    Opponent: drawn from the data-layer speed distribution, filtered by any
-    confirmed item knowledge, with all non-item modifiers applied.
+    Opponent: drawn from the data-layer *spread* distribution, with all
+    modifiers — including the modal assumed item (``c.item``) — applied.
     """
-    def _mod(raw: int, scarfed: bool = False) -> int:
+    def _mod(raw: int) -> int:
         return _apply_modifiers(
             raw,
             speed_stage=c.speed_stage,
-            scarfed=scarfed,
-            slow_item=(c.item in _SLOW_ITEMS),
+            item=c.item,
             ability=c.ability,
             weather=c.weather,
             tailwind=c.tailwind,
@@ -148,33 +147,21 @@ def _speed_outcomes(c: Combatant) -> list[tuple[int, float]]:
 
     # ── Own team: exact ───────────────────────────────────────────────────────
     if c.exact_speed is not None:
-        scarfed = (c.item == "Choice Scarf")
-        eff = _mod(c.exact_speed, scarfed)
-        return [(eff, 1.0)]
+        return [(_mod(c.exact_speed), 1.0)]
 
-    # ── Opponent: probabilistic ───────────────────────────────────────────────
+    # ── Opponent: probabilistic over spreads ──────────────────────────────────
     dist: list[SpeedOutcome] = _build_dist(c.name)
     if not dist:
         return [(100, 1.0)]   # unknown species fallback
 
-    # Filter by confirmed item if we know it
-    if c.item is not None:
-        scarf_confirmed = (c.item == "Choice Scarf")
-        filtered = [o for o in dist if o.scarfed == scarf_confirmed]
-        if not filtered:
-            filtered = dist   # shouldn't happen; fall back to full dist
-    else:
-        filtered = dist
-
-    total_p = sum(o.probability for o in filtered)
+    total_p = sum(o.probability for o in dist)
     if total_p == 0:
-        filtered = dist
-        total_p  = sum(o.probability for o in filtered)
+        return [(100, 1.0)]
 
     # Build (eff_speed, prob) list, applying modifiers from raw_speed
     raw_outcomes: list[tuple[int, float]] = [
-        (_mod(o.raw_speed, o.scarfed), o.probability / total_p)
-        for o in filtered
+        (_mod(o.raw_speed), o.probability / total_p)
+        for o in dist
     ]
 
     # Merge identical effective speeds

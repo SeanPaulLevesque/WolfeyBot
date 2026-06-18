@@ -3,9 +3,12 @@
 ## What this project is
 
 WolfeyBot is a Gen 9 VGC doubles bot that plays on Pokémon Showdown in the
-**Champions format (Reg MA)**. It connects via WebSocket, parses the battle
-protocol, and chooses moves using a two-phase scoring engine (12 per-slot
-modules + 4 joint adjusters; see the pipeline section below).
+**Champions format**. The live ladder rolled from Reg M-A to **Reg M-B** on
+2026-06-17 (`BATTLE_FORMAT` in `main.py` is `gen9championsvgc2026regmb`); the
+data/usage layer is still Reg M-A-derived pending M-B usage stats (~July). It
+connects via WebSocket, parses the battle protocol, and chooses moves using a
+two-phase scoring engine (12 per-slot modules + 4 joint adjusters; see the
+pipeline section below).
 
 ---
 
@@ -47,7 +50,7 @@ to make green by editing expectations. This is a hard rule:
 | `scenarios/` | Team-agnostic board-state templates; `turn1_openings.py` is the 6-lead × 20-opp turn-1 scenario |
 | `damage.py` | `outgoing_damage()`, `incoming_damage()`, `type_effectiveness()` |
 | `turn_order.py` | `will_outspeed()`, `priority_bracket()`, `Combatant` dataclass |
-| `data/` | `smogon_champions_slim.json` (218 Champions-legal species) + move/type data |
+| `data/` | `smogon_champions_slim.json` (218 Champions-legal species) + move/type data; `sets_supplement.json` = hand-entered usage stats for species the M-A sets file lacks (new M-B mons/megas), merged into `data/sets.py` at load (gap-fill) |
 | `team_preview.py` | Bring-4 selection logic |
 | `docs/DECISION_ARCHITECTURE.md` | Full narrative of how the engine works, with weight tables |
 | `tools/` | Dev/analysis scripts: battle analysis, lead stats, ELO chart, team packing, `gen_snapshot.py` |
@@ -134,9 +137,24 @@ the best pair.
   (population-weighted forme via `data.assumed_forme` — a pre-mega Charizard
   is modelled as Charizard-Mega-Y; revealed mega or revealed non-stone item
   overrides), `_effective_ability(mon)` (revealed > top-usage ability of the
-  assumed forme), `_effective_item(mon)` (revealed > consumed→None > top-usage
-  item if ≥40%, `_ASSUMED_ITEM_MIN_PCT`). Assumed items feed **all** damage
-  math; Focus Sash/Sturdy set `DamageResult.ko_prevented` (damage.py), which
+  assumed forme), `_effective_item(mon, evidence)` / `_opp_item(state, mon)`
+  (prefer `_opp_item` wherever `state` is in scope). Item inference is a
+  **usage-stats prior resolved against observed `ItemEvidence`** (since 0.12.0):
+  held-now > `consumed`→None > `confirmed` > field-stint consumed > prior with
+  `evidence.ruled_out` removed. `_assumed_item(species, ruled_out)` walks the
+  usage list skipping ruled-out items; the 25% bar (`_ASSUMED_ITEM_MIN_PCT`)
+  gates **only the literal top item**, and once a higher-usage item is ruled out
+  it commits to the next-most-likely **unconditionally** (observation narrowed
+  the field). `ItemEvidence` (battle_state.py, on `BattleState.opp_item_evidence`,
+  keyed by normalized ident so it survives the per-switch object replacement) is
+  fed by the parser: ≥2 distinct moves in one stint → rule out `CHOICE_ITEMS`;
+  being outsped when even its slowest scarf would be faster → rule out Choice
+  Scarf (`_observe_speed_from_history`, run from `build_turn_context`); `[from]
+  item:` / `-item` → `confirmed`; `-enditem` → `consumed`. This **one item belief**
+  feeds **both** damage math and the speed pipeline (since 0.11.0): `turn_order`
+  applies it via `data.items.speed_multiplier` (Choice Scarf ×1.5, Iron Ball /
+  Macho Brace ×0.5) — `speed_distribution` is a pure *spread* prior with no scarf
+  branch. Focus Sash/Sturdy set `DamageResult.ko_prevented` (damage.py), which
   gates `is_ohko`/`ohko_with_max_roll` — multi-hit moves break Sash naturally
 - `JointAdjuster` (engine.py) — phase-2 base class; `factor(state, slot_a, a0,
   slot_b, a1) -> (factor_a, factor_b, reason)`. Concrete: `DoublingAdjuster`,
