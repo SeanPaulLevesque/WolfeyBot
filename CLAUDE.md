@@ -3,9 +3,12 @@
 ## What this project is
 
 WolfeyBot is a Gen 9 VGC doubles bot that plays on Pokémon Showdown in the
-**Champions format (Reg MA)**. It connects via WebSocket, parses the battle
-protocol, and chooses moves using a two-phase scoring engine (12 per-slot
-modules + 4 joint adjusters; see the pipeline section below).
+**Champions format**. The live ladder rolled from Reg M-A to **Reg M-B** on
+2026-06-17 (`BATTLE_FORMAT` in `main.py` is `gen9championsvgc2026regmb`); the
+data/usage layer is still Reg M-A-derived pending M-B usage stats (~July). It
+connects via WebSocket, parses the battle protocol, and chooses moves using a
+two-phase scoring engine (12 per-slot modules + 4 joint adjusters; see the
+pipeline section below).
 
 ---
 
