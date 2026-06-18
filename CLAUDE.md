@@ -135,8 +135,12 @@ the best pair.
   is modelled as Charizard-Mega-Y; revealed mega or revealed non-stone item
   overrides), `_effective_ability(mon)` (revealed > top-usage ability of the
   assumed forme), `_effective_item(mon)` (revealed > consumed→None > top-usage
-  item if ≥40%, `_ASSUMED_ITEM_MIN_PCT`). Assumed items feed **all** damage
-  math; Focus Sash/Sturdy set `DamageResult.ko_prevented` (damage.py), which
+  item if ≥25%, `_ASSUMED_ITEM_MIN_PCT` — a clear plurality is committed to; a
+  below-25% top item is too flat to pick, so None). This **one modal item belief**
+  feeds **both** damage math and the speed pipeline (since 0.11.0): `turn_order`
+  applies it via `data.items.speed_multiplier` (Choice Scarf ×1.5, Iron Ball /
+  Macho Brace ×0.5) — `speed_distribution` is a pure *spread* prior with no scarf
+  branch. Focus Sash/Sturdy set `DamageResult.ko_prevented` (damage.py), which
   gates `is_ohko`/`ohko_with_max_roll` — multi-hit moves break Sash naturally
 - `JointAdjuster` (engine.py) — phase-2 base class; `factor(state, slot_a, a0,
   slot_b, a1) -> (factor_a, factor_b, reason)`. Concrete: `DoublingAdjuster`,

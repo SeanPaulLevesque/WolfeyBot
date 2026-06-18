@@ -83,7 +83,7 @@ from .abilities import (
 from .speed_tiers import (
     SpeedOutcome,
     speed_distribution, prob_faster_than, prob_outspeeds,
-    most_likely_speed, scarf_adjusted_speed,
+    most_likely_speed,
     update_speed_belief, update_speed_belief_slower,
 )
 
@@ -125,6 +125,6 @@ __all__ = [
     # speed_tiers
     "SpeedOutcome",
     "speed_distribution", "prob_faster_than", "prob_outspeeds",
-    "most_likely_speed", "scarf_adjusted_speed",
+    "most_likely_speed",
     "update_speed_belief", "update_speed_belief_slower",
 ]

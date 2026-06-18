@@ -108,7 +108,7 @@ def _opp_combatant(state: "BattleState", opp_slot: int) -> Optional[Combatant]:
     return Combatant(
         name=_assumed_species(mon), side="opp", slot=opp_slot,
         exact_speed=None,
-        item=mon.item, ability=inferred_ability,
+        item=_effective_item(mon), ability=inferred_ability,
         speed_stage=mon.boosts.get("spe", 0),
         tailwind=state.opp_tailwind,
         paralyzed=(mon.status == "par"),
@@ -190,7 +190,13 @@ def _assumed_ability(species: str) -> Optional[str]:
     return dist[0][0]
 
 
-_ASSUMED_ITEM_MIN_PCT = 40.0  # only assume an item this common
+# Assume a species' top-usage item only if it's at least this common.  A clear
+# plurality (≥25%) is committed to; below that the distribution is too flat to
+# pick one item, so we assume None (no item-based effect) rather than guess.
+# 25% captures the common Choice Scarf / Focus Sash / type-boost pluralities
+# (which otherwise bias us optimistically — "not scarfed", "no Sash"); only the
+# flattest distributions fall through to None.
+_ASSUMED_ITEM_MIN_PCT = 25.0
 
 
 def _assumed_item(species: str) -> Optional[str]:

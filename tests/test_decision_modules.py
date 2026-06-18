@@ -2430,12 +2430,18 @@ class TestEffectiveItem:
     # ── _assumed_item ─────────────────────────────────────────────────────────
 
     def test_assumed_item_above_threshold(self):
-        """Whimsicott's top item (Focus Sash, 74.9%) clears the 40% threshold."""
+        """A top item at/above the 25% floor is assumed.
+
+        Whimsicott's Focus Sash (74.9%) is a runaway; Garchomp's Choice Scarf
+        (27.9%) is a mere plurality but still clears 25% — committing to it makes
+        us play around a likely-scarfed Garchomp rather than into it."""
         assert _assumed_item("Whimsicott") == "Focus Sash"
+        assert _assumed_item("Garchomp") == "Choice Scarf"
 
     def test_assumed_item_below_threshold_returns_none(self):
-        """Garchomp's top item (Choice Scarf, 27.9%) is under 40% → None."""
-        assert _assumed_item("Garchomp") is None
+        """Drampa's top item (Silk Scarf, 19.5%) is under the 25% floor → None:
+        the distribution is too flat to commit to one item."""
+        assert _assumed_item("Drampa") is None
 
     def test_assumed_item_no_data_returns_none(self):
         with patch("decision.modules._item_distribution", return_value=[]):

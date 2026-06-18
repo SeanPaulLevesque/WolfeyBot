@@ -41,10 +41,10 @@ class TestApplyModifiers:
         assert _apply_modifiers(100, speed_stage=-1) == 66
 
     def test_scarf_1_5x(self):
-        assert _apply_modifiers(100, scarfed=True) == 150
+        assert _apply_modifiers(100, item="Choice Scarf") == 150
 
     def test_slow_item_halves(self):
-        assert _apply_modifiers(100, slow_item=True) == 50
+        assert _apply_modifiers(100, item="Iron Ball") == 50
 
     def test_unburden_doubles(self):
         assert _apply_modifiers(100, ability="Unburden", item_consumed=True) == 200
