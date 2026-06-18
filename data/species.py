@@ -113,6 +113,23 @@ _MEGA_SUPPLEMENTS: dict[str, dict] = {
     "Tyranitar-Mega":    {"name":"Tyranitar-Mega",     "types":["Rock","Dark"],        "hp":100, "atk":164,"def":150,"spa":95, "spd":120,"spe":71,  "formats":["OU"]},
     "Venusaur-Mega":     {"name":"Venusaur-Mega",      "types":["Grass","Poison"],     "hp":80,  "atk":100,"def":123,"spa":122,"spd":120,"spe":80,  "formats":["OU"]},
     "Victreebel-Mega":   {"name":"Victreebel-Mega",    "types":["Grass","Poison"],     "hp":80,  "atk":125,"def":85, "spa":135,"spd":95, "spe":70,  "formats":["OU"]},
+    # ── Regulation M-B (2026-06-17) — new official megas ─────────────────────
+    "Raichu-Mega-X":     {"name":"Raichu-Mega-X",      "types":["Electric"],           "hp":60,  "atk":135,"def":95, "spa":90, "spd":95, "spe":110, "formats":["Champions"]},
+    "Raichu-Mega-Y":     {"name":"Raichu-Mega-Y",      "types":["Electric"],           "hp":60,  "atk":100,"def":55, "spa":160,"spd":80, "spe":130, "formats":["Champions"]},
+    "Sceptile-Mega":     {"name":"Sceptile-Mega",      "types":["Grass","Dragon"],     "hp":70,  "atk":110,"def":75, "spa":145,"spd":85, "spe":145, "formats":["Champions"]},
+    "Blaziken-Mega":     {"name":"Blaziken-Mega",      "types":["Fire","Fighting"],    "hp":80,  "atk":160,"def":80, "spa":130,"spd":80, "spe":100, "formats":["Champions"]},
+    "Swampert-Mega":     {"name":"Swampert-Mega",      "types":["Water","Ground"],     "hp":100, "atk":150,"def":110,"spa":95, "spd":110,"spe":70,  "formats":["Champions"]},
+    "Mawile-Mega":       {"name":"Mawile-Mega",        "types":["Steel","Fairy"],      "hp":50,  "atk":105,"def":125,"spa":55, "spd":95, "spe":50,  "formats":["Champions"]},
+    "Metagross-Mega":    {"name":"Metagross-Mega",     "types":["Steel","Psychic"],    "hp":80,  "atk":145,"def":150,"spa":105,"spd":110,"spe":110, "formats":["Champions"]},
+    "Staraptor-Mega":    {"name":"Staraptor-Mega",     "types":["Fighting","Flying"],  "hp":85,  "atk":140,"def":100,"spa":60, "spd":90, "spe":110, "formats":["Champions"]},
+    "Scolipede-Mega":    {"name":"Scolipede-Mega",     "types":["Bug","Poison"],       "hp":60,  "atk":140,"def":149,"spa":75, "spd":99, "spe":62,  "formats":["Champions"]},
+    "Scrafty-Mega":      {"name":"Scrafty-Mega",       "types":["Dark","Fighting"],    "hp":65,  "atk":130,"def":135,"spa":55, "spd":135,"spe":68,  "formats":["Champions"]},
+    "Eelektross-Mega":   {"name":"Eelektross-Mega",    "types":["Electric"],           "hp":85,  "atk":145,"def":80, "spa":135,"spd":90, "spe":80,  "formats":["Champions"]},
+    "Pyroar-Mega":       {"name":"Pyroar-Mega",        "types":["Fire","Normal"],      "hp":86,  "atk":88, "def":92, "spa":129,"spd":86, "spe":126, "formats":["Champions"]},
+    "Malamar-Mega":      {"name":"Malamar-Mega",       "types":["Dark","Psychic"],     "hp":86,  "atk":102,"def":88, "spa":98, "spd":120,"spe":88,  "formats":["Champions"]},
+    "Barbaracle-Mega":   {"name":"Barbaracle-Mega",    "types":["Rock","Fighting"],    "hp":72,  "atk":140,"def":130,"spa":64, "spd":106,"spe":88,  "formats":["Champions"]},
+    "Dragalge-Mega":     {"name":"Dragalge-Mega",      "types":["Poison","Dragon"],    "hp":65,  "atk":85, "def":105,"spa":132,"spd":163,"spe":44,  "formats":["Champions"]},
+    "Falinks-Mega":      {"name":"Falinks-Mega",       "types":["Fighting"],           "hp":65,  "atk":135,"def":135,"spa":70, "spd":65, "spe":100, "formats":["Champions"]},
 }
 
 
@@ -179,6 +196,23 @@ _MEGA_ABILITY_SUPPLEMENTS: dict[str, str] = {
     "Tyranitar-Mega":    "Sand Stream",
     "Venusaur-Mega":     "Thick Fat",
     "Victreebel-Mega":   "Innards Out",
+    # ── Regulation M-B (2026-06-17) ──────────────────────────────────────────
+    "Raichu-Mega-X":     "Electric Surge",
+    "Raichu-Mega-Y":     "No Guard",
+    "Sceptile-Mega":     "Lightning Rod",
+    "Blaziken-Mega":     "Speed Boost",
+    "Swampert-Mega":     "Swift Swim",
+    "Mawile-Mega":       "Huge Power",
+    "Metagross-Mega":    "Tough Claws",
+    "Staraptor-Mega":    "Contrary",
+    "Scolipede-Mega":    "Shell Armor",
+    "Scrafty-Mega":      "Intimidate",
+    "Eelektross-Mega":   "Eelevate",
+    "Pyroar-Mega":       "Fire Mane",
+    "Malamar-Mega":      "Contrary",
+    "Barbaracle-Mega":   "Tough Claws",
+    "Dragalge-Mega":     "Regenerator",
+    "Falinks-Mega":      "Defiant",
 }
 
 

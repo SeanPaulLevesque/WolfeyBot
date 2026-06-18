@@ -1,5 +1,36 @@
 # WolfeyBot Changelog
 
+## 0.10.0 — 2026-06-17
+
+### Regulation M-B support — 38 new species, 6 moves, 2 abilities
+
+The new Champions regulation (M-B) released today; folded its additions into the
+data layer (sourced from Serebii's Champions Pokédex, spot-checked by the user).
+
+- **22 base forms** → `smogon_champions_slim.json` (Vileplume, Sceptile, Blaziken,
+  Swampert, Mawile, Metagross, Staraptor, Gholdengo, Annihilape, Grimmsnarl, …).
+- **16 mega formes** → `_MEGA_SUPPLEMENTS` (stats/types) + `_MEGA_ABILITY_SUPPLEMENTS`
+  (ability) in `data/species.py`: Raichu-Mega-X/Y, Sceptile/Blaziken/Swampert/
+  Mawile/Metagross/Staraptor/Scolipede/Scrafty/Eelektross/Pyroar/Malamar/Barbaracle/
+  Dragalge/Falinks-Mega.
+- **6 signature moves** → `champions_moves.json`: Make It Rain (M-B: 95% acc, user
+  SpA −2), Rage Fist (flat 50 BP — hit-count scaling not modeled, see BACKLOG),
+  Barb Barrage, Spirit Break, No Retreat, Spin Out.
+- **14 mega stones** → `champions_items.json` (Raichunite X/Y already present).
+- **2 new official abilities** wired in `damage.py`: **Fire Mane** (+50% Fire,
+  like Transistor) and **Eelevate** (Ground-type immunity, like Levitate; its
+  on-KO highest-stat boost is Beast-Boost-style and left unscored). Both also added
+  to `champions_abilities.json` (along with 8 standard abilities the curated subset
+  was missing).
+- **`tools/move_coverage.py`** (new): cross-references each mon's top-usage moves
+  against the move DB. Confirms zero move-data gaps for mons that have usage; lists
+  the 38 new mons that need hand-compiled usage (Smogon M-B stats land ~July).
+
+No usage data exists for the new mons yet, so opponent moveset inference and the
+mega stone→forme mapping for them are deferred (tracked in BACKLOG). Engine
+behaviour for existing mons is unchanged: the baseline turn-1 snapshot diff is the
+header version line only (120 decision rows byte-identical). Full suite green.
+
 ## 0.9.0 — 2026-06-16
 
 ### Named teams + A/B data separation

@@ -340,6 +340,9 @@ def atk_modifier(
     elif ability == "Transistor" and move_type == "Electric":
         mod *= 1.3   # +30% Electric (Champions reference)
 
+    elif ability == "Fire Mane" and move_type == "Fire":
+        mod *= 1.5   # +50% Fire (Mega Pyroar, Reg M-B)
+
     elif ability == "Tough Claws" and is_contact(move_name):
         mod *= 1.3   # contact moves only (see data/move_flags.py)
 
@@ -641,7 +644,7 @@ def calc_damage(
 
 # Abilities that grant full immunity to an entire move type (damage → 0).
 _ABILITY_TYPE_IMMUNITY: dict[str, str] = {
-    "Levitate": "Ground", "Earth Eater": "Ground",
+    "Levitate": "Ground", "Earth Eater": "Ground", "Eelevate": "Ground",
     "Flash Fire": "Fire", "Well-Baked Body": "Fire",
     "Water Absorb": "Water", "Dry Skin": "Water", "Storm Drain": "Water",
     "Volt Absorb": "Electric", "Lightning Rod": "Electric", "Motor Drive": "Electric",

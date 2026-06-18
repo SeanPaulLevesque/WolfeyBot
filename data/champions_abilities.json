@@ -572,5 +572,35 @@
   },
   "Zero to Hero": {
     "description": "If this Pokemon is a Palafin in Zero Form, switching out has it change to Hero Form."
+  },
+  "Battle Armor": {
+    "description": "Protects the Pokemon from critical hits."
+  },
+  "Eelevate": {
+    "description": "The Pokemon floats, making it immune to Ground-type moves and to Spikes, Toxic Spikes, and Sticky Web. When it knocks out a target with an attack, its highest stat is raised by 1 stage."
+  },
+  "Effect Spore": {
+    "description": "30% chance a Pokemon making contact with this Pokemon is poisoned, paralyzed, or put to sleep."
+  },
+  "Electric Surge": {
+    "description": "On switch-in, this Pokemon summons Electric Terrain for 5 turns."
+  },
+  "Fire Mane": {
+    "description": "Boosts the power of this Pokemon's Fire-type moves by 50%."
+  },
+  "Fluffy": {
+    "description": "This Pokemon takes halved damage from contact moves but double damage from Fire moves."
+  },
+  "Forewarn": {
+    "description": "On switch-in, this Pokemon is alerted to the foe's move with the highest base power."
+  },
+  "Good as Gold": {
+    "description": "This Pokemon is immune to status moves."
+  },
+  "Suction Cups": {
+    "description": "This Pokemon cannot be forced out by moves or items."
+  },
+  "Vital Spirit": {
+    "description": "This Pokemon cannot fall asleep."
   }
 }

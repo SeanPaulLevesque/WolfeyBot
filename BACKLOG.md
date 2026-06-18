@@ -6,6 +6,20 @@ process / regression:
 -Separate big changes for regression testing. Sweeping correctness changes (e.g. the 0.8.0 SP->stat formula fix) silently invalidate every prior win-rate baseline, so they must land in ISOLATION with their own before/after sample, not stacked with team/tuning edits — otherwise win-rate effects can't be attributed. Lesson from 0.8.0: the SP fix and the Scarf-Garchomp team change went out together, so the next ladder run measures both at once. Going forward: land one big lever at a time, re-baseline, then the next.
 -Verify the engine uses champions_moves.json's `championsChanges` field (modified PP/power vs base game) rather than base-game move power anywhere. The authoritative move-change data + other reference files live in the "VGC Champions" Claude project's /mnt/project/ directory — NOT accessible from the WolfeyBot dev environment (path does not exist here). Need the user to surface those files (copy into the repo, or paste) before this can be checked. Other files in that directory should be cross-checked against the engine's data layer too.
 
+Regulation M-B follow-ups (data folded in 2026-06-17):
+-Hand-compile usage data for the 38 new mons once available (Smogon M-B stats land
+ ~July). Run `tools/move_coverage.py` to see the current no-usage set. Until then
+ the new mons have no assumable opponent moveset, and the mega stone->forme mapping
+ (usage-derived in data/sets.py) needs an explicit override for the new megas.
+-Scrape the Serebii Champions Pokédex (serebii.net/pokedex-champions/<name>/) for
+ the new mons' FULL movepools and diff against champions_moves.json — we only added
+ their signature moves (Make It Rain/Rage Fist/Barb Barrage/Spirit Break/No Retreat),
+ so a new mon could use a TM move we still lack. Fold any misses in via the same CSV
+ spot-check flow.
+-Model Rage Fist's hit-count scaling (currently treated as flat 50 BP). M-B behavior:
+ power +50 per hit taken, and stacks now reset on switch-out. Model it if it proves
+ to matter in practice.
+
 feature modules:
 -I am thinking about a switch module that switches based on the move type a slot is weak against. For instance it would switch in aerodactyl when opp garchomp is threatening a ground type. Right now it looks at all available moves, but doesn't think about likely moves.
 Add more complete weather and field effects to the engine. ie damage from sandstorm, blizzard accuracy from snow, +fire damage from sun
