@@ -24,11 +24,13 @@ CHOICE_ITEMS = frozenset({"Choice Scarf", "Choice Band", "Choice Specs"})
 # Items that always survive one hit at full HP
 FOCUS_SASH_ITEMS = frozenset({"Focus Sash"})
 
-# Type-boosting items: maps type → item names
+# Permanent type-boosting held items (×1.2 to the matching move type).  Gems
+# (Fire Gem etc.) are intentionally excluded — they are one-time ×1.3 consumables
+# with a different mechanic the engine doesn't model.
 TYPE_BOOST_ITEMS: dict[str, frozenset[str]] = {
     "Normal":   frozenset({"Silk Scarf"}),
-    "Fire":     frozenset({"Charcoal", "Fire Gem"}),
-    "Water":    frozenset({"Mystic Water", "Water Gem"}),
+    "Fire":     frozenset({"Charcoal"}),
+    "Water":    frozenset({"Mystic Water"}),
     "Electric": frozenset({"Magnet"}),
     "Grass":    frozenset({"Miracle Seed"}),
     "Ice":      frozenset({"Never-Melt Ice"}),
@@ -45,6 +47,18 @@ TYPE_BOOST_ITEMS: dict[str, frozenset[str]] = {
     "Steel":    frozenset({"Metal Coat"}),
     "Fairy":    frozenset({"Fairy Feather"}),
 }
+
+
+# Reverse map: held item → the single type it boosts (derived from TYPE_BOOST_ITEMS).
+_TYPE_BOOST_ITEM_TYPE: dict[str, str] = {
+    item: typ for typ, names in TYPE_BOOST_ITEMS.items() for item in names
+}
+
+
+def type_boost_multiplier(item: Optional[str], move_type: str) -> float:
+    """Damage multiplier from a type-boosting held item: 1.2 if *item* boosts
+    *move_type*, else 1.0.  Generalizes the per-item check at the call site."""
+    return 1.2 if item and _TYPE_BOOST_ITEM_TYPE.get(item) == move_type else 1.0
 
 
 def _load() -> None:

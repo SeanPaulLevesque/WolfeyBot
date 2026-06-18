@@ -357,14 +357,6 @@ def parse_spread(spread_str: str) -> Optional[dict]:
     }
 
 
-def scarf_probability(name: str) -> float:
-    """Return the Choice Scarf usage probability (0.0–1.0) for a Pokémon."""
-    for item_name, pct in item_distribution(name):
-        if item_name == "Choice Scarf":
-            return pct / 100.0
-    return 0.0
-
-
 def all_pokemon() -> list[str]:
     """Return names of all Pokémon present in the sets file."""
     _load()

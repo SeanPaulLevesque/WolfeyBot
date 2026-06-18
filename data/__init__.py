@@ -40,7 +40,7 @@ from .sets import (
     spread_distribution, item_distribution,
     ability_distribution, move_distribution,
     teammate_distribution,
-    parse_spread, scarf_probability, all_pokemon,
+    parse_spread, all_pokemon,
 )
 
 # Data-gap diagnostics (battle-log "data_gaps" flags)
@@ -64,7 +64,8 @@ from .moves import (
 
 # Item data
 from .items import (
-    get_item, item_exists, speed_multiplier, is_mega_stone, all_items,
+    get_item, item_exists, speed_multiplier, type_boost_multiplier,
+    is_mega_stone, all_items,
     SPEED_BOOST_ITEMS, SPEED_HALVE_ITEMS, CHOICE_ITEMS,
     FOCUS_SASH_ITEMS, TYPE_BOOST_ITEMS,
 )
@@ -98,7 +99,7 @@ __all__ = [
     "spread_distribution", "item_distribution",
     "ability_distribution", "move_distribution",
     "teammate_distribution",
-    "parse_spread", "scarf_probability", "all_pokemon",
+    "parse_spread", "all_pokemon",
     # diagnostics
     "note_gap", "drain_gaps",
     # move flags
@@ -111,8 +112,8 @@ __all__ = [
     "needs_target", "expected_hits", "all_moves",
     "SPREAD_TARGETS", "NO_TARGET_STRINGS",
     # items
-    "get_item", "item_exists", "speed_multiplier", "is_mega_stone",
-    "all_items",
+    "get_item", "item_exists", "speed_multiplier", "type_boost_multiplier",
+    "is_mega_stone", "all_items",
     "SPEED_BOOST_ITEMS", "SPEED_HALVE_ITEMS", "CHOICE_ITEMS",
     "FOCUS_SASH_ITEMS", "TYPE_BOOST_ITEMS",
     # abilities

@@ -26,6 +26,7 @@ from data import (
     spread_distribution, parse_spread,
     calc_all_stats, get_weight,
     note_gap, is_contact, move_has_flag,
+    type_boost_multiplier,
 )
 
 
@@ -420,42 +421,10 @@ def atk_modifier(
         mod *= 1.5
     elif item == "Life Orb":
         mod *= 1.3
-    elif item == "Silk Scarf" and move_type == "Normal":
-        mod *= 1.2
-    elif item == "Charcoal" and move_type == "Fire":
-        mod *= 1.2
-    elif item == "Mystic Water" and move_type == "Water":
-        mod *= 1.2
-    elif item == "Magnet" and move_type == "Electric":
-        mod *= 1.2
-    elif item == "Miracle Seed" and move_type == "Grass":
-        mod *= 1.2
-    elif item == "Black Belt" and move_type == "Fighting":
-        mod *= 1.2
-    elif item == "Sharp Beak" and move_type == "Flying":
-        mod *= 1.2
-    elif item == "Poison Barb" and move_type == "Poison":
-        mod *= 1.2
-    elif item == "Soft Sand" and move_type == "Ground":
-        mod *= 1.2
-    elif item == "Hard Stone" and move_type == "Rock":
-        mod *= 1.2
-    elif item == "Silver Powder" and move_type == "Bug":
-        mod *= 1.2
-    elif item == "Spell Tag" and move_type == "Ghost":
-        mod *= 1.2
-    elif item == "Twisted Spoon" and move_type == "Psychic":
-        mod *= 1.2
-    elif item == "Never-Melt Ice" and move_type == "Ice":
-        mod *= 1.2
-    elif item == "Dragon Fang" and move_type == "Dragon":
-        mod *= 1.2
-    elif item == "Black Glasses" and move_type == "Dark":
-        mod *= 1.2
-    elif item == "Metal Coat" and move_type == "Steel":
-        mod *= 1.2
-    elif item == "Fairy Feather" and move_type == "Fairy":
-        mod *= 1.2
+    else:
+        # Permanent type-boosting items (Charcoal/Mystic Water/… → ×1.2 on the
+        # matching type) via data/items.py — returns 1.0 for any other item.
+        mod *= type_boost_multiplier(item, move_type)
 
     return mod
 
