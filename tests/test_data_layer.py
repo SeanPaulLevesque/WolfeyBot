@@ -486,16 +486,27 @@ class TestAegislashBladeImmunity:
 
 class TestSetsSupplement:
     """The hand-entry supplement merges into the usage data and feeds every
-    accessor; the shipped file is inert (documentation keys only)."""
+    accessor.  The shipped file carries documentation (_*) keys plus any seeded
+    prelim entries (battle-log-derived M-B movesets)."""
 
-    def test_shipped_supplement_is_inert_and_valid(self):
-        """The committed file parses and carries no real entries yet — only
-        underscore-prefixed documentation keys (so it changes nothing)."""
+    def test_shipped_supplement_is_valid_and_well_formed(self):
+        """The committed file parses, and every real (non-underscore) entry is a
+        well-formed dict whose distribution sub-fields are {name: number} maps."""
         import json
         import data.sets as S
         data = json.loads(S._SUPPLEMENT_FILE.read_text(encoding="utf-8"))
-        real = {k: v for k, v in data.items() if not k.startswith("_")}
-        assert real == {}, f"shipped supplement should have no real entries yet: {list(real)}"
+        for name, entry in data.items():
+            if name.startswith("_"):
+                continue
+            assert isinstance(entry, dict), f"{name} entry must be an object"
+            for field in ("abilities", "items", "spreads", "moves",
+                          "teammates", "tera_types"):
+                dist = entry.get(field)
+                if dist is None:
+                    continue
+                assert isinstance(dist, dict), f"{name}.{field} must be an object"
+                assert all(isinstance(v, (int, float)) for v in dist.values()), \
+                    f"{name}.{field} values must be numeric percentages"
 
     def _reload_with(self, monkeypatch, tmp_path, payload: dict):
         """Force data.sets to reload against a temp supplement file."""

@@ -186,17 +186,21 @@ class TestSelectActions:
 
 def _make_mock_state(turn=1):
     """Build a minimal mock BattleState-like object."""
+    _ZERO = {"atk": 0, "def": 0, "spa": 0, "spd": 0, "spe": 0, "accuracy": 0, "evasion": 0}
     state = MagicMock()
     state.turn = turn
     state.weather = None
     state.terrain = None
     state.trick_room = False
+    state.my_tailwind = False
+    state.opp_tailwind = False
     state.my_actives = [MagicMock(species="Garganacl", hp=300, max_hp=300,
-                                   status=None)]
+                                   status=None, boosts=dict(_ZERO))]
     state.opp_actives = [MagicMock(species="Garchomp", hp=175, max_hp=175,
                                     status=None, fainted=False,
-                                    moves=["Earthquake"])]
-    state.my_team = [MagicMock(species="Garganacl", hp=300, max_hp=300)]
+                                    moves=["Earthquake"], boosts=dict(_ZERO))]
+    state.my_team = [MagicMock(species="Garganacl", hp=300, max_hp=300,
+                               boosts=dict(_ZERO))]
     state.events_log = {}   # real dict (0.8.1) — MagicMock would break _build_turn
     state.predicted_incoming_log = {}   # real dict (0.8.4) — same reason
     return state
@@ -263,6 +267,38 @@ class TestDataGapsInLog:
                 with open(path, encoding="utf-8") as f:
                     data = json.load(f)
                 assert "data_gaps" not in data
+
+
+class TestTailwindAndBoostsInLog:
+    """Per-turn tailwind (`tw`) + active stat boosts (`b`) — the speed modifiers
+    needed to normalise observed turn order offline (0.13.0)."""
+
+    def _save_turn(self, tmpdir, state):
+        rec = BattleRecorder("battle-tw-test", "0.13.0")
+        rec.record_decision(state, slot=0, ranked_actions=_make_actions())
+        rec.record_outcome(won=True)
+        with open(os.path.join(tmpdir, "Battle Data", "0.13.0",
+                               "battle-tw-test.json"), encoding="utf-8") as f:
+            return json.load(f)["turns"][0]
+
+    def test_tw_and_boosts_omitted_when_absent(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                turn = self._save_turn(tmpdir, _make_mock_state(turn=1))
+        assert "tw" not in turn
+        assert "b" not in turn["my"][0] and "b" not in turn["opp"][0]
+
+    def test_tw_and_boosts_written_when_present(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                state = _make_mock_state(turn=1)
+                state.opp_tailwind = True
+                state.opp_actives[0].boosts = {"atk": 0, "def": 0, "spa": 0,
+                                               "spd": 0, "spe": 2, "accuracy": 0,
+                                               "evasion": 0}
+                turn = self._save_turn(tmpdir, state)
+        assert turn["tw"] == {"us": False, "opp": True}
+        assert turn["opp"][0]["b"] == {"spe": 2}   # only non-zero boosts kept
 
 
 class TestMoveEventsInLog:

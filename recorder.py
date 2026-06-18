@@ -158,6 +158,9 @@ def _snapshot_state(state: "BattleState") -> dict:
     This function extracts the relevant scalar and list fields immediately so
     the recorded HP/status values match the moment the decision was made.
     """
+    def _nonzero_boosts(mon) -> dict:
+        return {k: v for k, v in (getattr(mon, "boosts", None) or {}).items() if v}
+
     def _mon_snap(mon) -> Optional[dict]:
         if mon is None:
             return None
@@ -166,6 +169,7 @@ def _snapshot_state(state: "BattleState") -> dict:
             "hp":      mon.hp,
             "max_hp":  mon.max_hp,
             "status":  mon.status,
+            "boosts":  _nonzero_boosts(mon),
         }
 
     def _opp_snap(mon) -> Optional[dict]:
@@ -177,12 +181,17 @@ def _snapshot_state(state: "BattleState") -> dict:
             "max_hp":  mon.max_hp,
             "status":  mon.status,
             "moves":   list(mon.moves),
+            "boosts":  _nonzero_boosts(mon),
         }
 
     return {
-        "weather":    state.weather,
-        "terrain":    state.terrain,
-        "trick_room": state.trick_room,
+        "weather":     state.weather,
+        "terrain":     state.terrain,
+        "trick_room":  state.trick_room,
+        # Tailwind + active stat boosts (0.13.0): the two speed modifiers needed
+        # to turn observed turn order into a clean speed estimate offline.
+        "my_tailwind":  bool(state.my_tailwind),
+        "opp_tailwind": bool(state.opp_tailwind),
         "my_actives": [_mon_snap(m) for m in state.my_actives],
         "opp_actives":[_opp_snap(o) for o in state.opp_actives],
         "my_team":    [_mon_snap(p) for p in state.my_team],
@@ -302,6 +311,10 @@ class BattleRecorder:
             t["te"] = snap["terrain"]
         if snap["trick_room"]:
             t["tr"] = True
+        # Tailwind per side (omitted when neither is up) — a speed ×2 modifier
+        # needed to normalise observed turn order into raw speed.
+        if snap["my_tailwind"] or snap["opp_tailwind"]:
+            t["tw"] = {"us": snap["my_tailwind"], "opp": snap["opp_tailwind"]}
 
         # Our actives — list indexed by slot; None entries preserve slot alignment
         my_list = []
@@ -312,6 +325,8 @@ class BattleRecorder:
                 m: dict = {"s": mon["species"], "hp": _hp_frac(mon["hp"], mon["max_hp"])}
                 if mon["status"]:
                     m["sts"] = mon["status"]
+                if mon["boosts"]:
+                    m["b"] = mon["boosts"]
                 my_list.append(m)
         if any(x is not None for x in my_list):
             t["my"] = my_list
@@ -327,6 +342,8 @@ class BattleRecorder:
                     oe["sts"] = o["status"]
                 if o["moves"]:
                     oe["mv"] = sorted(o["moves"])
+                if o["boosts"]:
+                    oe["b"] = o["boosts"]
                 opp_list.append(oe)
         if any(x is not None for x in opp_list):
             t["opp"] = opp_list

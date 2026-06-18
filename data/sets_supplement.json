@@ -16,17 +16,28 @@
     "  - A malformed JSON edit fails loud at startup (so a typo can't silently drop",
     "    data) -- validate your edits."
   ],
-
   "_schema": {
     "<Species Name>": {
       "raw_count": "int, optional. Relative popularity. Used ONLY to decide base-vs-mega forme for an unrevealed mon: compared against the '<Name>-Mega' entry's raw_count. Set both when a mon megas (higher = more likely forme). Omit if the mon has no mega.",
       "viability": "int, optional, cosmetic.",
-      "abilities": {"<Ability>": "pct"},
-      "items": {"<Item>": "pct"},
-      "spreads": {"<Nature>:HP/Atk/Def/SpA/SpD/Spe": "pct. EVs are SP units 0-32 (32 = 252 EVs), same format as the main file and parse_spread(). Drives the speed/Choice-Scarf read."},
-      "moves": {"<Move>": "pct"},
-      "teammates": {"<Teammate species>": "pct"},
-      "tera_types": {"<Type>": "pct (optional; rarely used)"}
+      "abilities": {
+        "<Ability>": "pct"
+      },
+      "items": {
+        "<Item>": "pct"
+      },
+      "spreads": {
+        "<Nature>:HP/Atk/Def/SpA/SpD/Spe": "pct. EVs are SP units 0-32 (32 = 252 EVs), same format as the main file and parse_spread(). Drives the speed/Choice-Scarf read."
+      },
+      "moves": {
+        "<Move>": "pct"
+      },
+      "teammates": {
+        "<Teammate species>": "pct"
+      },
+      "tera_types": {
+        "<Type>": "pct (optional; rarely used)"
+      }
     },
     "_notes": [
       "For a mega forme, name the entry '<Base>-Mega' (or '-Mega-X' / '-Mega-Y') and",
@@ -35,41 +46,402 @@
       "Item/ability/move/teammate keys must match the names Showdown uses."
     ]
   },
-
   "_example": {
     "Scolipede": {
       "raw_count": 800,
-      "abilities": {"Speed Boost": 88.0, "Swarm": 9.0},
-      "items": {"Focus Sash": 38.0, "Choice Band": 27.0, "Life Orb": 14.0},
-      "spreads": {"Jolly:0/32/0/0/4/28": 52.0, "Adamant:4/32/0/0/0/28": 18.0},
-      "moves": {"Megahorn": 96.0, "Protect": 78.0, "Rock Slide": 61.0, "Earthquake": 30.0},
-      "teammates": {"Incineroar": 28.0}
+      "abilities": {
+        "Speed Boost": 88.0,
+        "Swarm": 9.0
+      },
+      "items": {
+        "Focus Sash": 38.0,
+        "Choice Band": 27.0,
+        "Life Orb": 14.0
+      },
+      "spreads": {
+        "Jolly:0/32/0/0/4/28": 52.0,
+        "Adamant:4/32/0/0/0/28": 18.0
+      },
+      "moves": {
+        "Megahorn": 96.0,
+        "Protect": 78.0,
+        "Rock Slide": 61.0,
+        "Earthquake": 30.0
+      },
+      "teammates": {
+        "Incineroar": 28.0
+      }
     },
     "Scolipede-Mega": {
       "raw_count": 1500,
-      "abilities": {"Speed Boost": 100.0},
-      "items": {"Scolipite": 100.0},
-      "spreads": {"Jolly:0/32/0/0/4/28": 60.0},
-      "moves": {"Megahorn": 97.0, "Protect": 80.0, "Rock Slide": 64.0}
+      "abilities": {
+        "Speed Boost": 100.0
+      },
+      "items": {
+        "Scolipite": 100.0
+      },
+      "spreads": {
+        "Jolly:0/32/0/0/4/28": 60.0
+      },
+      "moves": {
+        "Megahorn": 97.0,
+        "Protect": 80.0,
+        "Rock Slide": 64.0
+      }
     },
     "_note": "Illustrative numbers only -- not real data. Delete this _example block's values pattern by copying it as a real top-level key (without the leading underscore) and replacing with measured usage."
   },
-
   "_todo": {
     "_note": "Species with no usage data yet. Move each into a real top-level entry as you compile numbers. Mega-capable bases should also get their '<Base>-Mega' entry.",
     "base": [
-      "Annihilape", "Barbaracle", "Blaziken", "Dragalge", "Eelektross", "Falinks",
-      "Forretress", "Furfrou", "Garbodor", "Gholdengo", "Grimmsnarl", "Houndstone",
-      "Malamar", "Mawile", "Metagross", "Musharna", "Overqwil", "Pyroar", "Qwilfish",
-      "Rotom", "Samurott", "Sceptile", "Scolipede", "Scrafty", "Simisage", "Simisear",
-      "Slurpuff", "Staraptor", "Stunfisk-Galar", "Swampert", "Tauros",
-      "Tauros-Paldea-Combat", "Vileplume", "Watchog"
+      "Annihilape",
+      "Barbaracle",
+      "Blaziken",
+      "Dragalge",
+      "Eelektross",
+      "Falinks",
+      "Forretress",
+      "Furfrou",
+      "Garbodor",
+      "Gholdengo",
+      "Grimmsnarl",
+      "Houndstone",
+      "Malamar",
+      "Mawile",
+      "Metagross",
+      "Musharna",
+      "Overqwil",
+      "Pyroar",
+      "Qwilfish",
+      "Rotom",
+      "Samurott",
+      "Sceptile",
+      "Scolipede",
+      "Scrafty",
+      "Simisage",
+      "Simisear",
+      "Slurpuff",
+      "Staraptor",
+      "Stunfisk-Galar",
+      "Swampert",
+      "Tauros",
+      "Tauros-Paldea-Combat",
+      "Vileplume",
+      "Watchog"
     ],
     "mega": [
-      "Barbaracle-Mega", "Blaziken-Mega", "Dragalge-Mega", "Eelektross-Mega",
-      "Falinks-Mega", "Malamar-Mega", "Mawile-Mega", "Metagross-Mega", "Pyroar-Mega",
-      "Raichu-Mega-X", "Raichu-Mega-Y", "Sceptile-Mega", "Scolipede-Mega",
-      "Scrafty-Mega", "Staraptor-Mega", "Swampert-Mega"
+      "Barbaracle-Mega",
+      "Blaziken-Mega",
+      "Dragalge-Mega",
+      "Eelektross-Mega",
+      "Falinks-Mega",
+      "Malamar-Mega",
+      "Mawile-Mega",
+      "Metagross-Mega",
+      "Pyroar-Mega",
+      "Raichu-Mega-X",
+      "Raichu-Mega-Y",
+      "Sceptile-Mega",
+      "Scolipede-Mega",
+      "Scrafty-Mega",
+      "Staraptor-Mega",
+      "Swampert-Mega"
     ]
-  }
+  },
+  "_provenance": "Entries listed in _seeded were generated by tools/seed_supplement_from_logs.py from battle-log observations (moves + teammates only; low-confidence). Re-run to refresh; replace with real Smogon M-B usage when available.",
+  "Raichu-Mega-X": {
+    "raw_count": 23,
+    "moves": {
+      "Fake Out": 60.9,
+      "Protect": 17.4,
+      "Focus Blast": 8.7,
+      "Nuzzle": 8.7,
+      "Thunderbolt": 8.7,
+      "Rising Voltage": 4.3,
+      "Zap Cannon": 4.3,
+      "Discharge": 4.3,
+      "Thunder": 4.3,
+      "Alluring Voice": 4.3,
+      "Grass Knot": 4.3,
+      "Volt Switch": 4.3,
+      "Knock Off": 4.3,
+      "Encore": 4.3
+    },
+    "teammates": {
+      "Pelipper": 28.8,
+      "Garchomp": 23.1,
+      "Basculegion": 21.2,
+      "Sneasler": 21.2,
+      "Aerodactyl": 19.2,
+      "Archaludon": 19.2,
+      "Gyarados": 19.2,
+      "Whimsicott": 17.3,
+      "Kingambit": 17.3,
+      "Farigiraf": 15.4
+    }
+  },
+  "Raichu-Mega-Y": {
+    "raw_count": 23,
+    "moves": {
+      "Fake Out": 60.9,
+      "Protect": 17.4,
+      "Focus Blast": 8.7,
+      "Nuzzle": 8.7,
+      "Thunderbolt": 8.7,
+      "Rising Voltage": 4.3,
+      "Zap Cannon": 4.3,
+      "Discharge": 4.3,
+      "Thunder": 4.3,
+      "Alluring Voice": 4.3,
+      "Grass Knot": 4.3,
+      "Volt Switch": 4.3,
+      "Knock Off": 4.3,
+      "Encore": 4.3
+    },
+    "teammates": {
+      "Pelipper": 28.8,
+      "Garchomp": 23.1,
+      "Basculegion": 21.2,
+      "Sneasler": 21.2,
+      "Aerodactyl": 19.2,
+      "Archaludon": 19.2,
+      "Gyarados": 19.2,
+      "Whimsicott": 17.3,
+      "Kingambit": 17.3,
+      "Farigiraf": 15.4
+    }
+  },
+  "Staraptor": {
+    "raw_count": 16,
+    "moves": {
+      "Close Combat": 87.5,
+      "Brave Bird": 56.2,
+      "Roost": 31.2,
+      "Protect": 31.2,
+      "Dual Wingbeat": 18.8,
+      "Tailwind": 6.2,
+      "Blaze Kick": 6.2
+    },
+    "teammates": {
+      "Grimmsnarl": 72.2,
+      "Garchomp": 50.0,
+      "Whimsicott": 38.9,
+      "Gholdengo": 38.9,
+      "Incineroar": 33.3,
+      "Basculegion": 27.8,
+      "Sinistcha-Masterpiece": 27.8,
+      "Sinistcha": 27.8,
+      "Kingambit": 16.7,
+      "Pelipper": 11.1
+    }
+  },
+  "Staraptor-Mega": {
+    "raw_count": 16,
+    "moves": {
+      "Close Combat": 87.5,
+      "Brave Bird": 56.2,
+      "Roost": 31.2,
+      "Protect": 31.2,
+      "Dual Wingbeat": 18.8,
+      "Tailwind": 6.2,
+      "Blaze Kick": 6.2
+    },
+    "teammates": {
+      "Grimmsnarl": 72.2,
+      "Garchomp": 50.0,
+      "Whimsicott": 38.9,
+      "Gholdengo": 38.9,
+      "Incineroar": 33.3,
+      "Basculegion": 27.8,
+      "Sinistcha-Masterpiece": 27.8,
+      "Sinistcha": 27.8,
+      "Kingambit": 16.7,
+      "Pelipper": 11.1
+    }
+  },
+  "Grimmsnarl": {
+    "raw_count": 14,
+    "moves": {
+      "Fake Out": 42.9,
+      "Reflect": 35.7,
+      "Spirit Break": 21.4,
+      "Play Rough": 7.1,
+      "Scary Face": 7.1
+    },
+    "teammates": {
+      "Staraptor": 76.5,
+      "Garchomp": 47.1,
+      "Sinistcha": 29.4,
+      "Gholdengo": 29.4,
+      "Kingambit": 23.5,
+      "Basculegion": 23.5,
+      "Incineroar": 23.5,
+      "Whimsicott": 23.5,
+      "Pelipper": 17.6,
+      "Sinistcha-Masterpiece": 17.6
+    }
+  },
+  "Swampert": {
+    "raw_count": 5,
+    "moves": {
+      "Protect": 60.0,
+      "Ice Punch": 40.0,
+      "Earthquake": 40.0,
+      "Wave Crash": 20.0
+    },
+    "teammates": {
+      "Pelipper": 85.7,
+      "Archaludon": 57.1,
+      "Sableye": 57.1,
+      "Gholdengo": 28.6,
+      "Sinistcha": 28.6,
+      "Sylveon": 14.3,
+      "Venusaur": 14.3,
+      "Basculegion": 14.3,
+      "Grimmsnarl": 14.3,
+      "Scovillain": 14.3
+    }
+  },
+  "Swampert-Mega": {
+    "raw_count": 5,
+    "moves": {
+      "Protect": 60.0,
+      "Ice Punch": 40.0,
+      "Earthquake": 40.0,
+      "Wave Crash": 20.0
+    },
+    "teammates": {
+      "Pelipper": 85.7,
+      "Archaludon": 57.1,
+      "Sableye": 57.1,
+      "Gholdengo": 28.6,
+      "Sinistcha": 28.6,
+      "Sylveon": 14.3,
+      "Venusaur": 14.3,
+      "Basculegion": 14.3,
+      "Grimmsnarl": 14.3,
+      "Scovillain": 14.3
+    }
+  },
+  "Sceptile": {
+    "raw_count": 4,
+    "moves": {
+      "Earth Power": 25.0,
+      "Dragon Pulse": 25.0,
+      "Protect": 25.0
+    },
+    "teammates": {
+      "Aerodactyl": 80.0,
+      "Rotom-Heat": 80.0,
+      "Basculegion": 60.0,
+      "Garchomp": 60.0,
+      "Floette-Eternal": 60.0,
+      "Kingambit": 40.0,
+      "Ceruledge": 20.0,
+      "Grimmsnarl": 20.0,
+      "Scrafty": 20.0,
+      "Sinistcha": 20.0
+    }
+  },
+  "Sceptile-Mega": {
+    "raw_count": 4,
+    "moves": {
+      "Earth Power": 25.0,
+      "Dragon Pulse": 25.0,
+      "Protect": 25.0
+    },
+    "teammates": {
+      "Aerodactyl": 80.0,
+      "Rotom-Heat": 80.0,
+      "Basculegion": 60.0,
+      "Garchomp": 60.0,
+      "Floette-Eternal": 60.0,
+      "Kingambit": 40.0,
+      "Ceruledge": 20.0,
+      "Grimmsnarl": 20.0,
+      "Scrafty": 20.0,
+      "Sinistcha": 20.0
+    }
+  },
+  "Gholdengo": {
+    "raw_count": 4,
+    "moves": {
+      "Make It Rain": 50.0,
+      "Protect": 50.0,
+      "Power Gem": 50.0,
+      "Focus Blast": 25.0
+    },
+    "teammates": {
+      "Staraptor": 58.3,
+      "Whimsicott": 50.0,
+      "Garchomp": 50.0,
+      "Grimmsnarl": 41.7,
+      "Basculegion": 25.0,
+      "Incineroar": 25.0,
+      "Sinistcha-Masterpiece": 25.0,
+      "Swampert": 16.7,
+      "Charizard": 16.7,
+      "Milotic": 16.7
+    }
+  },
+  "Metagross": {
+    "raw_count": 4,
+    "moves": {
+      "Psychic Fangs": 75.0,
+      "Protect": 75.0,
+      "Iron Head": 50.0,
+      "Substitute": 25.0,
+      "Body Press": 25.0,
+      "Meteor Mash": 25.0
+    },
+    "teammates": {
+      "Pelipper": 60.0,
+      "Basculegion": 40.0,
+      "Sneasler": 40.0,
+      "Incineroar": 20.0,
+      "Sinistcha-Masterpiece": 20.0,
+      "Staraptor": 20.0,
+      "Hydreigon": 20.0,
+      "Sableye": 20.0,
+      "Swampert": 20.0,
+      "Aerodactyl": 20.0
+    }
+  },
+  "Metagross-Mega": {
+    "raw_count": 4,
+    "moves": {
+      "Psychic Fangs": 75.0,
+      "Protect": 75.0,
+      "Iron Head": 50.0,
+      "Substitute": 25.0,
+      "Body Press": 25.0,
+      "Meteor Mash": 25.0
+    },
+    "teammates": {
+      "Pelipper": 60.0,
+      "Basculegion": 40.0,
+      "Sneasler": 40.0,
+      "Incineroar": 20.0,
+      "Sinistcha-Masterpiece": 20.0,
+      "Staraptor": 20.0,
+      "Hydreigon": 20.0,
+      "Sableye": 20.0,
+      "Swampert": 20.0,
+      "Aerodactyl": 20.0
+    }
+  },
+  "_seeded": [
+    "Gholdengo",
+    "Grimmsnarl",
+    "Metagross",
+    "Metagross-Mega",
+    "Raichu-Mega-X",
+    "Raichu-Mega-Y",
+    "Sceptile",
+    "Sceptile-Mega",
+    "Staraptor",
+    "Staraptor-Mega",
+    "Swampert",
+    "Swampert-Mega"
+  ]
 }

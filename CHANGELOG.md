@@ -1,5 +1,32 @@
 # WolfeyBot Changelog
 
+## 0.13.0 — 2026-06-18
+
+### Battle-log observability + prelim M-B usage seeded from logs
+
+No decision-logic change (turn-1 baselines byte-identical apart from the version
+header). Adds the data plumbing to bootstrap Reg M-B opponent inference from our
+own recorded games until Smogon M-B usage stats land.
+
+- **Recorder logs the two speed modifiers** (`recorder.py`): each turn now carries
+  `tw` (tailwind per side) and each active carries `b` (non-zero stat boosts).
+  These are exactly what's needed to normalise observed turn order into a clean
+  speed estimate offline (without them, our own Aerodactyl Tailwind silently
+  corrupts the read). Schema in `docs/BATTLE_LOG_SCHEMA.md`.
+- **`tools/seed_supplement_from_logs.py`** (new): mines `Battle Data/**/*.json`
+  for opponent **moves** (revealed `opp[].mv`, merged by base species) and
+  **teammates** (from the recorded `preview` sheet), and seeds them into
+  `data/sets_supplement.json` for the new M-B mons. Guarded so a sparse sample
+  can't mislead: only species seen ≥3 games AND with ≥1 observed damaging move
+  (others stay on the safe synthetic-STAB fallback); idempotent via a `_seeded`
+  marker. Items/abilities/spreads are not in the logs and stay on fallback.
+- **Seeded 12 forme entries** from the 50-game M-B run (Staraptor/-Mega,
+  Grimmsnarl, Swampert/-Mega, Sceptile/-Mega, Gholdengo, Metagross/-Mega,
+  Raichu-Mega-X/Y) — moves + teammates.
+- **Backlog**: turn-order → raw-speed estimation (now unblocked by the `tw`/`b`
+  logging; would seed `spreads` and could wire the dormant `update_speed_belief`
+  live), and accept/record Open Team Sheets (the path to real items/abilities).
+
 ## 0.12.0 — 2026-06-18
 
 ### Observation-driven item inference (prior + evidence)

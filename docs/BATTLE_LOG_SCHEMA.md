@@ -37,6 +37,7 @@ Also emitted as a `WARNING` log line when the battle is saved.
   "w":    "SunnyDay",  // weather: "SunnyDay" | "RainDance" | "Sandstorm" | "Snow" | null (omitted)
   "te":   "Electric",  // terrain (omitted if none)
   "tr":   true,        // Trick Room active (omitted when false)
+  "tw":   {"us": false, "opp": true},  // tailwind per side (0.13.0); omitted when neither is up
   "my":   [ <active>, ... ],   // our active slot(s), index = slot
   "opp":  [ <active>, ... ],   // opponent actives, index = slot
   "team": [ <active>, ... ],   // full 4-mon team snapshot (including actives)
@@ -100,7 +101,8 @@ target only; switches are not recorded as events (only `|move|` actions).
   "s":   "Sneasler",  // species name
   "hp":  0.74,        // current HP as 0.0–1.0 fraction (0.0 = fainted)
   "sts": "brn",       // status: "brn"|"par"|"slp"|"frz"|"psn"|"tox" (omitted if none)
-  "mv":  ["Earthquake", "Close Combat"]  // opp only: revealed moves (omitted if none known)
+  "mv":  ["Earthquake", "Close Combat"],  // opp only: revealed moves (omitted if none known)
+  "b":   {"spe": 2}   // active stat boosts, non-zero only (0.13.0); omitted if all zero
 }
 ```
 

@@ -19,6 +19,25 @@ Regulation M-B follow-ups (data folded in 2026-06-17):
 -Model Rage Fist's hit-count scaling (currently treated as flat 50 BP). M-B behavior:
  power +50 per hit taken, and stacks now reset on switch-out. Model it if it proves
  to matter in practice.
+-Turn-order -> speed estimation (prereq DONE 0.13.0: recorder now logs per-turn
+ tailwind `tw` + active boosts `b`). Mine observed move order from battle logs to
+ estimate opponents' raw speed: for same-priority-bracket attack-vs-attack pairs
+ with no Trick Room, normalise our known speed by tailwind/boosts/paralysis, derive
+ a bound on the opponent's effective speed, then back out raw speed (divide out the
+ opp's tailwind / assumed Scarf). Aggregate bounds across games -> seed `spreads`
+ in sets_supplement.json for the gap mons, and consider wiring the dormant
+ `data.speed_tiers.update_speed_belief` to refine speed beliefs live mid-game.
+ Re-run tools/seed_supplement_from_logs.py after the next batch (logs from 0.13.0+
+ carry the needed fields; pre-0.13.0 logs lack tw/boosts and can't be normalised).
+ NB the confounder that motivated this: our own team sets Tailwind (Aerodactyl), so
+ without the logged `tw` the bounds are systematically corrupted.
+-Accept + record Open Team Sheets (OTS). The M-B ladder offers OTS at team preview
+ (the bot currently ignores the `|uhtml|otsrequest|` accept/deny prompt). Accepting
+ reveals each opponent mon's item / ability / moves / Tera type up front; recording
+ the revealed sheet would close the items/abilities/spreads gaps that the move/
+ teammate log-mine can't (the logs don't capture opp items/abilities). Needs: parser
+ handling for the OTS reveal (`|showteam|` / equivalent) + a recorder field, then a
+ seeder pass. Highest-leverage path to real M-B opponent data before Smogon stats land.
 
 feature modules:
 -I am thinking about a switch module that switches based on the move type a slot is weak against. For instance it would switch in aerodactyl when opp garchomp is threatening a ground type. Right now it looks at all available moves, but doesn't think about likely moves.
