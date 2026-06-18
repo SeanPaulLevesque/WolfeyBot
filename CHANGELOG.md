@@ -1,5 +1,41 @@
 # WolfeyBot Changelog
 
+## 0.12.0 — 2026-06-18
+
+### Observation-driven item inference (prior + evidence)
+
+The 0.11.0 modal item belief was a *static* prior — it never updated when battle
+events contradicted it (a Garchomp assumed Choice Scarf stayed "scarfed" even
+after it was outsped or used two moves). Split the belief into the usage-stats
+**prior** and observed **evidence**, resolved at lookup. General and extensible:
+a new rule is one parser signal + one ruled-out item set.
+
+- **`ItemEvidence`** (battle_state.py) — per-opponent evidence keyed by normalized
+  ident on `BattleState.opp_item_evidence`. Survives switches (the Pokemon object
+  is replaced by `_update_or_add` on every pivot, wiping its `moves`/`item`).
+  Holds `confirmed` (proven held), `consumed` (game-scoped, ≠ Unburden's
+  field-stint `item_consumed`), `ruled_out`, and `stint_moves`.
+- **Rules wired in the parser** (battle.py):
+  - **≥2 distinct moves in one field stint → rule out all Choice items**
+    (`CHOICE_ITEMS`). `stint_moves` resets on switch (a Choice lock frees on
+    pivot); Struggle is excluded.
+  - **Outsped when even the slowest scarfed spread would be faster → rule out
+    Choice Scarf** (`_observe_speed_from_history` in modules.py, run once per turn
+    from `build_turn_context`; reuses `will_outspeed`). Conservative — only fires
+    on an undistorted same-bracket comparison, never a false clear.
+  - **`[from] item: X` on damage/heal → confirm X** (Life Orb recoil, Black
+    Sludge, Leftovers, Rocky Helmet — holder is the `[of]` source if present).
+  - **`-item` reveal → confirm**; **`-enditem` → consumed**. Own-side events
+    ignored (we know our items).
+- **Resolution** (`_effective_item`): held-now > consumed → None > confirmed >
+  field-stint consumed > prior with `ruled_out` removed. `_assumed_item` walks
+  the usage list skipping ruled-out items; the 25% bar gates **only the literal
+  top item** (pure prior), and once a higher-usage item has been ruled out it
+  **commits to the next-most-likely unconditionally** (observation narrowed the
+  field — e.g. Garchomp with Choice Scarf ruled out → Sitrus Berry at 16.5%).
+- Turn-1 / empty-evidence behaviour is unchanged, so the snapshot baselines are
+  byte-identical apart from the version header. Full suite green (+17 tests).
+
 ## 0.11.0 — 2026-06-18
 
 ### Unified, modal item inference (speed + damage share one belief)

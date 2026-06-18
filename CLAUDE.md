@@ -134,9 +134,20 @@ the best pair.
   (population-weighted forme via `data.assumed_forme` — a pre-mega Charizard
   is modelled as Charizard-Mega-Y; revealed mega or revealed non-stone item
   overrides), `_effective_ability(mon)` (revealed > top-usage ability of the
-  assumed forme), `_effective_item(mon)` (revealed > consumed→None > top-usage
-  item if ≥25%, `_ASSUMED_ITEM_MIN_PCT` — a clear plurality is committed to; a
-  below-25% top item is too flat to pick, so None). This **one modal item belief**
+  assumed forme), `_effective_item(mon, evidence)` / `_opp_item(state, mon)`
+  (prefer `_opp_item` wherever `state` is in scope). Item inference is a
+  **usage-stats prior resolved against observed `ItemEvidence`** (since 0.12.0):
+  held-now > `consumed`→None > `confirmed` > field-stint consumed > prior with
+  `evidence.ruled_out` removed. `_assumed_item(species, ruled_out)` walks the
+  usage list skipping ruled-out items; the 25% bar (`_ASSUMED_ITEM_MIN_PCT`)
+  gates **only the literal top item**, and once a higher-usage item is ruled out
+  it commits to the next-most-likely **unconditionally** (observation narrowed
+  the field). `ItemEvidence` (battle_state.py, on `BattleState.opp_item_evidence`,
+  keyed by normalized ident so it survives the per-switch object replacement) is
+  fed by the parser: ≥2 distinct moves in one stint → rule out `CHOICE_ITEMS`;
+  being outsped when even its slowest scarf would be faster → rule out Choice
+  Scarf (`_observe_speed_from_history`, run from `build_turn_context`); `[from]
+  item:` / `-item` → `confirmed`; `-enditem` → `consumed`. This **one item belief**
   feeds **both** damage math and the speed pipeline (since 0.11.0): `turn_order`
   applies it via `data.items.speed_multiplier` (Choice Scarf ×1.5, Iron Ball /
   Macho Brace ×0.5) — `speed_distribution` is a pure *spread* prior with no scarf

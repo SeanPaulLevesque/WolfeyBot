@@ -5,7 +5,8 @@ import json
 import logging
 import re
 
-from battle_state import BattleState, Pokemon, _parse_hp, _parse_status  # noqa: F401
+from battle_state import BattleState, Pokemon, ItemEvidence, _parse_hp, _parse_status  # noqa: F401
+from data import CHOICE_ITEMS
 
 _log = logging.getLogger(__name__)
 
@@ -260,6 +261,10 @@ class BattleParser:
             while len(self.state.opp_last_moves) <= slot:
                 self.state.opp_last_moves.append("")
             self.state.opp_last_moves[slot] = ""
+            # New field stint: a Choice lock (if any) is freed, so the
+            # distinct-moves-this-stint counter resets.  Permanent facts
+            # (ruled_out / confirmed / consumed) on the evidence record persist.
+            self.state.evidence_for(mon.ident).stint_moves = set()
 
     async def _on_move(self, args: list[str]):
         # |move|SOURCE|MOVENAME|TARGET
@@ -303,6 +308,15 @@ class BattleParser:
         while len(self.state.opp_last_moves) <= slot:
             self.state.opp_last_moves.append("")
         self.state.opp_last_moves[slot] = move_name
+
+        # Item inference: ≥2 distinct moves within one field stint rules out all
+        # Choice items (a Choice lock frees only on switch — stint_moves resets
+        # there).  Struggle is excluded: it is forced, not a chosen move.
+        if move_name and move_name != "Struggle":
+            ev = self.state.evidence_for(_normalize_ident(ident))
+            ev.stint_moves.add(move_name)
+            if len(ev.stint_moves) >= 2:
+                ev.ruled_out |= CHOICE_ITEMS
 
     async def _on_crit(self, args: list[str]):
         # |-crit|TARGET — flag the move currently resolving as a critical hit
@@ -350,11 +364,13 @@ class BattleParser:
         if len(args) < 2:
             return
         self._apply_hp_update(args[0], args[1])
+        self._note_item_from_tags(args)
 
     async def _on_heal(self, args: list[str]):
         if len(args) < 2:
             return
         self._apply_hp_update(args[0], args[1])
+        self._note_item_from_tags(args)
 
     async def _on_status(self, args: list[str]):
         if len(args) < 2:
@@ -525,19 +541,25 @@ class BattleParser:
             mon.ability = args[1]
 
     async def _on_item(self, args: list[str]):
+        # |-item|POKEMON|ITEM[|[from]…] — item revealed (Frisk / Trick / Knock
+        # Off / Magician / Air Balloon …).
         if len(args) < 2:
             return
         mon = self._find_mon(args[0])
         if mon:
             mon.item = args[1]
+        self._record_item_evidence(args[0], confirmed=args[1])
 
     async def _on_enditem(self, args: list[str]):
+        # |-enditem|POKEMON|ITEM[|[from]…] — item used up or removed (berry/Sash
+        # popped, Gem/Herb consumed, Knocked Off).  Gone for the rest of the game.
         if len(args) < 1:
             return
         mon = self._find_mon(args[0])
         if mon:
             mon.item = None
             mon.item_consumed = True
+        self._record_item_evidence(args[0], consumed=True)
 
     async def _on_detailschange(self, args: list[str]):
         if len(args) < 2:
@@ -776,6 +798,45 @@ class BattleParser:
                         else hp_before_frac) - mon.hp_fraction
                 pending["dmg"] = round(max(drop, 0.0), 3)
                 self._pending_event = None
+
+    # ── Opponent item-evidence helpers ────────────────────────────────────────
+
+    def _record_item_evidence(self, ident: str, *,
+                              confirmed: Optional[str] = None,
+                              consumed: bool = False) -> None:
+        """Record a confirmed-held or consumed item for an opponent *ident*.
+
+        No-op for our own side (we already know our items).  Keyed by the
+        normalized ident so it survives the per-switch object replacement."""
+        if not ident or _side_from_ident(ident) == self.state.my_side:
+            return
+        ev = self.state.evidence_for(_normalize_ident(ident))
+        if confirmed:
+            ev.confirmed = confirmed
+        if consumed:
+            ev.consumed = True
+
+    def _note_item_from_tags(self, args: list[str]) -> None:
+        """Reveal an item named by a ``[from] item: X`` tag on a damage/heal line.
+
+        Covers self-damage/heal reveals (Life Orb recoil, Black Sludge,
+        Leftovers, Sticky Barb) and attacker-held reveals (Rocky Helmet), where
+        the holder is the ``[of]`` source if present, else the affected mon."""
+        item = of_ident = None
+        for tag in args[2:]:
+            if tag.startswith("[from] item:"):
+                item = tag.split("item:", 1)[1].strip()
+            elif tag.startswith("[of]"):
+                of_ident = tag[len("[of]"):].strip()
+        if not item:
+            return
+        holder = of_ident or args[0]
+        if _side_from_ident(holder) == self.state.my_side:
+            return
+        mon = self._find_mon(holder)
+        if mon and not mon.item:
+            mon.item = item
+        self._record_item_evidence(holder, confirmed=item)
 
 
 # ─── Handler Registry ────────────────────────────────────────────────────────

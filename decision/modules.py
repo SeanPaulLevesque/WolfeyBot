@@ -17,7 +17,7 @@ Adding a module::
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Optional, TYPE_CHECKING
 
 from data import (
@@ -29,11 +29,12 @@ from data import (
     assumed_forme as _assumed_forme,
     mega_stones as _mega_stones,
     mega_forme_for_stone as _mega_forme_for_stone,
+    SPEED_BOOST_ITEMS as _SPEED_BOOST_ITEMS,
     note_gap as _note_gap,
 )
 from team import find_member
 from damage import outgoing_damage, incoming_damage, type_effectiveness
-from turn_order import Combatant, will_outspeed
+from turn_order import Combatant, will_outspeed, priority_bracket
 
 from decision.engine import (
     Action, ScoringModule, JointAdjuster, DecisionEngine,
@@ -108,7 +109,7 @@ def _opp_combatant(state: "BattleState", opp_slot: int) -> Optional[Combatant]:
     return Combatant(
         name=_assumed_species(mon), side="opp", slot=opp_slot,
         exact_speed=None,
-        item=_effective_item(mon), ability=inferred_ability,
+        item=_opp_item(state, mon), ability=inferred_ability,
         speed_stage=mon.boosts.get("spe", 0),
         tailwind=state.opp_tailwind,
         paralyzed=(mon.status == "par"),
@@ -199,11 +200,24 @@ def _assumed_ability(species: str) -> Optional[str]:
 _ASSUMED_ITEM_MIN_PCT = 25.0
 
 
-def _assumed_item(species: str) -> Optional[str]:
-    """Highest-usage item for *species* if its usage ≥ threshold, else None."""
-    dist = _item_distribution(species)
-    if dist and dist[0][1] >= _ASSUMED_ITEM_MIN_PCT:
-        return dist[0][0]
+def _assumed_item(species: str,
+                  ruled_out: "frozenset[str] | set[str]" = frozenset()) -> Optional[str]:
+    """Most-likely held item for *species*, given items *ruled_out* by observation.
+
+    Walks the usage list (sorted by usage desc), skipping ruled-out items.  The
+    25% confidence bar (`_ASSUMED_ITEM_MIN_PCT`) gates **only the literal top
+    item** — the pure-prior case, where a too-flat distribution yields None.
+    The moment we've had to skip a higher-usage item (i.e. evidence eliminated
+    what we'd otherwise have assumed), we commit to the next-most-likely
+    candidate **unconditionally** — observation has narrowed the field, so the
+    runner-up is now our best point estimate even below the bar.
+    """
+    skipped = False
+    for name, pct in _item_distribution(species):
+        if name in ruled_out:
+            skipped = True
+            continue
+        return name if (skipped or pct >= _ASSUMED_ITEM_MIN_PCT) else None
     return None
 
 
@@ -263,13 +277,43 @@ def _defense_species(mon: "Pokemon") -> str:
     return _STANCE_FORME.get(sp, (sp, sp))[1]
 
 
-def _effective_item(mon: "Pokemon") -> Optional[str]:
-    """Item to assume for *mon*: revealed > consumed(None) > usage-stats guess."""
+def _effective_item(mon: "Pokemon", evidence: "ItemEvidence | None" = None) -> Optional[str]:
+    """Item to assume for *mon*, resolving the usage-stats prior against any
+    observed *evidence* (``ItemEvidence`` keyed by ident; None = pure prior).
+
+    Resolution order:
+      1. ``mon.item`` — held right now (revealed this field stint).
+      2. ``evidence.consumed`` — we watched it use up / lose its item (game-scoped).
+      3. ``evidence.confirmed`` — revealed in an earlier stint (survives switches).
+      4. ``mon.item_consumed`` — field-stint consumed (Sash popped / berry eaten).
+      5. usage-stats prior, with ``evidence.ruled_out`` items removed.
+    """
     if mon.item:
         return mon.item
+    if evidence is not None:
+        if evidence.consumed:
+            return None
+        if evidence.confirmed:
+            return evidence.confirmed
     if mon.item_consumed:          # Sash popped / berry eaten / Knocked Off
         return None
-    return _assumed_item(_assumed_species(mon))
+    ruled = evidence.ruled_out if evidence is not None else frozenset()
+    return _assumed_item(_assumed_species(mon), ruled)
+
+
+def _item_evidence(state: "BattleState", mon: "Pokemon") -> "ItemEvidence | None":
+    """Observed item evidence for opponent *mon* (None if state has none yet)."""
+    store = getattr(state, "opp_item_evidence", None)
+    if not store or mon is None:
+        return None
+    return store.get(mon.ident)
+
+
+def _opp_item(state: "BattleState", mon: "Pokemon") -> Optional[str]:
+    """Effective item for an opponent *mon*, resolving the prior against the
+    observed evidence on *state*.  The standard opponent-item lookup — prefer
+    this over bare ``_effective_item(mon)`` wherever ``state`` is in scope."""
+    return _effective_item(mon, _item_evidence(state, mon))
 
 
 def _effective_ability(mon: "Pokemon") -> Optional[str]:
@@ -399,7 +443,7 @@ class DamageOutputModule(ScoringModule):
             results = outgoing_damage(
                 our_species=mon.species, our_stats=stats, our_moves=[move_name],
                 opp_species=_defense_species(opp), our_ability=tm.ability, our_item=tm.item,
-                opp_ability=_effective_ability(opp) or "", opp_item=_effective_item(opp),
+                opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
                 weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                 opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
                 opp_screens=getattr(state, "opp_screens", None),
@@ -894,6 +938,62 @@ class TurnContext:
         return len(self.alive_slots) > self.opp_alive > 0
 
 
+def _observe_speed_from_history(state: "BattleState") -> None:
+    """Refute a Choice Scarf assumption from observed move order.
+
+    Reads the most recently completed turn's move events: if one of our actives
+    (exact speed) moved before an opponent in the **same priority bracket** and
+    not under Trick Room, and even the *slowest scarfed* spread of that opponent
+    would still have outsped us (``will_outspeed`` of us vs a forced-Scarf copy
+    == 0), then the opponent cannot be holding Choice Scarf — we observed it move
+    slower than that.  Rules Choice Scarf out on its evidence record.
+
+    Heuristic and deliberately conservative: it only fires on an undistorted
+    same-bracket comparison, and never wrongly clears Scarf (it requires that no
+    scarfed spread could have been outsped).  Idempotent (set union)."""
+    log = getattr(state, "events_log", None)
+    if not log or state.trick_room:
+        return
+    events = log.get(max(log)) or []
+    ours = [e for e in events if e.get("sd") == "us"]
+    opps = [e for e in events if e.get("sd") == "opp"]
+    if not ours or not opps:
+        return
+    for oe in opps:
+        opp_slot = next((i for i, m in enumerate(state.opp_actives)
+                         if m is not None and not m.fainted
+                         and m.species == oe.get("a")), None)
+        if opp_slot is None:
+            continue
+        opp_mon = state.opp_actives[opp_slot]
+        ev = state.opp_item_evidence.get(opp_mon.ident)
+        if opp_mon.item or (ev and (ev.confirmed or ev.consumed)):
+            continue                       # item already known — nothing to infer
+        if ev and _SPEED_BOOST_ITEMS <= ev.ruled_out:
+            continue                       # already ruled out
+        opp_prio = priority_bracket(oe.get("mv") or "")
+        yc = _opp_combatant(state, opp_slot)
+        if yc is None:
+            continue
+        yc_scarf = replace(yc, item="Choice Scarf")
+        for ue in ours:
+            if ue.get("o", 0) >= oe.get("o", 0):
+                continue                   # our mon did not move first
+            if priority_bracket(ue.get("mv") or "") != opp_prio:
+                continue                   # different bracket → order not by speed
+            our_slot = next((i for i, m in enumerate(state.my_actives)
+                             if m is not None and not m.fainted
+                             and m.species == ue.get("a")), None)
+            if our_slot is None:
+                continue
+            xc = _our_combatant(state, our_slot)
+            if xc is None or xc.exact_speed is None:
+                continue
+            if will_outspeed(xc, yc_scarf, trick_room=False) == 0.0:
+                state.evidence_for(opp_mon.ident).ruled_out |= _SPEED_BOOST_ITEMS
+                break
+
+
 def build_turn_context(state: "BattleState") -> TurnContext:
     """Compute the per-turn fact context once — the **only** place the engine
     runs damage calculations for yes/no facts.
@@ -910,6 +1010,10 @@ def build_turn_context(state: "BattleState") -> TurnContext:
     (matching ``_build_actions``), so a Disabled kill move never counts as a
     partner-clear or a neutralizer.
     """
+    # Refresh observation-driven item evidence (e.g. refute Choice Scarf from
+    # observed turn order) before any fact uses _effective_item this turn.
+    _observe_speed_from_history(state)
+
     ctx = TurnContext()
     ally_faints = sum(1 for p in state.my_team if p is not None and p.fainted)
     opp_faints  = sum(1 for p in state.opp_team if p is not None and p.fainted)
@@ -953,7 +1057,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 results = outgoing_damage(
                     our_species=mon.species, our_stats=stats, our_moves=[move],
                     opp_species=_defense_species(opp), our_ability=tm.ability, our_item=tm.item,
-                    opp_ability=_effective_ability(opp) or "", opp_item=_effective_item(opp),
+                    opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
                     weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                     opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
                     opp_is_full_hp=opp_at_full,
@@ -1000,7 +1104,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 our_species=mon.species,
                 our_stats=stats,
                 opp_ability=_effective_ability(opp) or "",
-                opp_item=_effective_item(opp),
+                opp_item=_opp_item(state, opp),
                 our_ability=_our_ability_for_damage(tm, mon, state.designated_mega),
                 our_item=our_item,
                 weather=_assumed_weather(state),
@@ -1179,7 +1283,7 @@ class SwitchModule(ScoringModule):
                     our_species=species, our_stats=stats, our_moves=[mv],
                     our_ability=ability or "", our_item=item,
                     opp_species=_defense_species(opp), opp_ability=_effective_ability(opp) or "",
-                    opp_item=_effective_item(opp), weather=_assumed_weather(state),
+                    opp_item=_opp_item(state, opp), weather=_assumed_weather(state),
                     ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                 )
                 if results:
@@ -1202,7 +1306,7 @@ class SwitchModule(ScoringModule):
             threats = incoming_damage(
                 opp_species=_offense_species(opp), our_species=species,
                 our_stats=bench_tm.stats, opp_ability=_effective_ability(opp) or "",
-                opp_item=_effective_item(opp), our_ability=bench_tm.ability or "",
+                opp_item=_opp_item(state, opp), our_ability=bench_tm.ability or "",
                 our_item=bench_item, weather=_assumed_weather(state),
                 our_defender_is_full_hp=True,
                 opp_hp_fraction=opp.hp_fraction,
