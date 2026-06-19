@@ -9,8 +9,10 @@ from turn_order import (
     _apply_modifiers,
     priority_bracket,
     will_outspeed,
+    _speed_outcomes,
     Combatant,
 )
+from team import find_member
 
 
 # ── _apply_modifiers ──────────────────────────────────────────────────────────
@@ -151,3 +153,39 @@ class TestWillOutspeed:
         own = make_own(100, paralyzed=True)  # 100 × 0.5 = 50 effective
         opp = make_opp(60)
         assert will_outspeed(own, opp) == 0.0
+
+
+# ── Scarf-Garchomp turn-order regression (0.14.0) ─────────────────────────────
+
+class TestScarfGarchompOutspeed:
+    """Regression for the turn-order misread surfaced by the 0.12.0/0.13.0
+    battle logs: our Choice Scarf Garchomp was modelled at its *raw* 151 speed
+    (predicted pos 2-4) because the scarf wasn't feeding the speed pipeline, so
+    it "lost" to Raichu-Mega-X (178), Sceptile-Mega (216), Staraptor-Mega (178)
+    and Metagross-Mega (162) — yet in-game it moved first every time.
+
+    With the scarf applied Garchomp is 151 × 1.5 = 226, which beats all of them.
+    These assertions pin both the team spread (raw 151) and the scarf ×1.5
+    application against the *real* opponent speed distributions, so the bucket
+    can't silently regress again.
+    """
+
+    def _garchomp(self) -> Combatant:
+        tm = find_member("Garchomp")
+        assert tm is not None and tm.item == "Choice Scarf"
+        return Combatant(
+            name="Garchomp", side="own", slot=0,
+            exact_speed=tm.stats.get("spe"), item=tm.item, ability=tm.ability,
+        )
+
+    def test_scarf_garchomp_effective_speed_is_226(self):
+        outcomes = _speed_outcomes(self._garchomp())
+        assert outcomes == [(226, 1.0)]
+
+    @pytest.mark.parametrize("opp", [
+        "Raichu-Mega-X", "Sceptile-Mega", "Staraptor-Mega", "Metagross-Mega",
+    ])
+    def test_scarf_garchomp_outspeeds_fast_threats(self, opp):
+        gc = self._garchomp()
+        oc = Combatant(name=opp, side="opp", slot=0, exact_speed=None)
+        assert will_outspeed(gc, oc) == pytest.approx(1.0)
