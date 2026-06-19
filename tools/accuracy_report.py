@@ -26,6 +26,19 @@ import sys
 DMG_RE = re.compile(r"damage_output: (\d+)% HP")
 POS_RE = re.compile(r"pos (\d)/4")
 
+
+def _base(s):
+    """Strip a Mega suffix so a mon that mega-evolved mid-turn (logged as
+    '<X>-Mega' in `ev`) still matches predictions keyed on the pre-mega on-field
+    name (in `pin` / decision `ct`).  Base and Mega share a movepool, so this is
+    correct for move-level matching."""
+    if not s:
+        return s
+    for suf in ("-Mega-X", "-Mega-Y", "-Mega"):
+        if s.endswith(suf):
+            return s[:-len(suf)]
+    return s
+
 # Moves that resolve early (via +priority) but don't threaten us — a Protect (or
 # Endure) moving "before" our attacker is fine and shouldn't count as our mon
 # being slow.  Excluded when computing the actual turn-order position.
@@ -37,7 +50,8 @@ _NONTHREAT_FIRST = frozenset({
 
 
 def _load(version):
-    files = glob.glob(os.path.join("Battle Data", version, "*.json"))
+    # Recursive: named-team runs nest logs under <version>/<team>/<team_version>/.
+    files = glob.glob(os.path.join("Battle Data", version, "**", "*.json"), recursive=True)
     return [json.load(open(f, encoding="utf-8")) for f in files]
 
 
@@ -61,8 +75,8 @@ def report(version, slop=0.15):
             my = t.get("my", [])
             pin = t.get("pin", [])
 
-            # us-events keyed for offense matching
-            us_ev = {(e["mv"], e.get("tg")): e for e in ev if e["sd"] == "us"}
+            # us-events keyed for offense matching (forme-normalised target)
+            us_ev = {(e["mv"], _base(e.get("tg"))): e for e in ev if e["sd"] == "us"}
 
             # ---- OFFENSE: predicted damage_output % vs actual d (cap at h0) ----
             # ---- TURN ORDER: predicted pos X/4 vs actual rank (full turns) ----
@@ -78,8 +92,9 @@ def report(version, slop=0.15):
 
                 if full_turn and actor:
                     pm = POS_RE.search(reasons)
-                    e = us_ev.get((ch, ct)) or next(
-                        (x for x in ev if x["sd"] == "us" and x["a"] == actor and x["mv"] == ch), None)
+                    e = us_ev.get((ch, _base(ct))) or next(
+                        (x for x in ev if x["sd"] == "us" and _base(x["a"]) == _base(actor)
+                         and x["mv"] == ch), None)
                     # Skip turns where a Protect/Endure-type move (non-threatening,
                     # +priority) resolved before our mon: it jumping ahead doesn't
                     # mean we were slow, so it shouldn't count as a miss.  Real
@@ -96,7 +111,7 @@ def report(version, slop=0.15):
                 if ch == "Protect" or not ct:
                     continue
                 md = DMG_RE.search(reasons)
-                e = us_ev.get((ch, ct))
+                e = us_ev.get((ch, _base(ct)))
                 if not (md and e and not e.get("cr")):
                     continue
                 # `damage_output` is % of the opponent's CURRENT HP (the calc
@@ -126,14 +141,15 @@ def report(version, slop=0.15):
 
             # ---- DEFENSE: actual incoming vs predicted, per ACTUAL move -------
             # pin: [{"a": attacker, "df": defender, "mvs": {move: pred_frac}}]
-            our_species = [m["s"] for m in my]
+            our_bases = {_base(m["s"]) for m in my}
             for e in ev:
-                if e["sd"] != "opp" or e.get("tg") not in our_species:
+                if e["sd"] != "opp" or _base(e.get("tg")) not in our_bases:
                     continue
                 if e.get("d") is None or e.get("cr") or e.get("h0", 1) <= 0:
                     continue                      # skip misses (no d) and crits
                 defender, attacker, mv, act = e["tg"], e["a"], e["mv"], e["d"]
-                entry = next((p for p in pin if p["df"] == defender and p["a"] == attacker), None)
+                entry = next((p for p in pin if _base(p["df"]) == _base(defender)
+                              and _base(p["a"]) == _base(attacker)), None)
                 # 0.8.6+ stores per-move map "mvs"; older logs stored a single
                 # scariest {"mv","p"} — fall back to that for backward compat.
                 if entry and "mvs" in entry:
