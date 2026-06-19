@@ -1,5 +1,36 @@
 # WolfeyBot Changelog
 
+## 0.15.0 — 2026-06-19
+
+### Damage-model gaps from the defensive-accuracy audit
+
+The 0.13.0 prediction-accuracy audit (`tools/accuracy_report.py`) surfaced
+recurring defensive under-predictions tracing to four unmodeled move mechanics.
+Three were genuine code gaps (now fixed); the fourth was already correct in HEAD
+and is now pinned by a test.
+
+- **Body Press uses the user's Defense** (`damage.py`): mirrors the existing
+  Foul Play special-case — `A = attacker_stats["def"]` (and the user's Def stat
+  stages) for Body Press, instead of the (often low) Attack. Fixes e.g.
+  Corviknight Body Press → Aerodactyl (was under by ~22%).
+- **Freeze-Dry is 2× vs Water** (`damage.py`): `type_effectiveness` has no move
+  context, so the Water component is patched after the fact (×4 on the normal
+  ×0.5 Ice contribution). Fixes Ninetales-Alola Freeze-Dry → Basculegion (was
+  under by ~27%).
+- **Knock Off +50% vs an item holder** (`damage.py`): ×1.5 power when the target
+  holds a removable item. Fixes Malamar-Mega Knock Off → (scarf) Garchomp (was
+  under by ~33%). Unremovable edge cases (Sticky Hold, own Mega Stone) not
+  modelled — small over-prediction at worst.
+- **Fire Mane forme** (no change): `_effective_ability` already resolves a
+  pre-mega Pyroar → Pyroar-Mega → Fire Mane (+50% Fire); the 0.13.0 log
+  under-prediction predated that. Locked with a regression test.
+
+**Turn-1 baselines:** `baseline` / `meta-team@v1` byte-identical (header-only).
+`off-meta-team@v1` has **5 approved cell changes**, all our mon vs a Weavile
+lead: the boosted Knock Off makes Weavile a real threat to our item-holders, so
+the engine now switches to a safe pivot (Gallade) / Protects instead of throwing
+a near-worthless attack. Reviewed and approved before regeneration.
+
 ## 0.14.0 — 2026-06-19
 
 ### Burn now halves physical damage

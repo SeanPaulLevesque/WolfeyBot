@@ -2325,6 +2325,15 @@ class TestEffectiveAbility:
         result = _effective_ability(mon)
         assert result == "Drought"
 
+    def test_effective_ability_mega_forme_fire_mane_for_pyroar(self):
+        """Unrevealed Pyroar resolves to Pyroar-Mega → Fire Mane (the +50%-Fire
+        ability), not the base forme's Unnerve.  Regression for the 0.13.0
+        defensive under-prediction of Pyroar-Mega Heat Wave (the ability lookup
+        must follow the assumed mega forme, not the pre-mega name)."""
+        mon = make_mon("Pyroar", ability=None)
+        assert _assumed_species(mon) == "Pyroar-Mega"
+        assert _effective_ability(mon) == "Fire Mane"
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # _assumed_species (forme inference)

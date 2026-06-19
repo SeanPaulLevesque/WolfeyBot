@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.14.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.15.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -87,7 +87,7 @@ Bench: Arcanine-Hisui, Aegislash, Dragonite, Pelipper
 | 3.12 | Sneasler | Kingambit | Psycho Cut → Sneasler `50.13` | Switch → Aegislash `3.20` |
 | 3.13 | Aerodactyl | Garchomp | Sacred Sword → Garchomp `4.40` | Wave Crash → Aerodactyl `13.18` |
 | 3.14 | Lopunny | Garchomp | Sacred Sword → Lopunny `16.45` | Wave Crash → Garchomp `3.03` |
-| 3.15 | Weavile | Garchomp | Sacred Sword → Weavile `8.49` | Wave Crash → Garchomp `3.03` |
+| 3.15 | Weavile | Garchomp | Sacred Sword → Weavile `8.49` | Switch → Aegislash `3.20` |
 | 3.16 | Talonflame | Garchomp | Protect → ? `7.50` | Wave Crash → Talonflame `62.50` |
 | 3.17 | Charizard | Incineroar | Sacred Sword → Incineroar `17.38` | Wave Crash → Charizard `27.15` |
 | 3.18 | Rotom-Wash | Garchomp | Leaf Blade → Rotom-Wash `35.87` | Wave Crash → Garchomp `3.03` |
@@ -199,7 +199,7 @@ Bench: Gallade, Aegislash, Dragonite, Pelipper
 | 7.12 | Sneasler | Kingambit | Switch → Gallade `11.80` | Wave Crash → Sneasler `16.10` |
 | 7.13 | Aerodactyl | Garchomp | Head Smash → Aerodactyl `12.88` | Wave Crash → Aerodactyl `5.27` |
 | 7.14 | Lopunny | Garchomp | Protect → ? `7.50` | Wave Crash → Lopunny `9.20` |
-| 7.15 | Weavile | Garchomp | Switch → Gallade `10.37` | Wave Crash → Weavile `2.43` |
+| 7.15 | Weavile | Garchomp | Protect → ? `5.00` | Switch → Gallade `12.78` |
 | 7.16 | Talonflame | Garchomp | Switch → Aegislash `3.20` | Wave Crash → Talonflame `62.50` |
 | 7.17 | Charizard | Incineroar | Head Smash → Incineroar `18.10` | Wave Crash → Charizard `27.15` |
 | 7.18 | Rotom-Wash | Garchomp | Head Smash → Rotom-Wash `5.80` | Wave Crash → Garchomp `3.03` |
@@ -283,7 +283,7 @@ Bench: Gallade, Arcanine-Hisui, Dragonite, Pelipper
 | 10.12 | Sneasler | Kingambit | Switch → Gallade `3.16` | Wave Crash → Sneasler `24.15` |
 | 10.13 | Aerodactyl | Garchomp | Poltergeist → Garchomp `2.28` | Wave Crash → Aerodactyl `17.58` |
 | 10.14 | Lopunny | Garchomp | Switch → Gallade `1.79` | Wave Crash → Lopunny `12.26` |
-| 10.15 | Weavile | Garchomp | Switch → Gallade `3.48` | Wave Crash → Weavile `3.25` |
+| 10.15 | Weavile | Garchomp | King's Shield → ? `2.00` | Switch → Gallade `12.78` |
 | 10.16 | Talonflame | Garchomp | Poltergeist → Garchomp `2.28` | Wave Crash → Talonflame `83.33` |
 | 10.17 | Charizard | Incineroar | Switch → Arcanine-Hisui `14.31` | Wave Crash → Charizard `20.36` |
 | 10.18 | Rotom-Wash | Garchomp | Poltergeist → Rotom-Wash `1.89` | Wave Crash → Garchomp `4.04` |
@@ -367,7 +367,7 @@ Bench: Gallade, Arcanine-Hisui, Aegislash, Pelipper
 | 13.12 | Sneasler | Kingambit | Switch → Gallade `9.53` | Air Slash → Sneasler `17.34` |
 | 13.13 | Aerodactyl | Garchomp | Wave Crash → Aerodactyl `13.18` | Dragon Pulse → Garchomp `6.42` |
 | 13.14 | Lopunny | Garchomp | Wave Crash → Lopunny `9.20` | Dragon Pulse → Garchomp `4.28` |
-| 13.15 | Weavile | Garchomp | Wave Crash → Weavile `2.43` | Dragon Pulse → Garchomp `4.28` |
+| 13.15 | Weavile | Garchomp | Switch → Gallade `12.78` | Dragon Pulse → Garchomp `2.14` |
 | 13.16 | Talonflame | Garchomp | Wave Crash → Talonflame `62.50` | Dragon Pulse → Garchomp `6.42` |
 | 13.17 | Charizard | Incineroar | Wave Crash → Charizard `13.57` | Switch → Arcanine-Hisui `3.66` |
 | 13.18 | Rotom-Wash | Garchomp | Wave Crash → Rotom-Wash `2.11` | Dragon Pulse → Garchomp `6.42` |
@@ -395,7 +395,7 @@ Bench: Gallade, Arcanine-Hisui, Aegislash, Dragonite
 | 14.12 | Sneasler | Kingambit | Wave Crash → Kingambit `10.95` | Hurricane → Sneasler `49.95` |
 | 14.13 | Aerodactyl | Garchomp | Wave Crash → Aerodactyl `19.49` | Ice Beam → Garchomp `33.68` |
 | 14.14 | Lopunny | Garchomp | Wave Crash → Lopunny `13.33` | Ice Beam → Garchomp `22.45` |
-| 14.15 | Weavile | Garchomp | Wave Crash → Weavile `3.56` | Ice Beam → Garchomp `22.45` |
+| 14.15 | Weavile | Garchomp | Switch → Gallade `10.05` | Ice Beam → Garchomp `11.23` |
 | 14.16 | Talonflame | Garchomp | Wave Crash → Talonflame `92.10` | Ice Beam → Garchomp `33.68` |
 | 14.17 | Charizard | Incineroar | Wave Crash → Incineroar `23.53` | Weather Ball → Charizard `50.53` |
 | 14.18 | Rotom-Wash | Garchomp | Wave Crash → Rotom-Wash `2.98` | Ice Beam → Garchomp `33.68` |

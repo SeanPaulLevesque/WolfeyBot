@@ -348,6 +348,46 @@ class TestBurnPhysicalHalving:
         assert _cf("Body Slam", "Guts", attacker_status="brn") / _cf("Body Slam") == pytest.approx(1.5, rel=0.06)
 
 
+class TestMoveMechanics:
+    """Move-specific damage mechanics surfaced by the 0.13.0 defensive-accuracy
+    audit: Body Press (uses Def), Freeze-Dry (2× vs Water), Knock Off (+50% vs an
+    item holder)."""
+
+    _ATK = {"atk": 60, "def": 200, "spa": 100, "spd": 100, "spe": 100, "hp": 150}
+    _DEF = {"atk": 100, "def": 100, "spa": 100, "spd": 100, "spe": 100, "hp": 150}
+
+    def test_body_press_uses_defense_not_attack(self):
+        """Body Press damage scales with the USER's Defense, so a high-Def /
+        low-Atk attacker hits far harder than its Attack would suggest."""
+        with patch("damage.types_of", return_value=["Normal"]):
+            high_def = full_damage_calc(
+                "Body Press", "Atk", "Def", self._ATK, self._DEF).damage_avg
+            low_def = full_damage_calc(
+                "Body Press", "Atk", "Def", {**self._ATK, "def": 60}, self._DEF).damage_avg
+        # Body Press scales with Def (200 vs 60), not the fixed Atk (60) — so the
+        # high-Def variant deals far more (floored stats give ~3×, well above the
+        # ×1.0 it would be if Atk drove the damage).
+        assert high_def > low_def * 2.5
+
+    def test_freeze_dry_super_effective_vs_water(self):
+        r = full_damage_calc("Freeze-Dry", "Atk", "Basculegion-M",
+                             self._DEF, self._DEF)
+        assert r.effectiveness == pytest.approx(2.0)
+
+    def test_freeze_dry_normal_vs_non_water(self):
+        # vs a non-Water target the override must not apply: Garchomp (Dragon/
+        # Ground) takes normal Ice ×4 (2× Dragon × 2× Ground), not ×4 again.
+        r = full_damage_calc("Freeze-Dry", "Atk", "Garchomp", self._DEF, self._DEF)
+        assert r.effectiveness == pytest.approx(4.0)
+
+    def test_knock_off_boosted_vs_item_holder(self):
+        no_item = full_damage_calc("Knock Off", "Weavile", "Def",
+                                   self._DEF, self._DEF, defender_item=None).damage_avg
+        w_item = full_damage_calc("Knock Off", "Weavile", "Def",
+                                  self._DEF, self._DEF, defender_item="Sitrus Berry").damage_avg
+        assert w_item / no_item == pytest.approx(1.5, rel=0.04)
+
+
 class TestWeatherGatedAbilities:
     """Solar Power (SpA ×1.5 in sun only — the 0.8.5 fix) and Sand Force."""
 

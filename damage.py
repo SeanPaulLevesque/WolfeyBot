@@ -118,6 +118,7 @@ _WEATHER_BALL_TYPE: dict[str, str] = {
 # Foul Play computes damage from the *target's* Attack stat (and the target's
 # Attack stat stages), not the user's.
 _FOUL_PLAY = "Foul Play"
+_BODY_PRESS = "Body Press"
 
 # Move contact / slicing / punch / bite flags live in data/move_flags.py
 # (positive per-move sets, used by Tough Claws and future Sharpness/Iron Fist/
@@ -725,6 +726,13 @@ def full_damage_calc(
         target_kg = get_weight(defender_species)
         power = _heat_crash_power(user_kg, target_kg)
 
+    # Knock Off: ×1.5 power when the target is holding a removable item (it gets
+    # knocked off after the hit).  We don't model the unremovable edge cases
+    # (Sticky Hold, a mon's own matching Mega Stone / Z-Crystal) — those are rare
+    # and only cause a small over-prediction, not the under-prediction this fixes.
+    if move_name == "Knock Off" and defender_item:
+        power = round(power * 1.5)
+
     if category == "Status" or power == 0:
         return DamageResult(
             move=move_name, power=0, category=category,
@@ -751,6 +759,12 @@ def full_damage_calc(
     # ── Multipliers ───────────────────────────────────────────────────────────
     stab  = stab_multiplier(eff_type, atk_types, attacker_ability)
     eff   = type_effectiveness(eff_type, def_types)
+    # Freeze-Dry is super-effective (2×) against Water instead of the usual ×0.5.
+    # type_effectiveness has no move context, so patch the Water component here:
+    # ×4 converts Ice's normal 0.5× contribution into the 2× Freeze-Dry deals
+    # (the other type's contribution, if any, is untouched).
+    if move_name == "Freeze-Dry" and "Water" in def_types:
+        eff *= 4.0
     # Ability-based type immunity (Levitate→Ground, Dry Skin→Water, Flash Fire→
     # Fire, Volt Absorb→Electric, Sap Sipper→Grass, …): the defender's ability
     # nullifies the move entirely.  (Mould Breaker would bypass this, but our
@@ -801,6 +815,13 @@ def full_damage_calc(
         if move_name == _FOUL_PLAY:
             A  = defender_stats.get("atk", 100)
             ab = boosts_def.get("atk", 0)
+        # Body Press deals damage with the USER's Defense stat (and the user's
+        # Defense stat stages) in place of Attack.  Without this we use the
+        # attacker's (often low) Attack and badly under-predict it — e.g.
+        # Corviknight Body Press -> Aerodactyl.
+        elif move_name == _BODY_PRESS:
+            A  = attacker_stats.get("def", 100)
+            ab = boosts_atk.get("def", 0)
     else:  # Special
         A  = attacker_stats.get("spa", 100)
         D  = defender_stats.get("spd", 100)
