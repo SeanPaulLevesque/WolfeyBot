@@ -1,5 +1,24 @@
 # WolfeyBot Changelog
 
+## 0.14.0 — 2026-06-19
+
+### Burn now halves physical damage
+
+Fixes a long-standing gap: `full_damage_calc` hard-coded `burn = False`, so a
+burned physical attacker was modelled at full power. Both damage facts
+(`incoming_damage` / `outgoing_damage`) already thread the attacker's status
+through, so the fix is a one-line gate in the Physical branch.
+
+- **Physical branch** (`damage.py`): `burn = (attacker_status == "brn" and
+  attacker_ability != "Guts")` → ×0.5 applied in `calc_damage`. Guts is exempt
+  (it negates the Attack drop; its ×1.5 already lives in `atk_modifier`), and
+  the Special branch keeps `burn = False` (burn never touches special damage).
+- Affects mid-game incoming/outgoing damage facts where a status is in play;
+  **turn-1 baselines byte-identical** (no statuses exist at turn 1) — header-only
+  bump.
+- Regression tests: `TestBurnPhysicalHalving` (physical ×0.5, special unaffected,
+  non-burn status unaffected, Guts negation).
+
 ## 0.13.0 — 2026-06-18
 
 ### Battle-log observability + prelim M-B usage seeded from logs

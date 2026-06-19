@@ -792,9 +792,9 @@ def full_damage_calc(
         D  = defender_stats.get("def", 100)
         ab = boosts_atk.get("atk", 0)
         db = boosts_def.get("def", 0)
-        burn = False   # burn status is not passed to full_damage_calc; callers
-                       # should use the top-level outgoing_damage() which receives
-                       # the full Pokemon object and can set this correctly (TODO)
+        # Burn halves physical damage — unless the attacker has Guts (which
+        # negates the Attack drop; its ×1.5 is applied in the atk-modifier).
+        burn = (attacker_status == "brn" and attacker_ability != "Guts")
         # Foul Play hits with the TARGET's Attack stat (and the target's Attack
         # stat stages) — not the user's.  Without this we badly under-predict
         # incoming Foul Play vs our high-Attack mons (Sableye -> Sneasler).

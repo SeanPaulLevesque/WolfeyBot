@@ -329,6 +329,25 @@ class TestStatusAbilities:
         assert _cf("Body Slam", "Toxic Boost", attacker_status="tox") / _cf("Body Slam") == pytest.approx(1.5, rel=0.04)
 
 
+class TestBurnPhysicalHalving:
+    """A burned attacker deals ½ damage with PHYSICAL moves (0.14.0).  Special
+    moves are unaffected; Guts negates the drop (its ×1.5 lives in atk_modifier)."""
+
+    def test_burn_halves_physical(self):
+        assert _cf("Body Slam", attacker_status="brn") / _cf("Body Slam") == pytest.approx(0.5, rel=0.06)
+
+    def test_burn_does_not_halve_special(self):
+        assert _cf("Flamethrower", attacker_status="brn") / _cf("Flamethrower") == pytest.approx(1.0, rel=0.02)
+
+    def test_other_status_does_not_halve_physical(self):
+        assert _cf("Body Slam", attacker_status="par") / _cf("Body Slam") == pytest.approx(1.0, rel=0.02)
+
+    def test_guts_negates_burn_drop(self):
+        # Guts: no ×0.5 burn cut AND a ×1.5 Atk boost → net ×1.5 vs an unburned
+        # no-ability attacker (matches the existing Guts-when-statused tests).
+        assert _cf("Body Slam", "Guts", attacker_status="brn") / _cf("Body Slam") == pytest.approx(1.5, rel=0.06)
+
+
 class TestWeatherGatedAbilities:
     """Solar Power (SpA ×1.5 in sun only — the 0.8.5 fix) and Sand Force."""
 
