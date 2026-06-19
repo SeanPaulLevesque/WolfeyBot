@@ -286,6 +286,27 @@ def _resolve_name(name: str) -> Optional[str]:
     return None
 
 
+def base_forme(name: str) -> str:
+    """Strip a Mega suffix so two names referring to the same line compare equal.
+
+    This is the canonical forme-equivalence normaliser — the single source of
+    truth used for **identity matching only** (membership-set lookups, reconciling
+    predicted-incoming logs against actual-event logs).  It is **not** a modelling
+    decision: stats/types/ability/item/damage/speed all keep using the *inferred*
+    forme from :func:`assumed_forme`.  ``base_forme`` only answers "are these the
+    same species, ignoring mega state?".
+
+    Base and Mega share a movepool, so this is correct for move-level matching too.
+    Non-mega names (and unknown names) resolve to themselves.
+    """
+    if not name:
+        return name
+    for suf in ("-Mega-X", "-Mega-Y", "-Mega"):
+        if name.endswith(suf):
+            return name[:-len(suf)]
+    return name
+
+
 def assumed_forme(name: str) -> str:
     """Most-likely battle forme for *name*, weighted by usage raw counts.
 

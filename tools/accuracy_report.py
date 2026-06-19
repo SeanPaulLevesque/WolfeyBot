@@ -23,21 +23,11 @@ import os
 import re
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from data import base_forme as _base   # canonical forme-equivalence normaliser
+
 DMG_RE = re.compile(r"damage_output: (\d+)% HP")
 POS_RE = re.compile(r"pos (\d)/4")
-
-
-def _base(s):
-    """Strip a Mega suffix so a mon that mega-evolved mid-turn (logged as
-    '<X>-Mega' in `ev`) still matches predictions keyed on the pre-mega on-field
-    name (in `pin` / decision `ct`).  Base and Mega share a movepool, so this is
-    correct for move-level matching."""
-    if not s:
-        return s
-    for suf in ("-Mega-X", "-Mega-Y", "-Mega"):
-        if s.endswith(suf):
-            return s[:-len(suf)]
-    return s
 
 # Moves that resolve early (via +priority) but don't threaten us — a Protect (or
 # Endure) moving "before" our attacker is fine and shouldn't count as our mon

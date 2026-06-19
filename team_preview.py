@@ -41,7 +41,7 @@ from typing import Optional
 
 from data import (
     types_of, move_type, move_category, ability_of, all_pokemon, get_sets,
-    move_priority, most_likely_speed,
+    move_priority, most_likely_speed, base_forme,
 )
 from damage import type_effectiveness
 from team import TeamMember
@@ -91,9 +91,13 @@ def _mega_base_name(mega_name: str) -> str:
     ``"Charizard-Mega-Y"`` → ``"Charizard"``,
     ``"Venusaur-Mega"``   → ``"Venusaur"``,
     ``"Floette-Eternal"`` → ``"Floette"``.
+
+    Mega-suffix stripping goes through the canonical ``data.base_forme``; the
+    ``-Eternal`` case (not a mega) stays a local special case.
     """
-    if "-Mega" in mega_name:
-        return mega_name.split("-Mega")[0]
+    base = base_forme(mega_name)
+    if base != mega_name:
+        return base
     if mega_name.endswith("-Eternal"):
         return mega_name[: -len("-Eternal")]
     return mega_name

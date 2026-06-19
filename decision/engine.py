@@ -48,23 +48,29 @@ _PROTECT_MOVES = frozenset({
 # Both pre-mega and mega forms are listed because the engine checks the current
 # species name, which may be either form depending on whether mega-evolution
 # has occurred yet this battle.
+# Base (non-mega) names only.  Membership is always checked through
+# ``decision.modules._is_fake_out_user`` → ``_modeled_forme`` (infer forme, then
+# ``base_forme`` mega-normalise), so a pre- or post-mega Kangaskhan/Lopunny/etc.
+# both match without listing a "-Mega" duplicate here.  Regional/gender formes
+# (Raichu-Alola, Meowstic-M/F) are distinct species and stay listed explicitly.
+# Guarded by test_no_mega_entries_in_species_sets.
 _FAKE_OUT_USERS = frozenset({
-    "Blastoise", "Blastoise-Mega",
+    "Blastoise",
     "Incineroar",
     "Infernape",
-    "Kangaskhan", "Kangaskhan-Mega",
+    "Kangaskhan",
     "Liepard",
-    "Lopunny", "Lopunny-Mega",
-    "Medicham", "Medicham-Mega",
+    "Lopunny",
+    "Medicham",
     # Showdown's species string for the male is plain "Meowstic" — the bare
     # name must be present or the on-field membership check never matches
     # (62% of Meowstic carry Fake Out; audit 0.7.6).
-    "Meowstic", "Meowstic-M", "Meowstic-F", "Meowstic-M-Mega", "Meowstic-F-Mega",
+    "Meowstic", "Meowstic-M", "Meowstic-F",
     "Morpeko",
     "Mr. Rime",
     "Pikachu",
     "Raichu", "Raichu-Alola",
-    "Sableye", "Sableye-Mega",
+    "Sableye",
     "Salazzle",
     "Simipour",
     "Sneasler",

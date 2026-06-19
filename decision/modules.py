@@ -21,19 +21,20 @@ from dataclasses import dataclass, field, replace
 from typing import Optional, TYPE_CHECKING
 
 from data import (
-    types_of, move_type as get_move_type, move_category as get_move_category,
+    move_category as get_move_category,
     get_species as _get_species, base_spe as _base_spe,
     WEATHER_SPEED_ABILITIES as _WEATHER_SPEED_ABILITIES,
     ability_distribution as _ability_distribution,
     item_distribution as _item_distribution,
     assumed_forme as _assumed_forme,
+    base_forme as _base_forme,
     mega_stones as _mega_stones,
     mega_forme_for_stone as _mega_forme_for_stone,
     SPEED_BOOST_ITEMS as _SPEED_BOOST_ITEMS,
     note_gap as _note_gap,
 )
 from team import find_member
-from damage import outgoing_damage, incoming_damage, type_effectiveness
+from damage import outgoing_damage, incoming_damage
 from turn_order import Combatant, will_outspeed, priority_bracket
 
 from decision.engine import (
@@ -251,6 +252,33 @@ def _assumed_species(mon: "Pokemon") -> str:
         else:
             return mon.species
     return _assumed_forme(mon.species)
+
+
+def _modeled_forme(mon: "Pokemon") -> str:
+    """Canonical species name for **set-membership / identity** checks.
+
+    Infers the forme first (so a pre-mega Lopunny is recognised as the Mega Fake
+    Out user it will become), then mega-normalises via ``base_forme`` so the
+    species sets only need the base name once.  This is the single funnel every
+    name-set lookup goes through — it keeps the mega *inference* while removing
+    the per-set base/-Mega duplication that used to drift out of sync.
+    """
+    return _base_forme(_assumed_species(mon))
+
+
+def _is_fake_out_user(mon: "Pokemon") -> bool:
+    """True if *mon*'s modelled forme is a Fake Out user."""
+    return _modeled_forme(mon) in _FAKE_OUT_USERS
+
+
+def _is_tr_setter(mon: "Pokemon") -> bool:
+    """True if *mon*'s modelled forme is a Trick Room setter."""
+    return _modeled_forme(mon) in _TR_SETTER_SPECIES
+
+
+def _is_tw_setter(mon: "Pokemon") -> bool:
+    """True if *mon*'s modelled forme is a Tailwind setter."""
+    return _modeled_forme(mon) in _TAILWIND_SETTER_SPECIES
 
 
 # Stance-changing formes: (offensive forme, defensive forme).  Aegislash is
@@ -962,7 +990,7 @@ def _observe_speed_from_history(state: "BattleState") -> None:
     for oe in opps:
         opp_slot = next((i for i, m in enumerate(state.opp_actives)
                          if m is not None and not m.fainted
-                         and m.species == oe.get("a")), None)
+                         and _base_forme(m.species) == _base_forme(oe.get("a"))), None)
         if opp_slot is None:
             continue
         opp_mon = state.opp_actives[opp_slot]
@@ -983,7 +1011,7 @@ def _observe_speed_from_history(state: "BattleState") -> None:
                 continue                   # different bracket → order not by speed
             our_slot = next((i for i, m in enumerate(state.my_actives)
                              if m is not None and not m.fainted
-                             and m.species == ue.get("a")), None)
+                             and _base_forme(m.species) == _base_forme(ue.get("a"))), None)
             if our_slot is None:
                 continue
             xc = _our_combatant(state, our_slot)
@@ -1126,7 +1154,11 @@ def build_turn_context(state: "BattleState") -> TurnContext:
             # tell a genuine model mis-calc (a move we assessed but under-rated)
             # from an off-meta tech move we never considered.
             if threats:
-                _pred.append({"a": opp.species, "df": mon.species,
+                # Key by the forme we actually assessed (``_offense_species``),
+                # not the raw on-field name — so the prediction log is
+                # self-consistent and matches the (post-mega) actual-event actor
+                # under ``base_forme`` normalisation at analysis time.
+                _pred.append({"a": _offense_species(opp), "df": mon.species,
                               "mvs": {t.move: round(t.hp_fraction_avg, 3)
                                       for t in threats}})
         ctx.incoming_ohko[slot]    = max_roll_kills
@@ -1317,44 +1349,6 @@ class SwitchModule(ScoringModule):
             if any(t.ohko_with_max_roll for t in threats):
                 return False
         return True
-
-    @staticmethod
-    def _infer_threat_types(state: "BattleState") -> list[str]:
-        """Revealed *damaging* move types + all STAB types of each active opponent.
-
-        Both types of a dual-type opponent are included — a Whimsicott threatens
-        with both Grass and Fairy moves, and a Garchomp threatens with both Dragon
-        and Ground moves.  Using only the primary type causes systematic errors:
-        e.g. Garchomp's secondary Ground type is super-effective vs Steel, so
-        treating it as Dragon-only makes Steel-type switch-ins look safer than they
-        are.
-
-        Status moves (Trick Room, Tailwind, Follow Me, Helping Hand, etc.) are
-        excluded — they don't deal damage and should not influence which switch-in
-        types are considered safe or dangerous.
-        """
-        result: list[str] = []
-        for opp in state.opp_actives:
-            if opp is None or opp.fainted:
-                continue
-            for move_name in opp.moves:
-                if get_move_category(move_name) == "Status":
-                    continue   # non-damaging: no type-matchup threat
-                t = get_move_type(move_name)
-                if t:
-                    result.append(t)
-            result.extend(types_of(opp.species) or [])
-        return result
-
-    @staticmethod
-    def _worst_effectiveness(threat_types: list[str], defender_types: list[str]) -> float:
-        """Highest type-effectiveness multiplier any threat achieves vs the defender."""
-        worst = 0.0
-        for att_type in threat_types:
-            eff = type_effectiveness(att_type, defender_types)
-            if eff > worst:
-                worst = eff
-        return worst
 
 
 def _other_opp_threatens(
@@ -1591,7 +1585,7 @@ def _fake_out_threatened(state: "BattleState") -> bool:
     for slot, opp in enumerate(state.opp_actives):
         if opp is None or opp.fainted:
             continue
-        if opp.species not in _FAKE_OUT_USERS:
+        if not _is_fake_out_user(opp):
             continue
         last_move = (state.opp_last_moves[slot]
                      if slot < len(state.opp_last_moves) else "")
@@ -1648,19 +1642,22 @@ class FakeOutModule(ScoringModule):
 
 
 # Species that commonly run Trick Room in the Champions format (≥40% TR usage
-# in the gen9championsvgc2026regma usage stats).  Both pre-mega and mega forms
-# are included so the check works regardless of whether mega-evolution has fired.
+# in the gen9championsvgc2026regma usage stats).  Base (non-mega) names only —
+# membership is checked via _is_tr_setter → _modeled_forme (infer forme, then
+# mega-normalise), so mega forms match without a "-Mega" duplicate.  Regional
+# formes (Slowbro-Galar, Gourgeist-Super) are distinct species and stay listed.
+# Guarded by test_no_mega_entries_in_species_sets.
 _TR_SETTER_SPECIES: frozenset[str] = frozenset({
     "Armarouge",
     "Aromatisse",
-    "Audino", "Audino-Mega",
-    "Chandelure", "Chandelure-Mega",
-    "Chimecho", "Chimecho-Mega",
+    "Audino",
+    "Chandelure",
+    "Chimecho",
     "Cofagrigus",
     "Espeon",
     "Farigiraf",
-    "Gallade", "Gallade-Mega",
-    "Gardevoir", "Gardevoir-Mega",
+    "Gallade",
+    "Gardevoir",
     "Gengar",
     "Gourgeist-Super",
     "Hatterene",
@@ -1670,31 +1667,31 @@ _TR_SETTER_SPECIES: frozenset[str] = frozenset({
     "Reuniclus",
     "Runerigus",
     "Sinistcha",
-    "Slowbro", "Slowbro-Galar", "Slowbro-Mega",
+    "Slowbro", "Slowbro-Galar",
     "Slowking", "Slowking-Galar",
     "Spiritomb",
     "Trevenant",
     "Wyrdeer",
 })
 
-# Species that commonly run Tailwind in the Champions format (≥20% TW usage
-# in the gen9championsvgc2026regma usage stats).  Both pre-mega and mega forms
-# are included.  Whimsicott and Talonflame are listed here AND filtered out by
-# _tw_setter_has_priority because their Tailwind always has +1 priority and
+# Species that commonly run Tailwind in the Champions format (≥20% TW usage in
+# the gen9championsvgc2026regma usage stats).  Base (non-mega) names only — see
+# _TR_SETTER_SPECIES.  Whimsicott and Talonflame are listed here AND filtered out
+# by _tw_setter_has_priority because their Tailwind always has +1 priority and
 # cannot be denied.
 _TAILWIND_SETTER_SPECIES: frozenset[str] = frozenset({
-    "Aerodactyl", "Aerodactyl-Mega",
-    "Altaria", "Altaria-Mega",
+    "Aerodactyl",
+    "Altaria",
     "Corviknight",
     "Decidueye",
-    "Dragonite", "Dragonite-Mega",
+    "Dragonite",
     "Gliscor",
     "Hydreigon",
     "Kleavor",
     "Noivern",
     "Pelipper",
-    "Pidgeot", "Pidgeot-Mega",
-    "Skarmory", "Skarmory-Mega",
+    "Pidgeot",
+    "Skarmory",
     "Talonflame",        # Gale Wings at full HP → filtered by _tw_setter_has_priority
     "Toucannon",
     "Vivillon", "Vivillon-Fancy", "Vivillon-Pokeball",
@@ -1773,12 +1770,12 @@ class SetterUrgencyModule(ScoringModule):
             and not state.trick_room
         )
 
-        if any(o.species in _TR_SETTER_SPECIES for o in active_opps) and tr_relevant:
+        if any(_is_tr_setter(o) for o in active_opps) and tr_relevant:
             factor = self.TR_URGENCY
             label  = ("trick_room: TR setter on field (TR last turn, re-set risk)"
                       if state.trick_room
                       else "trick_room: TR setter on field (TR not active)")
-        elif (any(o.species in _TAILWIND_SETTER_SPECIES for o in active_opps)
+        elif (any(_is_tw_setter(o) for o in active_opps)
                 and tw_relevant):
             factor = self.TW_URGENCY
             label  = ("tailwind: TW setter on field (TW last turn, re-set risk)"
@@ -1841,7 +1838,7 @@ class SetterDenialModule(ScoringModule):
             for opp_slot, opp in enumerate(state.opp_actives):
                 if opp is None or opp.fainted:
                     continue
-                if opp.species not in species and setter_move not in opp.moves:
+                if _modeled_forme(opp) not in species and setter_move not in opp.moves:
                     continue
                 if has_priority(opp):
                     continue

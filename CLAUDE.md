@@ -132,12 +132,29 @@ the best pair.
   `_ensure_turn_ctx(state)` (keyed on `state.turn`). `_partner_can_ohko` /
   `_opp_neutralized_before_acting` / `_ko_before_acting` are thin fact readers
   (tests patch them as seams; the build passes the partial ctx explicitly)
+- **Forme resolution — one resolver, two jobs (since 0.16.0).** `mon.species` is
+  the raw protocol name (base before `|detailschange|`, mega after), so it is
+  **never** keyed off directly for modelling. Two canonical helpers:
+  - **`_assumed_species(mon)` — inference (the modelling answer).** Population-
+    weighted forme via `data.assumed_forme` (a pre-mega Charizard → Charizard-
+    Mega-Y; revealed mega/non-stone item overrides). All stats/types/ability/
+    item/damage/speed use this (via `_offense_species`/`_defense_species`).
+  - **`data.base_forme(name)` — identity normalisation (matching only).** Strips
+    the mega suffix so two names for the same line compare equal. Used **only**
+    for set membership and log↔log matching, never as a modelling choice.
+  - **Membership predicates** `_is_fake_out_user` / `_is_tr_setter` /
+    `_is_tw_setter` compose them as `base_forme(_assumed_species(mon)) in <SET>`,
+    so the species sets hold **base names only** (no `-Mega` duplicates —
+    enforced by `test_no_mega_entries_in_species_sets`). Inference still applies
+    (a pre-mega Lopunny is recognised as the Mega Fake-Out user it becomes).
+  - The `pin` log keys by the *assessed* forme (`_offense_species`), and
+    `tools/accuracy_report.py` reconciles `pin`↔`ev` via `data.base_forme` — no
+    local copies of the normaliser.
 - **Opponent inference seams (modules.py, since 0.7.6)** — every fact about an
-  unrevealed opponent goes through three helpers: `_assumed_species(mon)`
-  (population-weighted forme via `data.assumed_forme` — a pre-mega Charizard
-  is modelled as Charizard-Mega-Y; revealed mega or revealed non-stone item
-  overrides), `_effective_ability(mon)` (revealed > top-usage ability of the
-  assumed forme), `_effective_item(mon, evidence)` / `_opp_item(state, mon)`
+  unrevealed opponent goes through these helpers: `_assumed_species(mon)`
+  (above), `_effective_ability(mon)` (revealed > top-usage ability of the
+  assumed forme — so a pre-mega Pyroar → Pyroar-Mega → Fire Mane),
+  `_effective_item(mon, evidence)` / `_opp_item(state, mon)`
   (prefer `_opp_item` wherever `state` is in scope). Item inference is a
   **usage-stats prior resolved against observed `ItemEvidence`** (since 0.12.0):
   held-now > `consumed`→None > `confirmed` > field-stint consumed > prior with
@@ -160,9 +177,13 @@ the best pair.
   slot_b, a1) -> (factor_a, factor_b, reason)`. Concrete: `DoublingAdjuster`,
   `CoordinationAdjuster`, `FakeOutAdjuster`, `SwitchCollisionAdjuster` (modules.py)
 - `_PROTECT_MOVES` — frozenset of all Protect-family move names
-- `_FAKE_OUT_USERS` — frozenset: Incineroar, Kangaskhan, Tinkaton, Weavile, Sneasler, Lopunny(-Mega), Toxicroak, Salazzle, etc. (Champions-legal only; derived from usage stats)
-- `_TR_SETTER_SPECIES` — Farigiraf, Oranguru, Hatterene, Cofagrigus, Runerigus, Slowbro/Slowking variants, Reuniclus, Wyrdeer, etc. (≥40% TR usage in Champions stats)
-- `_TAILWIND_SETTER_SPECIES` — Talonflame, Whimsicott, Aerodactyl, Noivern, Pelipper, Corviknight, Dragonite, etc. (≥20% TW usage in Champions stats)
+- `_FAKE_OUT_USERS` / `_TR_SETTER_SPECIES` / `_TAILWIND_SETTER_SPECIES` —
+  frozensets of **base names** (membership normalises megas via the predicates
+  above). FakeOut: Incineroar, Kangaskhan, Tinkaton, Weavile, Sneasler, Lopunny,
+  Toxicroak, Salazzle, etc. TR (≥40% usage): Farigiraf, Oranguru, Hatterene,
+  Cofagrigus, Runerigus, Slowbro/Slowking variants, Reuniclus, Wyrdeer, etc.
+  TW (≥20%): Talonflame, Whimsicott, Aerodactyl, Noivern, Pelipper, Corviknight,
+  Dragonite, etc. (Champions-legal only; derived from usage stats)
 
 ---
 

@@ -1,5 +1,40 @@
 # WolfeyBot Changelog
 
+## 0.16.0 — 2026-06-19
+
+### Forme-name resolution: one resolver, two jobs (kill the recurring mismatches)
+
+Root-causes the recurring forme-name bugs (Pyroar ability, scarf Garchomp, the
+accuracy-report `_base` bandaid, base/-Mega set duplication). `mon.species` is
+the raw protocol name (base before `|detailschange|`, mega after), and the
+codebase resolved forme identity three incompatible ways. Now there are exactly
+two, with clear roles, and nothing keys off raw `mon.species` for modelling.
+
+- **`_assumed_species` (inference) stays and is the only modelling answer** — a
+  pre-mega mon is still assumed to become its mega forme (Fire Mane Pyroar,
+  Drought Charizard, scarf-band speed, etc.).
+- **`data.base_forme(name)` (new) is the single identity normaliser** — strips
+  the mega suffix for membership/matching only, never a modelling choice.
+- **Membership predicates** `_is_fake_out_user` / `_is_tr_setter` /
+  `_is_tw_setter` = `base_forme(_assumed_species(mon)) in <SET>`. The three
+  species sets are now **base-names-only**; the hand-listed `-Mega` duplicates
+  (the old bandaid) are gone, and `test_no_mega_entries_in_species_sets` keeps
+  them out.
+- **Switch-eval / speed-history / pin-log** now route through the canonical
+  helpers: `_observe_speed_from_history` matches actor↔active via `base_forme`;
+  the `pin` log keys by the assessed forme (`_offense_species`); and
+  `tools/accuracy_report.py` reconciles `pin`↔`ev` via `data.base_forme` instead
+  of a private `_base` copy.
+- **Dead-code removal:** the superseded `SwitchModule._infer_threat_types` and
+  `_worst_effectiveness` (old type-matchup helpers, no live caller) and their
+  tests are deleted; orphaned `types_of` / `type_effectiveness` / `move_type`
+  imports dropped. `team_preview._mega_base_name` now delegates to `base_forme`
+  (keeping its local `-Eternal` case).
+
+No behaviour change: the old base/-Mega duplication already covered the live
+megas, so **all turn-1 baselines are byte-identical** (header-only bump). Net
+−1 module helper, −3 stale tests, +6 guard/predicate tests.
+
 ## 0.15.0 — 2026-06-19
 
 ### Damage-model gaps from the defensive-accuracy audit

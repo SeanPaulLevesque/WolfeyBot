@@ -49,6 +49,10 @@ from decision.modules import (
     _TR_SETTER_SPECIES,
     _TAILWIND_SETTER_SPECIES,
     _tw_setter_has_priority,
+    _modeled_forme,
+    _is_fake_out_user,
+    _is_tr_setter,
+    _is_tw_setter,
     build_turn_context,
     TurnContext,
     make_engine,
@@ -392,9 +396,13 @@ class TestFakeOutModule:
         assert protect.weight == pytest.approx(FakeOutModule.PROTECT_BOOST)
 
     def test_all_known_fake_out_users_present(self):
-        """Spot-check that key Champions-legal Fake Out users are in _FAKE_OUT_USERS."""
+        """Spot-check that key Champions-legal Fake Out users are in _FAKE_OUT_USERS.
+
+        Base names only — mega coverage is enforced via the ``_is_fake_out_user``
+        predicate (see TestFormeNameNormalisation), not by listing "-Mega"
+        duplicates in the set."""
         for species in ("Incineroar", "Weavile", "Tinkaton", "Kangaskhan",
-                        "Lopunny", "Lopunny-Mega", "Sneasler", "Toxicroak"):
+                        "Lopunny", "Sneasler", "Toxicroak"):
             assert species in _FAKE_OUT_USERS, f"{species} missing from _FAKE_OUT_USERS"
 
     def test_illegal_species_not_in_fake_out_users(self):
@@ -1119,46 +1127,47 @@ class TestCoordinate:
 # SwitchModule
 # ══════════════════════════════════════════════════════════════════════════════
 
-class TestSwitchModuleInferThreatTypes:
-    """Tests for SwitchModule._infer_threat_types() status-move filtering."""
-    module = SwitchModule()
+# ══════════════════════════════════════════════════════════════════════════════
+# Forme-name normalisation guard (mega inference + base-name membership)
+# ══════════════════════════════════════════════════════════════════════════════
 
-    def test_status_moves_excluded_from_threat_types(self):
-        """Trick Room (Status/Psychic) should not add an extra Psychic entry.
+class TestFormeNameNormalisation:
+    """Guards the single-resolution forme architecture so the base/-Mega
+    duplication bandaid can't creep back into the species sets.
 
-        Farigiraf is Normal/Psychic, so Psychic DOES appear via the species STAB
-        lookup — but it must not appear a second time from the Status move itself.
-        """
-        farigiraf = make_mon("Farigiraf", side="p2", moves=["Trick Room", "Hyper Voice"])
-        state = make_state(opp_actives=[farigiraf])
-        threat_types = self.module._infer_threat_types(state)
-        # "Hyper Voice" is Special/Normal — its Normal type SHOULD appear.
-        assert "Normal" in threat_types
-        # Farigiraf's secondary STAB type Psychic appears via species lookup (correct).
-        assert "Psychic" in threat_types
-        # Trick Room is Status — it must not add a duplicate Psychic entry.
-        assert threat_types.count("Psychic") == 1
+    Membership is always checked via ``_modeled_forme`` (infer forme, then
+    ``base_forme`` mega-normalise), so the sets must hold base names only and a
+    pre-mega *and* post-mega form of the same line must both match.
+    """
 
-    def test_damaging_moves_included_in_threat_types(self):
-        """A revealed damaging move's type should still appear in the threat list."""
-        garchomp = make_mon("Garchomp", side="p2", moves=["Earthquake", "Tailwind"])
-        state = make_state(opp_actives=[garchomp])
-        threat_types = self.module._infer_threat_types(state)
-        # "Earthquake" is Physical/Ground — Ground must appear.
-        assert "Ground" in threat_types
-        # "Tailwind" is Status/Flying — Flying must NOT appear from this move.
-        # (Flying may still appear via species STAB, but Garchomp is Dragon/Ground)
-        assert "Flying" not in threat_types
+    def test_no_mega_entries_in_species_sets(self):
+        for name, s in (("_FAKE_OUT_USERS", _FAKE_OUT_USERS),
+                        ("_TR_SETTER_SPECIES", _TR_SETTER_SPECIES),
+                        ("_TAILWIND_SETTER_SPECIES", _TAILWIND_SETTER_SPECIES)):
+            offenders = [x for x in s if "-Mega" in x]
+            assert not offenders, (
+                f"{name} must list base names only (membership normalises megas "
+                f"via _modeled_forme); drop the -Mega duplicates: {offenders}")
 
-    def test_unknown_move_not_filtered(self):
-        """A move not in the move database (None category) should not be filtered out
-        — we conservatively assume it could be a damaging move."""
-        opp = make_mon("Garchomp", side="p2", moves=["UnknownMoveXYZ"])
-        state = make_state(opp_actives=[opp])
-        # Should not raise; result may or may not contain a type
-        # (move_type returns None for unknown moves, so nothing is added anyway)
-        threat_types = self.module._infer_threat_types(state)
-        assert isinstance(threat_types, list)
+    def test_modeled_forme_infers_then_normalises(self):
+        # A bare Lopunny is inferred as the Mega Fake-Out user it will become,
+        # then mega-normalised back to the base name for the set lookup.
+        assert _modeled_forme(make_mon("Lopunny", side="p2", ability=None)) == "Lopunny"
+        assert _modeled_forme(make_mon("Lopunny-Mega", side="p2")) == "Lopunny"
+
+    def test_fake_out_predicate_matches_base_and_mega(self):
+        assert _is_fake_out_user(make_mon("Lopunny", side="p2", ability=None))
+        assert _is_fake_out_user(make_mon("Lopunny-Mega", side="p2"))
+        assert _is_fake_out_user(make_mon("Kangaskhan", side="p2", ability=None))
+        assert _is_fake_out_user(make_mon("Kangaskhan-Mega", side="p2"))
+
+    def test_tw_predicate_matches_base_and_mega(self):
+        assert _is_tw_setter(make_mon("Aerodactyl", side="p2", ability=None))
+        assert _is_tw_setter(make_mon("Aerodactyl-Mega", side="p2"))
+
+    def test_tr_predicate_matches_base_and_mega(self):
+        assert _is_tr_setter(make_mon("Gardevoir", side="p2", ability=None))
+        assert _is_tr_setter(make_mon("Gardevoir-Mega", side="p2"))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1696,8 +1705,7 @@ class TestSwitchModule:
         switch_action = make_action("Switch Sylveon", switch_target="Sylveon",
                                     weight=2.0)
 
-        with patch("decision.modules.find_member", return_value=None), \
-             patch("decision.modules.types_of", return_value=[]):
+        with patch("decision.modules.find_member", return_value=None):
             self.module.score(state, slot=1, actions=[switch_action])
 
         assert switch_action.weight != 0.0   # not vetoed by the per-slot module

@@ -56,7 +56,11 @@ mons we thought were safe that got hit harder.
 
 ```
 {
-  "a":   "Incineroar",                       // attacker species
+  "a":   "Incineroar",                       // attacker species — the ASSESSED
+                                             // forme (_offense_species, 0.16.0+):
+                                             // a pre-mega Pyroar logs as
+                                             // "Pyroar-Mega". Reconcile against
+                                             // `ev`'s actor via data.base_forme.
   "df":  "Garchomp",                         // defender (our mon)
   "mvs": {"Flare Blitz": 0.32, "Darkest Lariat": 0.28}
          // predicted damage (fraction of defender max HP, expected non-crit)
