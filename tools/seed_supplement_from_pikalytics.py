@@ -24,6 +24,7 @@ Supersedes the log-seeded entries.  Run AFTER scraping:
     .venv\\Scripts\\python.exe tools/seed_supplement_from_pikalytics.py
 """
 import sys, os, json
+from collections import Counter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -36,7 +37,12 @@ TOP_MOVES   = 14
 
 
 def _is_stone(item: str) -> bool:
-    return item.endswith("ite") and item != "Eviolite"
+    base = item
+    for suf in (" X", " Y", "-X", "-Y"):     # X/Y megas: "Raichunite X"
+        if base.endswith(suf):
+            base = base[:-len(suf)]
+            break
+    return base.endswith("ite") and base != "Eviolite"
 
 
 def _mega_formes(base: str) -> list:
@@ -56,12 +62,16 @@ def _top_moves(moves: dict) -> dict:
 
 
 def _spreads(rows: list) -> dict:
+    # Per-nature aggregate rows show up as a single EV repeated across many
+    # natures (blank, all-zero, or a placeholder like "32/32/0/0/0/0"); drop EVs
+    # that appear under 3+ natures.
+    evc = Counter((r.get("ev") or "").strip() for r in rows)
     out = {}
     for r in sorted(rows, key=lambda r: -r.get("pct", 0)):
         ev = (r.get("ev") or "").strip()
-        # Skip nature-only aggregate rows: blank, or all-zero EVs (some pages
-        # encode the per-nature total as "0/0/0/0/0/0").
         if not ev or all(c.strip() in ("", "0") for c in ev.split("/")):
+            continue
+        if evc[ev] >= 3:
             continue
         out[f"{r['nature']}:{ev}"] = r["pct"]
         if len(out) >= TOP_SPREADS:
@@ -101,6 +111,8 @@ def main() -> None:
         abilities = {k: v for k, v in (d.get("abilities") or {}).items() if v > 0}
         moves = _top_moves({k: v for k, v in (d.get("moves") or {}).items() if v > 0})
         spreads = _spreads(d.get("spreads") or [])
+        if not (items or abilities or moves):
+            continue                       # page had "No data yet" — leave on fallback
         megas = _mega_formes(X)
         stone = next((it for it in items if _is_stone(it)), None)
 

@@ -70,7 +70,7 @@ class TestNameResolution:
         (so the synthetic fallback handles them) rather than mis-mapping."""
         assert _resolve_name("Stunfisk-Galar") is None      # would mis-map to Electric Stunfisk
         assert _resolve_name("Tauros-Paldea-Combat") is None
-        assert _resolve_name("Watchog") is None
+        assert _resolve_name("Simisage") is None             # off-meta, no usage data anywhere
 
 
 # ── Synthetic STAB fallback (Part B) ──────────────────────────────────────────
