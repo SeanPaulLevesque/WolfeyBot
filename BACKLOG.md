@@ -91,6 +91,19 @@ The 0.8.5 batches wired every ability that keys off move flags, move type, categ
 -Out of format, revisit only if the legal pool changes (no Champions-legal holder today): Slow Start (Regigigas), Orichalcum Pulse (Koraidon), Hadron Engine (Miraidon; also needs Electric Terrain), Flower Gift (Cherrim). Any of these would also need turns-active and/or terrain tracking that we deliberately skipped.
 
 model calibration:
+-Make turn-order (TurnOrderModule `pos X/4`) priority-aware. It currently ranks on
+ RAW SPEED only (`will_outspeed(ours, other)` called without the moves), so it
+ ignores both move priority (Fake Out / Bullet Punch / Aqua Jet) and ability
+ priority (Prankster, Gale Wings). On the 0.13.0 accuracy run this was ~65% of all
+ turn-order "misses" (17 Prankster/support-status + 11 move-priority of 43) —
+ i.e. the speed ranking is actually good; the metric just doesn't model who really
+ moves first. Fix: thread the chosen move (and the opponent's likely move) into
+ will_outspeed so the position reflects the priority bracket, and add Prankster
+ (status moves +1 from Prankster users) / Gale Wings (Flying moves +1 at full HP)
+ as ability priority. Improves the pos weighting (e.g. stop over-rating our attack
+ when we're about to be Fake-Out'd / Pranksterred); pairs with the FakeOut module.
+ The residual genuine speed misreads were ~13, almost all ±1 (conservative >0.5 /
+ speed-tie threshold nudging a clearly-faster mon down one slot) — minor.
 -Incoming-threat assessment misses low-usage super-effective coverage moves.
  `damage.incoming_damage(top_n_moves=6)` only assesses an opponent's 6 most-used
  moves, so a coverage move outside that window is never scored even when it's the
