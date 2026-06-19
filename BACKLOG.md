@@ -91,6 +91,21 @@ The 0.8.5 batches wired every ability that keys off move flags, move type, categ
 -Out of format, revisit only if the legal pool changes (no Champions-legal holder today): Slow Start (Regigigas), Orichalcum Pulse (Koraidon), Hadron Engine (Miraidon; also needs Electric Terrain), Flower Gift (Cherrim). Any of these would also need turns-active and/or terrain tracking that we deliberately skipped.
 
 model calibration:
+-Incoming-threat assessment misses low-usage super-effective coverage moves.
+ `damage.incoming_damage(top_n_moves=6)` only assesses an opponent's 6 most-used
+ moves, so a coverage move outside that window is never scored even when it's the
+ hardest hit. Surfaced by tools/accuracy_report.py on the 0.13.0 run: Metagross-Mega
+ Ice Punch (7th move, ~23% usage) -> Garchomp is 4x SE and KO'd, but went
+ unassessed (predicted nothing, actual 100%). CONFIRMED this is the move-count
+ cutoff, NOT a forme/mega-inference bug — the mega is inferred correctly
+ (Metagross -> Metagross-Mega, Tough Claws, Metagrossite, mega stats) and its
+ top-6 moves ARE assessed. Likely behind a few other defensive under-predictions
+ too. Fix options: (1) raise top_n_moves to 8-10; (2) [preferred] replace the
+ fixed-N with a usage floor (~15-20%) so 23%-Ice Punch clears it but true off-meta
+ tech doesn't; (3) keep top-6 but always add any move >=~10% usage that is
+ super-effective vs the defender. NB this changes incoming-threat facts, so it
+ shifts the turn-1 snapshot baseline -> land it with a baseline review per the
+ testing rule.
 -[RULED OUT 0.8.12] Opponent spread calibration was suspected as the cause of
  offense over-prediction into bulky walls (Corviknight/Sinistcha/Milotic). It is
  NOT. Pulled the full chaos JSON (2026-05, the complete untruncated spread
