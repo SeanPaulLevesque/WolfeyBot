@@ -8,7 +8,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock
 
-from battle import BattleParser, BattleState
+from battle import BattleParser, BattleState, Pokemon
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -330,6 +330,26 @@ class TestBoostUnboost:
         run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
         run(parser.feed("|-unboost|p2a: Garchomp|spe|1"))
         assert parser.state.opp_actives[0].boosts["spe"] == -1
+
+    def test_our_boosts_survive_request_rebuild(self):
+        """Regression (0.17.0): a per-turn |request| rebuilds my_team from JSON,
+        which carries no stat stages.  An Intimidate −1 Atk on our mon (and any
+        other opponent-inflicted drop) must be carried forward, or the engine
+        models our offense un-Intimidated and over-predicts our damage."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        # Our Garchomp is on our team and gets Intimidated to −1 Atk.
+        parser.state.my_team = [
+            Pokemon(ident="p1: Garchomp", species="Garchomp", hp=175, max_hp=175)
+        ]
+        run(parser.feed("|-unboost|p1a: Garchomp|atk|1"))
+        assert parser.state.my_team[0].boosts["atk"] == -1
+        # A fresh request arrives (no boosts in the JSON) — the drop must persist.
+        req_mon = {"ident": "p1: Garchomp", "details": "Garchomp, L50, M",
+                   "condition": "175/175", "active": True,
+                   "moves": [{"move": "Dragon Claw"}]}
+        parser._rebuild_team([req_mon], "p1")
+        assert parser.state.my_team[0].boosts.get("atk") == -1
 
 
 # ── Move tracking ─────────────────────────────────────────────────────────────

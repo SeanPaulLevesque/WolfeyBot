@@ -1,5 +1,32 @@
 # WolfeyBot Changelog
 
+## 0.17.0 — 2026-06-19
+
+### Our stat-stage boosts now survive the per-turn request rebuild
+
+Root-causes the offense-accuracy finding: across the 0.13.0 50-game run, our
+moves were **over-predicted ~36:4** over vs under, and our actives recorded a
+stat boost **zero times in 50 games** despite 77 turns facing an Intimidate user
+(opponent boosts logged fine).
+
+Cause: `BattleParser._rebuild_team` rebuilds `my_team` from the `|request|` JSON
+every turn, and the request carries no stat stages — so an Intimidate −1 Atk (or
+an opponent Rock Tomb −1 Spe) set via `-unboost` was **silently wiped before the
+decision read it**. The engine therefore modelled our offense un-Intimidated and
+systematically over-estimated our damage (picking attacks that fell short and
+under-valuing Protect/switch).
+
+- `_rebuild_team` now carries `boosts` forward by ident (like `item_consumed`).
+  On an actual switch-out `_on_switch` replaces the entry with a fresh
+  (empty-boost) object via `_update_or_add`, so a benched mon never drags stale
+  stages back onto the field.
+- Regression test `test_our_boosts_survive_request_rebuild`.
+
+No turn-1 baseline change (the snapshot scenario builds `BattleState` directly,
+bypassing the parser) — header-only bump. Residual offense over-predictions
+(bulky spreads, Friend Guard, etc.) are smaller and need a fresh-log sample to
+re-measure now that the dominant cause is fixed.
+
 ## 0.16.0 — 2026-06-19
 
 ### Forme-name resolution: one resolver, two jobs (kill the recurring mismatches)

@@ -122,17 +122,29 @@ class BattleParser:
         await self._maybe_decide()
 
     def _rebuild_team(self, side_pokemon: list[dict], side_id: str) -> None:
-        """Rebuild my_team from request JSON, preserving item_consumed flags.
+        """Rebuild my_team from request JSON, preserving item_consumed flags and
+        stat-stage boosts.
 
-        The request JSON always has the latest HP/status/etc.  item_consumed is
-        not included in the JSON, so we carry it forward manually — Unburden's
-        speed boost must survive until the mon actually switches out.
+        The request JSON always has the latest HP/status/etc. but carries neither
+        ``item_consumed`` nor stat stages, so both are carried forward manually,
+        keyed by ident:
+
+        * ``item_consumed`` — Unburden's speed boost must survive until switch-out.
+        * ``boosts`` — opponent-inflicted drops on our mons (Intimidate −1 Atk,
+          their Rock Tomb −1 Spe) and our own setup must persist; otherwise every
+          per-turn request silently wiped them, so the engine modelled our offense
+          un-Intimidated and systematically over-predicted our damage (0.17.0).
+          On an actual switch-out ``_on_switch`` replaces the entry with a fresh
+          (empty-boost) object, so a benched mon never carries stale stages back in.
         """
         _old_item_consumed = {p.ident: p.item_consumed for p in self.state.my_team}
+        _old_boosts = {p.ident: dict(p.boosts) for p in self.state.my_team if p.boosts}
         self.state.my_team = [Pokemon.from_request(p, side_id) for p in side_pokemon]
         for mon in self.state.my_team:
             if _old_item_consumed.get(mon.ident):
                 mon.item_consumed = True
+            if mon.ident in _old_boosts:
+                mon.boosts = dict(_old_boosts[mon.ident])
 
     def _handle_force_switch(self, data: dict) -> None:
         """Populate state for a force-switch phase (one or more Pokémon fainted).
