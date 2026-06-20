@@ -156,9 +156,10 @@ class TestComputePrediction:
     def test_offense_miss_carries_attacker(self):
         s = compute_prediction([self._GAME])
         assert len(s["off_miss"]) == 1
-        err, our_mon, mv, tg, pred, act = s["off_miss"][0]
+        err, our_mon, mv, tg, pred, act, disp = s["off_miss"][0]
         assert our_mon == "Garchomp" and mv == "Poison Jab" and tg == "Whimsicott"
         assert err < 0          # over-prediction (predicted 100%, actual 30%)
+        assert disp == "gap"    # offense defaults to actionable until investigated
 
     def test_turn_order_misread_captured(self):
         s = compute_prediction([self._GAME])
@@ -166,6 +167,27 @@ class TestComputePrediction:
         m = s["to_miss"][0]
         assert m["diff"] == 2 and m["mon"] == "my[a]" and m["pred_pos"] == 1
         assert m["act_pos"] == 3 and m["turn"] == 4
+        # No priority/TR/paralysis explains it -> a genuine speed gap.
+        assert m["disposition"] == "gap"
+
+    def test_turn_order_priority_accepted(self):
+        # A +priority opp move (Aqua Jet) resolving ahead explains our mon landing
+        # later than predicted -> accepted, not a speed gap.
+        game = {"outcome": "loss", "turns": [{
+            "n": 1, "tr": False,
+            "my": [{"s": "Garchomp", "hp": 1.0}, {"s": "Sneasler", "hp": 1.0}],
+            "opp": [{"s": "Basculegion"}, {"s": "Pelipper"}],
+            "dec": [{"sl": 0, "ch": "Dragon Claw", "ct": "Basculegion",
+                     "acts": [{"lb": "Dragon Claw", "r": ["turn_order: pos 1/4"]}]}],
+            "ev": [
+                {"o": 0, "sd": "opp", "a": "Basculegion", "mv": "Aqua Jet"},
+                {"o": 1, "sd": "us", "a": "Garchomp", "mv": "Dragon Claw", "tg": "Basculegion"},
+                {"o": 2, "sd": "us", "a": "Sneasler", "mv": "Close Combat", "tg": "Pelipper"},
+                {"o": 3, "sd": "opp", "a": "Pelipper", "mv": "Hurricane"},
+            ],
+        }]}
+        m = compute_prediction([game])["to_miss"][0]
+        assert m["disposition"].startswith("accepted: priority")
 
     def _immune_game(self, predicted_pct):
         """A turn where our move hit an immune target, with the engine predicting
@@ -180,14 +202,17 @@ class TestComputePrediction:
                     "tg": "Pelipper", "h0": 1.0, "z": "immune", "za": None}],
         }]}
 
-    def test_immune_zero_prediction_not_flagged(self):
+    def test_immune_zero_prediction_accepted(self):
         # Forced Choice-lock into a sole immune target: predicted 0% is correct,
-        # so it must NOT be reported as an immunity gap.
-        assert compute_prediction([self._immune_game(0)])["off_immune"] == []
+        # so it stays in the report but disposition is 'accepted' (not a gap).
+        imm = compute_prediction([self._immune_game(0)])["off_immune"]
+        assert len(imm) == 1
+        assert imm[0][4].startswith("accepted")
 
-    def test_immune_positive_prediction_flagged(self):
+    def test_immune_positive_prediction_is_gap(self):
         # We expected damage but the target was immune -> a real model gap.
-        assert len(compute_prediction([self._immune_game(80)])["off_immune"]) == 1
+        imm = compute_prediction([self._immune_game(80)])["off_immune"]
+        assert len(imm) == 1 and imm[0][4] == "gap"
 
     def test_turn_order_misread_board_state(self):
         m = compute_prediction([self._GAME])["to_miss"][0]

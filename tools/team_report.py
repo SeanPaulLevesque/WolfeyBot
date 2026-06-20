@@ -222,53 +222,56 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
         if n:
             out.append(f"| {b} | {w}-{n-w} | {_pct(w/n)} |")
 
-    # 4. PREDICTION ACCURACY
+    # 4. PREDICTION ACCURACY — every case carries a disposition: `gap` (actionable
+    # model error) or `accepted: <reason>` (explained / correct). The goal is to
+    # drive *gaps* to zero; accepted cases stay on the ledger so the checks remain
+    # visible and catch any future recurrence.
     s = compute_prediction(games, slop)
-    pct = int(slop * 100)
-    n_known = sum(1 for c in s["def_under"] if c[6] == "known")
-    n_tech = sum(1 for c in s["def_under"] if c[6] == "tech")
-    out += ["", "## Prediction accuracy", ""]
-    summ = []
-    if s["off_total"]:
-        summ.append(f"**Offense** {_pct(s['off_within']/s['off_total'])} "
-                    f"({s['off_within']}/{s['off_total']} within +/-{pct}%, "
-                    f"{len(s['off_miss'])} mis-models)")
-    if s["to_total"]:
-        summ.append(f"**Turn order** {_pct(s['to_exact']/s['to_total'])} exact "
-                    f"(+/-1 {_pct(s['to_off1']/s['to_total'])}, "
-                    f"off-by-2+ {_pct(s['to_worse']/s['to_total'])})")
-    summ.append(f"**Defense** {len(s['def_under'])} mis-models "
-                f"({n_known} model gaps, {n_tech} tech)")
-    if s["off_immune"]:
-        summ.append(f"**Immunity** {len(s['off_immune'])} fired into immune target")
-    out.append(" | ".join(summ))
 
-    # Defensive mis-model — incoming hits that landed harder than we predicted.
-    # Mode: `known` = we assessed the move but under-rated it; `tech` = move we
-    # never assessed (off-meta / below usage cutoff).
+    def _ngap(rows, idx):
+        return sum(1 for r in rows if r[idx] == "gap")
+    off_g = _ngap(s["off_miss"], 6)
+    def_g = _ngap(s["def_under"], 6)
+    imm_g = _ngap(s["off_immune"], 4)
+    to_g = sum(1 for m in s["to_miss"] if m["disposition"] == "gap")
+
+    out += ["", "## Prediction accuracy", "",
+            "*Each case is a **gap** (actionable) or **accepted** (explained, with "
+            "reason). Goal: gaps to zero; accepted rows stay so the checks keep "
+            "running.*", ""]
+    out.append(
+        f"**Offense** {len(s['off_miss'])} ({off_g} gaps) | "
+        f"**Defense** {len(s['def_under'])} ({def_g} gaps) | "
+        f"**Turn order** {len(s['to_miss'])} misreads ({to_g} gaps) | "
+        f"**Immunity** {len(s['off_immune'])} ({imm_g} gaps)")
+
+    def _disp_sort_def(x):     # gaps first, then by error size
+        return (x[6] != "gap", -x[0])
+
+    # Defensive mis-model
     if s["def_under"]:
         out += ["", "### Defensive mis-model",
-                "*Incoming hits >slop above prediction (crits/misses excluded). "
-                "Mode `known` = assessed move under-rated; `tech` = move never assessed.*",
+                "*Incoming hits >slop above prediction (crits/misses excluded).*",
                 "",
-                "| Attacker | Move | vs Defender | Predicted | Actual | Mode |",
+                "| Attacker | Move | vs Defender | Predicted | Actual | Disposition |",
                 "|---|---|---|--:|--:|---|"]
-        for err, atk, dfd, mv, pred, act, mode in sorted(s["def_under"], key=lambda x: -x[0]):
+        for err, atk, dfd, mv, pred, act, disp in sorted(s["def_under"], key=_disp_sort_def):
             pstr = _pct(pred) if pred is not None else "n/a"
-            out.append(f"| {atk} | {mv} | {dfd} | {pstr} | {_pct(act)} | {mode} |")
+            out.append(f"| {atk} | {mv} | {dfd} | {pstr} | {_pct(act)} | {disp} |")
 
-    # Offensive mis-model — our outgoing damage off by >slop.  Mode: over/under.
+    # Offensive mis-model
     if s["off_miss"]:
         out += ["", "### Offensive mis-model",
-                "*Our outgoing damage vs actual (|error| > slop). Mode = over/under.*",
+                "*Our outgoing damage vs actual (|error| > slop). Dir = over/under.*",
                 "",
-                "| Attacker | Move | vs Target | Predicted | Actual | Mode |",
-                "|---|---|---|--:|--:|---|"]
-        for err, our_mon, mv, tg, pred, act in sorted(s["off_miss"], key=lambda x: -abs(x[0])):
-            mode = "over" if err < 0 else "under"
-            out.append(f"| {our_mon} | {mv} | {tg} | {_pct(pred)} | {_pct(act)} | {mode} |")
+                "| Attacker | Move | vs Target | Predicted | Actual | Dir | Disposition |",
+                "|---|---|---|--:|--:|:-:|---|"]
+        for err, our_mon, mv, tg, pred, act, disp in sorted(
+                s["off_miss"], key=lambda x: (x[6] != "gap", -abs(x[0]))):
+            out.append(f"| {our_mon} | {mv} | {tg} | {_pct(pred)} | {_pct(act)} | "
+                       f"{'over' if err < 0 else 'under'} | {disp} |")
 
-    # Turn order — predicted resolution position (1 = fastest of 4) vs actual.
+    # Turn order
     if s["to_total"]:
         out += ["", "### Turn order",
                 "*Predicted resolution position (1 = fastest of 4) vs actual, over "
@@ -284,29 +287,31 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
             out += ["", "Off-by-2+ misreads (board state at the misread turn; "
                     "*Predicted* = where we expected the flagged mon, *Actual* = the "
                     "real resolution order):", "",
-                    "| Turn | my[a] | my[b] | opp[a] | opp[b] | TR | TW | Predicted | Actual order |",
-                    "|--:|---|---|---|---|:-:|:-:|---|---|"]
+                    "| Turn | my[a] | my[b] | opp[a] | opp[b] | TR | TW | Predicted | Actual order | Disposition |",
+                    "|--:|---|---|---|---|:-:|:-:|---|---|---|"]
 
             def _g(lst, i):
                 return lst[i] if i < len(lst) and lst[i] else "-"
 
-            for m in sorted(real, key=lambda x: -x["diff"]):
+            for m in sorted(real, key=lambda x: (x["disposition"] != "gap", -x["diff"])):
                 tw = m["tw"]
                 tw_s = "/".join(k for k in ("us", "opp") if tw.get(k)) or "-"
                 tr_s = "yes" if m["tr"] else "-"
                 out.append(
                     f"| {m['turn']} | {_g(m['my'],0)} | {_g(m['my'],1)} | "
                     f"{_g(m['opp'],0)} | {_g(m['opp'],1)} | {tr_s} | {tw_s} | "
-                    f"{m['mon']} {m['pred_pos']}/4 | {' > '.join(m['order'])} |")
+                    f"{m['mon']} {m['pred_pos']}/4 | {' > '.join(m['order'])} | {m['disposition']} |")
 
+    # Immunity
     if s["off_immune"]:
-        out += ["", "### Immunity gaps",
-                "*Chose a move expecting damage, but the target was immune.*",
+        out += ["", "### Immunity",
+                "*Move fired into an immune target.*",
                 "",
-                "| Move | vs Target | Why |",
-                "|---|---|---|"]
-        for pred, mv, tg, abil in sorted(s["off_immune"], key=lambda x: -x[0]):
-            out.append(f"| {mv} | {tg} | {('ability: ' + abil) if abil else 'type immunity'} |")
+                "| Move | vs Target | Predicted | Why | Disposition |",
+                "|---|---|--:|---|---|"]
+        for pred, mv, tg, abil, disp in sorted(s["off_immune"], key=lambda x: (x[4] != "gap", -x[0])):
+            why = f"ability: {abil}" if abil else "type immunity"
+            out.append(f"| {mv} | {tg} | {_pct(pred)} | {why} | {disp} |")
 
     out.append("")
     return "\n".join(out)

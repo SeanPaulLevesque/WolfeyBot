@@ -105,61 +105,63 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 
 ## Prediction accuracy
 
-**Offense** 86% (153/178 within +/-15%, 25 mis-models) | **Turn order** 57% exact (+/-1 39%, off-by-2+ 4%) | **Defense** 17 mis-models (10 model gaps, 7 tech)
+*Each case is a **gap** (actionable) or **accepted** (explained, with reason). Goal: gaps to zero; accepted rows stay so the checks keep running.*
+
+**Offense** 25 (25 gaps) | **Defense** 17 (10 gaps) | **Turn order** 33 misreads (13 gaps) | **Immunity** 3 (0 gaps)
 
 ### Defensive mis-model
-*Incoming hits >slop above prediction (crits/misses excluded). Mode `known` = assessed move under-rated; `tech` = move never assessed.*
+*Incoming hits >slop above prediction (crits/misses excluded).*
 
-| Attacker | Move | vs Defender | Predicted | Actual | Mode |
+| Attacker | Move | vs Defender | Predicted | Actual | Disposition |
 |---|---|---|--:|--:|---|
-| Aerodactyl-Mega | Ice Fang | Garchomp | n/a | 100% | tech |
-| Floette-Mega | Dazzling Gleam | Basculegion | n/a | 55% | tech |
-| Annihilape | Rage Fist | Basculegion | 50% | 95% | known |
-| Staraptor-Mega | Close Combat | Garchomp | 66% | 100% | known |
-| Staraptor-Mega | Close Combat | Garchomp | 66% | 100% | known |
-| Raichu-Mega-X | Volt Tackle | Sneasler | n/a | 87% | tech |
-| Crabominable-Mega | Ice Hammer | Sneasler | 63% | 93% | known |
-| Metagross-Mega | Ice Punch | Garchomp | n/a | 100% | tech |
-| Raichu-Mega-Y | Zap Cannon | Basculegion | n/a | 100% | tech |
-| Talonflame | Overheat | Kingambit | n/a | 96% | tech |
-| Sylveon | Hyper Voice | Kingambit | 44% | 69% | known |
-| Slowking-Galar | Psychic | Venusaur-Mega | 56% | 81% | known |
-| Bellibolt | Discharge | Venusaur-Mega | n/a | 40% | tech |
-| Kingambit | Iron Head | Garchomp | 47% | 66% | known |
-| Froslass-Mega | Blizzard | Sneasler | 52% | 70% | known |
-| Annihilape | Rage Fist | Garchomp | 27% | 44% | known |
-| Incineroar | Throat Chop | Basculegion | 59% | 75% | known |
+| Annihilape | Rage Fist | Basculegion | 50% | 95% | gap |
+| Staraptor-Mega | Close Combat | Garchomp | 66% | 100% | gap |
+| Staraptor-Mega | Close Combat | Garchomp | 66% | 100% | gap |
+| Crabominable-Mega | Ice Hammer | Sneasler | 63% | 93% | gap |
+| Sylveon | Hyper Voice | Kingambit | 44% | 69% | gap |
+| Slowking-Galar | Psychic | Venusaur-Mega | 56% | 81% | gap |
+| Kingambit | Iron Head | Garchomp | 47% | 66% | gap |
+| Froslass-Mega | Blizzard | Sneasler | 52% | 70% | gap |
+| Annihilape | Rage Fist | Garchomp | 27% | 44% | gap |
+| Incineroar | Throat Chop | Basculegion | 59% | 75% | gap |
+| Aerodactyl-Mega | Ice Fang | Garchomp | n/a | 100% | accepted: unassessed move (off-meta / below usage cutoff) |
+| Floette-Mega | Dazzling Gleam | Basculegion | n/a | 55% | accepted: unassessed move (off-meta / below usage cutoff) |
+| Raichu-Mega-X | Volt Tackle | Sneasler | n/a | 87% | accepted: unassessed move (off-meta / below usage cutoff) |
+| Metagross-Mega | Ice Punch | Garchomp | n/a | 100% | accepted: unassessed move (off-meta / below usage cutoff) |
+| Raichu-Mega-Y | Zap Cannon | Basculegion | n/a | 100% | accepted: unassessed move (off-meta / below usage cutoff) |
+| Talonflame | Overheat | Kingambit | n/a | 96% | accepted: unassessed move (off-meta / below usage cutoff) |
+| Bellibolt | Discharge | Venusaur-Mega | n/a | 40% | accepted: unassessed move (off-meta / below usage cutoff) |
 
 ### Offensive mis-model
-*Our outgoing damage vs actual (|error| > slop). Mode = over/under.*
+*Our outgoing damage vs actual (|error| > slop). Dir = over/under.*
 
-| Attacker | Move | vs Target | Predicted | Actual | Mode |
-|---|---|---|--:|--:|---|
-| Garchomp | Poison Jab | Whimsicott | 100% | 29% | over |
-| Kingambit | Iron Head | Altaria | 80% | 22% | over |
-| Staraptor | Brave Bird | Gardevoir | 100% | 43% | over |
-| Garchomp | Dragon Claw | Staraptor-Mega | 81% | 32% | over |
-| Kingambit | Kowtow Cleave | Corviknight | 82% | 35% | over |
-| Kingambit | Kowtow Cleave | Corviknight | 71% | 30% | over |
-| Sneasler | Close Combat | Archaludon | 62% | 26% | over |
-| Sneasler | Dire Claw | Grimmsnarl | 43% | 78% | under |
-| Staraptor-Mega | Brave Bird | Sinistcha | 67% | 32% | over |
-| Staraptor | Brave Bird | Staraptor | 90% | 55% | over |
-| Sneasler | Close Combat | Scrafty | 60% | 93% | under |
-| Sneasler | Close Combat | Scrafty | 59% | 92% | under |
-| Garchomp | Dragon Claw | Staraptor-Mega | 68% | 37% | over |
-| Basculegion | Wave Crash | Incineroar | 75% | 44% | over |
-| Kingambit | Iron Head | Altaria | 50% | 20% | over |
-| Kingambit | Kowtow Cleave | Pelipper | 66% | 37% | over |
-| Basculegion | Psychic Fangs | Venusaur | 56% | 30% | over |
-| Sneasler | Rock Tomb | Froslass-Mega | 59% | 37% | over |
-| Garchomp | Poison Jab | Grimmsnarl | 63% | 83% | under |
-| Sneasler | Close Combat | Kingambit | 80% | 99% | under |
-| Kingambit | Kowtow Cleave | Sceptile | 51% | 34% | over |
-| Garchomp | Poison Jab | Whimsicott | 100% | 83% | over |
-| Garchomp | Stomping Tantrum | Archaludon | 76% | 60% | over |
-| Basculegion | Wave Crash | Sylveon | 77% | 93% | under |
-| Basculegion | Wave Crash | Sableye | 100% | 85% | over |
+| Attacker | Move | vs Target | Predicted | Actual | Dir | Disposition |
+|---|---|---|--:|--:|:-:|---|
+| Garchomp | Poison Jab | Whimsicott | 100% | 29% | over | gap |
+| Kingambit | Iron Head | Altaria | 80% | 22% | over | gap |
+| Staraptor | Brave Bird | Gardevoir | 100% | 43% | over | gap |
+| Garchomp | Dragon Claw | Staraptor-Mega | 81% | 32% | over | gap |
+| Kingambit | Kowtow Cleave | Corviknight | 82% | 35% | over | gap |
+| Kingambit | Kowtow Cleave | Corviknight | 71% | 30% | over | gap |
+| Sneasler | Close Combat | Archaludon | 62% | 26% | over | gap |
+| Sneasler | Dire Claw | Grimmsnarl | 43% | 78% | under | gap |
+| Staraptor-Mega | Brave Bird | Sinistcha | 67% | 32% | over | gap |
+| Staraptor | Brave Bird | Staraptor | 90% | 55% | over | gap |
+| Sneasler | Close Combat | Scrafty | 60% | 93% | under | gap |
+| Sneasler | Close Combat | Scrafty | 59% | 92% | under | gap |
+| Garchomp | Dragon Claw | Staraptor-Mega | 68% | 37% | over | gap |
+| Basculegion | Wave Crash | Incineroar | 75% | 44% | over | gap |
+| Kingambit | Iron Head | Altaria | 50% | 20% | over | gap |
+| Kingambit | Kowtow Cleave | Pelipper | 66% | 37% | over | gap |
+| Basculegion | Psychic Fangs | Venusaur | 56% | 30% | over | gap |
+| Sneasler | Rock Tomb | Froslass-Mega | 59% | 37% | over | gap |
+| Garchomp | Poison Jab | Grimmsnarl | 63% | 83% | under | gap |
+| Sneasler | Close Combat | Kingambit | 80% | 99% | under | gap |
+| Kingambit | Kowtow Cleave | Sceptile | 51% | 34% | over | gap |
+| Garchomp | Poison Jab | Whimsicott | 100% | 83% | over | gap |
+| Garchomp | Stomping Tantrum | Archaludon | 76% | 60% | over | gap |
+| Basculegion | Wave Crash | Sylveon | 77% | 93% | under | gap |
+| Basculegion | Wave Crash | Sableye | 100% | 85% | over | gap |
 
 ### Turn order
 *Predicted resolution position (1 = fastest of 4) vs actual, over full 4-move turns. Protect/Endure jumping ahead is excluded.*
@@ -172,8 +174,17 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 
 Off-by-2+ misreads (board state at the misread turn; *Predicted* = where we expected the flagged mon, *Actual* = the real resolution order):
 
-| Turn | my[a] | my[b] | opp[a] | opp[b] | TR | TW | Predicted | Actual order |
-|--:|---|---|---|---|:-:|:-:|---|---|
-| 3 | Garchomp | Sneasler | Sinistcha | Annihilape | - | - | my[b] 1/4 | opp[a] > my[a] > my[b] > opp[b] |
-| 4 | Sneasler | Garchomp | Staraptor | Sinistcha | - | - | my[b] 3/4 | my[b] > my[a] > opp[a] > opp[b] |
-| 2 | Garchomp | Sneasler | Sableye | Archaludon | - | - | my[b] 1/4 | opp[a] > my[a] > my[b] > opp[b] |
+| Turn | my[a] | my[b] | opp[a] | opp[b] | TR | TW | Predicted | Actual order | Disposition |
+|--:|---|---|---|---|:-:|:-:|---|---|---|
+| 4 | Sneasler | Garchomp | Staraptor | Sinistcha | - | - | my[b] 3/4 | my[b] > my[a] > opp[a] > opp[b] | gap |
+| 3 | Garchomp | Sneasler | Sinistcha | Annihilape | - | - | my[b] 1/4 | opp[a] > my[a] > my[b] > opp[b] | accepted: priority (higher-priority move resolved ahead) |
+| 2 | Garchomp | Sneasler | Sableye | Archaludon | - | - | my[b] 1/4 | opp[a] > my[a] > my[b] > opp[b] | accepted: priority (higher-priority move resolved ahead) |
+
+### Immunity
+*Move fired into an immune target.*
+
+| Move | vs Target | Predicted | Why | Disposition |
+|---|---|--:|---|---|
+| Stomping Tantrum | Pelipper | 0% | type immunity | accepted: forced (0% predicted, Choice-locked into sole immune target) |
+| Stomping Tantrum | Pelipper | 0% | type immunity | accepted: forced (0% predicted, Choice-locked into sole immune target) |
+| Stomping Tantrum | Pelipper | 0% | type immunity | accepted: forced (0% predicted, Choice-locked into sole immune target) |

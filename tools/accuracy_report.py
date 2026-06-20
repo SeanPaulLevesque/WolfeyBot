@@ -29,9 +29,40 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data import base_forme as _base   # canonical forme-equivalence normaliser
+from data.moves import move_priority, move_category, move_type
+from decision.modules import _assumed_ability
 
 DMG_RE = re.compile(r"damage_output: (\d+)% HP")
 POS_RE = re.compile(r"pos (\d)/4")
+
+
+def _eff_priority(species, mv):
+    """Move priority including ability (Prankster +1 on status, Gale Wings +1 on
+    Flying) — used to tell a priority-driven turn-order miss from a speed one."""
+    pr = move_priority(mv)
+    ab = _assumed_ability(_base(species)) or ""
+    if ab == "Prankster" and move_category(mv) == "Status":
+        pr += 1
+    elif ab == "Gale Wings" and move_type(mv) == "Flying":
+        pr += 1
+    return pr
+
+
+def _classify_turn_order(ev, our_o, our_mv, our_actor, tr, paralyzed):
+    """Disposition for a turn-order misread: 'gap' (genuine speed misread) or an
+    'accepted: <reason>' (priority bracket / Trick Room / paralysis explains it)."""
+    our_pr = _eff_priority(our_actor, our_mv)
+    ahead = [x for x in ev if x["o"] < our_o]
+    behind = [x for x in ev if x["o"] > our_o]
+    if any(_eff_priority(x["a"], x["mv"]) > our_pr for x in ahead):
+        return "accepted: priority (higher-priority move resolved ahead)"
+    if any(_eff_priority(x["a"], x["mv"]) < our_pr for x in behind):
+        return "accepted: priority (lower-priority move resolved behind)"
+    if tr:
+        return "accepted: trick room (speed order inverted)"
+    if paralyzed:
+        return "accepted: paralysis (our speed halved)"
+    return "gap"
 
 # Moves that resolve early (via +priority) but don't threaten us — a Protect (or
 # Endure) moving "before" our attacker is fine and shouldn't count as our mon
@@ -60,10 +91,12 @@ def compute_prediction(games, slop=0.15):
     them as a dict (no printing).  Shared by the console ``prediction_report`` and
     the Markdown renderer in tools/team_report.py.
 
-    Returns keys: ``off_within``/``off_total`` (offense damage within ±slop),
-    ``off_miss`` [(err,mv,tg,pred,act)], ``off_immune`` [(pred,mv,tg,ability)],
-    ``def_under`` [(err,atk,def,mv,pred,act,kind)], and turn-order
-    ``to_exact``/``to_off1``/``to_worse``/``to_total``."""
+    Every per-case row carries a trailing *disposition*: ``"gap"`` (actionable
+    model error) or ``"accepted: <reason>"`` (explained / correct behaviour).
+    Returns keys: ``off_within``/``off_total``; ``off_miss``
+    [(err,our_mon,mv,tg,pred,act,disp)]; ``off_immune`` [(pred,mv,tg,ability,disp)];
+    ``def_under`` [(err,atk,def,mv,pred,act,disp)]; ``to_miss`` [dict w/ ``disposition``];
+    and turn-order ``to_exact``/``to_off1``/``to_worse``/``to_total``."""
     # ── gather offense / defense / turn-order samples ────────────────────────
     off_within = off_total = 0
     off_miss = []                      # (err, our_mon, mv, tg, pred, act)
@@ -124,6 +157,8 @@ def compute_prediction(games, slop=0.15):
                                         return f"{pre}[{'ab'[i]}]" if i < 2 else f"{pre}[{i}]"
                                 return f"{pre}:{spx or '?'}"
 
+                            paralyzed = (my[sl].get("sts") == "par"
+                                         if (sl is not None and sl < len(my)) else False)
                             to_miss.append({
                                 "diff": diff,
                                 "turn": t.get("n"),
@@ -135,6 +170,8 @@ def compute_prediction(games, slop=0.15):
                                 "tr": bool(t.get("tr")),
                                 "tw": t.get("tw") or {},
                                 "order": [_slot_label(x) for x in sorted(ev, key=lambda z: z["o"])],
+                                "disposition": _classify_turn_order(
+                                    ev, e["o"], ch, actor, bool(t.get("tr")), paralyzed),
                             })
 
                 if ch == "Protect" or not ct:
@@ -153,13 +190,13 @@ def compute_prediction(games, slop=0.15):
                 pred = min(int(md.group(1)) / 100.0, 1.0) * h0
                 z = e.get("z")
                 if z == "immune":
-                    # ACCEPT-FILTER (immunity): only a real gap if we EXPECTED
-                    # damage (wrong assumed ability/type).  A 0% prediction means
-                    # we correctly knew the target was immune and the move was
-                    # forced — a Choice-locked attacker with the immune mon as its
-                    # sole surviving target — so it is not a model error.
-                    if pred > 0:
-                        off_immune.append((pred, ch, ct, e.get("za")))
+                    # Disposition: a >0% prediction into an immune target is a real
+                    # gap (wrong assumed ability/type).  A 0% prediction is correct
+                    # and the move was forced — a Choice-locked attacker with the
+                    # immune mon as its sole surviving target — so it's accepted.
+                    disp = ("gap" if pred > 0 else
+                            "accepted: forced (0% predicted, Choice-locked into sole immune target)")
+                    off_immune.append((pred, ch, ct, e.get("za"), disp))
                 elif z in ("miss", "protect", "sub"):
                     continue                       # genuine non-connect — drop
                 elif e.get("h0", 0) > 0 and e.get("d") and e["d"] > 0:
@@ -170,7 +207,9 @@ def compute_prediction(games, slop=0.15):
                     if abs(act - pred) <= slop:
                         off_within += 1
                     else:
-                        off_miss.append((act - pred, actor, ch, ct, pred, act))
+                        # Disposition defaults to 'gap'; specific accepted rules
+                        # are added as offense buckets are investigated.
+                        off_miss.append((act - pred, actor, ch, ct, pred, act, "gap"))
 
             # ---- DEFENSE: actual incoming vs predicted, per ACTUAL move -------
             # pin: [{"a": attacker, "df": defender, "mvs": {move: pred_frac}}]
@@ -194,12 +233,15 @@ def compute_prediction(games, slop=0.15):
                 if mv in assessed:
                     pred = assessed[mv]               # we assessed this exact move
                     if act - pred > slop:
-                        def_under.append((act - pred, attacker, defender, mv, pred, act, "known"))
+                        # We assessed this move but under-rated it -> real gap.
+                        def_under.append((act - pred, attacker, defender, mv, pred, act, "gap"))
                 else:
-                    # move we never assessed (off-meta tech, or below usage cutoff)
+                    # Move we never assessed (off-meta tech / below usage cutoff):
+                    # accepted as a coverage limit, tracked separately.
                     worst = max(assessed.values()) if assessed else 0.0
                     if act - worst > slop:
-                        def_under.append((act - worst, attacker, defender, mv, None, act, "tech"))
+                        def_under.append((act - worst, attacker, defender, mv, None, act,
+                                          "accepted: unassessed move (off-meta / below usage cutoff)"))
 
     return {
         "off_within": off_within, "off_total": off_total,
@@ -211,66 +253,64 @@ def compute_prediction(games, slop=0.15):
     }
 
 
+def _gap(disp):
+    return disp == "gap"
+
+
 def prediction_report(games, slop=0.15):
     """Print the prediction-accuracy sections (offense / turn-order / defense /
-    immunity) for a pre-loaded *games* list (console format)."""
+    immunity) for a pre-loaded *games* list (console format).  Each case carries a
+    disposition — `gap` (actionable) or `accepted: <reason>` — and the headline
+    counts only gaps."""
     s = compute_prediction(games, slop)
-    off_within, off_total = s["off_within"], s["off_total"]
-    off_miss, off_immune = s["off_miss"], s["off_immune"]
-    def_under = s["def_under"]
-    to_exact, to_off1, to_worse, to_total = s["to_exact"], s["to_off1"], s["to_worse"], s["to_total"]
+    off_miss, off_immune, def_under, to_miss = (
+        s["off_miss"], s["off_immune"], s["def_under"], s["to_miss"])
+    to_total, to_worse = s["to_total"], s["to_worse"]
 
-    # ── 1. HIGH-LEVEL ────────────────────────────────────────────────────────
-    print(f"\n── PREDICTION ACCURACY ──")
-    if off_total:
-        print(f" Offense  : {off_within}/{off_total} damage predictions within "
-              f"±{int(slop*100)}%  ({off_within/off_total:.0%})  |  {len(off_miss)} mis-models")
-    if to_total:
-        print(f" TurnOrder: {to_exact}/{to_total} exact ({to_exact/to_total:.0%}), "
-              f"±1 {to_off1/to_total:.0%}, off-by-2+ {to_worse/to_total:.0%}")
-    n_known = sum(1 for c in def_under if c[6] == "known")
-    n_tech = sum(1 for c in def_under if c[6] == "tech")
-    print(f" Defense  : {len(def_under)} cases hit harder than predicted by "
-          f">{int(slop*100)}% (crits/misses excluded) — {n_known} on assessed "
-          f"moves (model gaps), {n_tech} on unassessed moves (tech/off-meta)")
-    if off_immune:
-        print(f" Immunity : {len(off_immune)} times we predicted damage on an "
-              f"IMMUNE target (wrong assumed ability/type)")
+    def gaps(lst, idx):
+        return sum(1 for c in lst if c[idx] == "gap")
+    def_gap = gaps(def_under, 6)
+    off_gap = gaps(off_miss, 6)
+    imm_gap = gaps(off_immune, 4)
+    to_gap = sum(1 for m in to_miss if m["disposition"] == "gap")
 
-    # ── 2. TURN ORDER ────────────────────────────────────────────────────────
-    print(f"\n── TURN ORDER (full 4-move turns, n={to_total}) ──")
-    if to_total:
-        print(f"   exact position : {to_exact:4} ({to_exact/to_total:.0%})")
-        print(f"   off by 1       : {to_off1:4} ({to_off1/to_total:.0%})")
-        print(f"   off by 2+      : {to_worse:4} ({to_worse/to_total:.0%})   <- real misses")
+    print(f"\n── PREDICTION ACCURACY (gaps = actionable; accepted = explained) ──")
+    print(f" Offense  : {len(off_miss):3} mis-models ({off_gap} gaps)")
+    print(f" Defense  : {len(def_under):3} mis-models ({def_gap} gaps)")
+    print(f" TurnOrder: {len(to_miss):3} misreads  ({to_gap} gaps); off-by-2+ {to_worse}")
+    print(f" Immunity : {len(off_immune):3} cases     ({imm_gap} gaps)")
 
-    # ── 3. PER-CASE: defensive under-predictions (the danger cases) ──────────
-    print(f"\n── DEFENSIVE UNDER-PREDICTIONS (attacker's MOVE -> defender: predicted | actual) ──")
-    print(f"   [known] = move we assessed but under-rated (model gap)   "
-          f"[TECH] = move we never assessed (off-meta)")
-    if not def_under:
-        print("   none — every incoming hit was within prediction + slop.")
-    for err, atk, dfd, mv, pred, act, kind in sorted(def_under, key=lambda x: -x[0]):
-        if kind == "known":
-            print(f"   [known] {atk:14} {mv:16} -> {dfd:12} predicted {pred:>4.0%} | actual {act:>4.0%}  (+{err:.0%})")
-        else:
-            print(f"   [TECH ] {atk:14} {mv:16} -> {dfd:12} NOT ASSESSED        | actual {act:>4.0%}")
+    def _section(title, rows, fmt):
+        print(f"\n── {title} ──")
+        if not rows:
+            print("   none.")
+            return
+        for r in rows:
+            print(fmt(r))
 
-    # offense mis-models, secondary
-    if off_miss:
-        print(f"\n── OFFENSE MIS-MODELS (move -> target: predicted | actual) ──")
-        for err, our_mon, mv, tg, pred, act in sorted(off_miss, key=lambda x: -abs(x[0])):
-            sign = "over" if err < 0 else "under"
-            print(f"   {our_mon:14} {mv:16} -> {tg:14} predicted {pred:>4.0%} | "
-                  f"actual {act:>4.0%}  [{sign} {abs(err):.0%}]")
+    _section("DEFENSIVE MIS-MODEL (attacker MOVE -> defender)",
+             sorted(def_under, key=lambda x: (x[6] != "gap", -x[0])),
+             lambda r: f"   [{'GAP' if r[6]=='gap' else 'acc'}] {r[1]:14} {r[3]:16} -> {r[2]:12} "
+                       f"pred {('%4.0f%%'%(r[4]*100)) if r[4] is not None else ' n/a'} | "
+                       f"act {r[5]:>4.0%}" + ("" if r[6]=='gap' else f"  ({r[6]})"))
 
-    # immunity model gaps — we fired into an immune target (wrong assumed ability)
-    if off_immune:
-        print(f"\n── IMMUNITY MODEL GAPS (predicted damage on an IMMUNE target) ──")
-        print(f"   we chose this move expecting damage, but the target was immune")
-        for pred, mv, tg, abil in sorted(off_immune, key=lambda x: -x[0]):
-            why = f"ability: {abil}" if abil else "type immunity"
-            print(f"   {mv:16} -> {tg:14} predicted {pred:>4.0%} | IMMUNE ({why})")
+    _section("OFFENSIVE MIS-MODEL (our_mon MOVE -> target)",
+             sorted(off_miss, key=lambda x: (x[6] != "gap", -abs(x[0]))),
+             lambda r: f"   [{'GAP' if r[6]=='gap' else 'acc'}] {r[1]:14} {r[2]:16} -> {r[3]:14} "
+                       f"pred {r[4]:>4.0%} | act {r[5]:>4.0%} [{'over' if r[0]<0 else 'under'}]"
+                       + ("" if r[6]=='gap' else f"  ({r[6]})"))
+
+    _section(f"TURN ORDER (off-by-2+ misreads, full turns n={to_total})",
+             sorted([m for m in to_miss if m["diff"] >= 2],
+                    key=lambda m: (m["disposition"] != "gap", -m["diff"])),
+             lambda m: f"   [{'GAP' if m['disposition']=='gap' else 'acc'}] {m['mon']} {m['pred_pos']}/4->"
+                       f"{m['act_pos']}/4  order: {' > '.join(m['order'])}"
+                       + ("" if m["disposition"]=="gap" else f"  ({m['disposition']})"))
+
+    _section("IMMUNITY (move -> immune target)",
+             sorted(off_immune, key=lambda x: (x[4] != "gap", -x[0])),
+             lambda r: f"   [{'GAP' if r[4]=='gap' else 'acc'}] {r[1]:16} -> {r[2]:14} "
+                       f"pred {r[0]:>4.0%}" + ("" if r[4]=='gap' else f"  ({r[4]})"))
     print()
 
 
