@@ -8,6 +8,7 @@ import json
 
 from tools.team_report import (
     roster_stats, move_usage, length_buckets, load_games, derive_team_meta,
+    archetype_breakdown,
 )
 from tools.accuracy_report import compute_prediction
 
@@ -92,6 +93,33 @@ class TestMoveUsage:
         assert u["Kingambit"]["Protect"] == 1
         # "Switch Venusaur" must not appear as a move use.
         assert "Switch Venusaur" not in u.get("Sneasler", {})
+
+
+class TestArchetypeBreakdown:
+    def _g(self, outcome, *turns):
+        return {"outcome": outcome, "turns": list(turns)}
+
+    def test_multilabel_and_winrate(self):
+        games = [
+            # WIN vs Tailwind + Sun
+            self._g("win", {"tw": {"opp": True}}, {"w": "sun"}),
+            # LOSS vs Trick Room
+            self._g("loss", {"tr": True}),
+            # LOSS vs Sun (so Sun is 1-1)
+            self._g("loss", {"w": "sun"}),
+            # WIN vs nothing -> None
+            self._g("win", {}),
+        ]
+        a = archetype_breakdown(games)
+        assert a["Tailwind"] == [1, 1]
+        assert a["Sun"] == [1, 2]        # one win, one loss
+        assert a["Trick Room"] == [0, 1]
+        assert a["None"] == [1, 1]
+        assert a["Rain"] == [0, 0]       # never seen
+
+    def test_snow_maps_from_hail(self):
+        a = archetype_breakdown([self._g("win", {"w": "hail"})])
+        assert a["Snow"] == [1, 1]
 
 
 class TestLoadGames:

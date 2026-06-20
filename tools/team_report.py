@@ -152,6 +152,41 @@ def length_buckets(games):
     return out
 
 
+# Observed-weather short keys -> archetype label (snow logs as "hail").
+_WEATHER_ARCH = {"rain": "Rain", "sun": "Sun", "sand": "Sand", "hail": "Snow"}
+
+
+def archetype_breakdown(games):
+    """Return ``{archetype: [wins, total]}`` of W/L vs each opponent archetype.
+
+    A game is tagged with every condition the opponent established during it, so a
+    game can count toward several archetypes (e.g. Tailwind + Sun).  ``None`` is
+    games where the opponent ran no Trick Room / Tailwind / weather.  Trick Room
+    and weather come from the global per-turn fields (our rosters set neither, so
+    they're the opponent's); Tailwind uses the opponent side specifically."""
+    cats = ["Trick Room", "Tailwind", "Rain", "Sun", "Sand", "Snow", "None"]
+    out = collections.OrderedDict((c, [0, 0]) for c in cats)
+    for g in games:
+        if g.get("outcome") not in ("win", "loss"):
+            continue
+        win = g.get("outcome") == "win"
+        tags = set()
+        for t in g.get("turns", []):
+            if t.get("tr"):
+                tags.add("Trick Room")
+            if (t.get("tw") or {}).get("opp"):
+                tags.add("Tailwind")
+            w = t.get("w")
+            if w in _WEATHER_ARCH:
+                tags.add(_WEATHER_ARCH[w])
+        if not tags:
+            tags.add("None")
+        for tag in tags:
+            out[tag][1] += 1
+            out[tag][0] += 1 if win else 0
+    return out
+
+
 # ── Markdown rendering ──────────────────────────────────────────────────────────
 
 def _pct(x):
@@ -221,6 +256,17 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
     for b, (w, n) in length_buckets(games).items():
         if n:
             out.append(f"| {b} | {w}-{n-w} | {_pct(w/n)} |")
+
+    # 3b. OPPONENT ARCHETYPES
+    arch = archetype_breakdown(games)
+    out += ["", "## Opponent archetypes", "",
+            "*W/L when the opponent established each condition. A game can count in "
+            "several (e.g. Tailwind + Sun); `None` = no TR/TW/weather.*", "",
+            "| Archetype | Record | Win rate | Games |",
+            "|---|---|--:|--:|"]
+    for a, (w, n) in arch.items():
+        if n:
+            out.append(f"| {a} | {w}-{n-w} | {_pct(w/n)} | {n} |")
 
     # 4. PREDICTION ACCURACY — every case carries a disposition: `gap` (actionable
     # model error) or `accepted: <reason>` (explained / correct). The goal is to

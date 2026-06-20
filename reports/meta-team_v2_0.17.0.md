@@ -103,6 +103,19 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 | 7-9 | 10-6 | 62% |
 | 10+ | 0-5 | 0% |
 
+## Opponent archetypes
+
+*W/L when the opponent established each condition. A game can count in several (e.g. Tailwind + Sun); `None` = no TR/TW/weather.*
+
+| Archetype | Record | Win rate | Games |
+|---|---|--:|--:|
+| Trick Room | 2-5 | 29% | 7 |
+| Tailwind | 6-10 | 38% | 16 |
+| Rain | 2-5 | 29% | 7 |
+| Sun | 1-5 | 17% | 6 |
+| Sand | 0-1 | 0% | 1 |
+| None | 16-7 | 70% | 23 |
+
 ## Prediction accuracy
 
 *Each case is a **gap** (actionable) or **accepted** (explained, with reason). Goal: gaps to zero; accepted rows stay so the checks keep running.*
