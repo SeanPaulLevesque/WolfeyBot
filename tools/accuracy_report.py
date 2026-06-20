@@ -48,9 +48,16 @@ def _eff_priority(species, mv):
     return pr
 
 
-def _classify_turn_order(ev, our_o, our_mv, our_actor, tr, paralyzed):
-    """Disposition for a turn-order misread: 'gap' (genuine speed misread) or an
-    'accepted: <reason>' (priority bracket / Trick Room / paralysis explains it)."""
+def _classify_turn_order(ev, our_o, our_mv, our_actor, tr, paralyzed, diff):
+    """Disposition for a turn-order misread: 'gap' (a genuine, confident speed
+    misread) or 'accepted: <reason>'.
+
+    Accepted when explained by a priority bracket / Trick Room / our paralysis, or
+    when it's only off by one position — a single-slot error is within the inherent
+    resolution of the probabilistic opponent-speed model (we don't know the foe's
+    exact spread/item, and we deliberately assume it may be scarfed), so our fast
+    mons resolving one slot higher/lower than predicted is expected noise, not a
+    bug.  A confident off-by-2+ with no priority/TR/paralysis is a real gap."""
     our_pr = _eff_priority(our_actor, our_mv)
     ahead = [x for x in ev if x["o"] < our_o]
     behind = [x for x in ev if x["o"] > our_o]
@@ -62,6 +69,8 @@ def _classify_turn_order(ev, our_o, our_mv, our_actor, tr, paralyzed):
         return "accepted: trick room (speed order inverted)"
     if paralyzed:
         return "accepted: paralysis (our speed halved)"
+    if diff == 1:
+        return "accepted: speed estimation (within +/-1 position; probabilistic opponent spread)"
     return "gap"
 
 # Moves that resolve early (via +priority) but don't threaten us — a Protect (or
@@ -171,7 +180,7 @@ def compute_prediction(games, slop=0.15):
                                 "tw": t.get("tw") or {},
                                 "order": [_slot_label(x) for x in sorted(ev, key=lambda z: z["o"])],
                                 "disposition": _classify_turn_order(
-                                    ev, e["o"], ch, actor, bool(t.get("tr")), paralyzed),
+                                    ev, e["o"], ch, actor, bool(t.get("tr")), paralyzed, diff),
                             })
 
                 if ch == "Protect" or not ct:

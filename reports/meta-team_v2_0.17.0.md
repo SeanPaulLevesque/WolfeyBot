@@ -107,7 +107,7 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 
 *Each case is a **gap** (actionable) or **accepted** (explained, with reason). Goal: gaps to zero; accepted rows stay so the checks keep running.*
 
-**Offense** 25 (25 gaps) | **Defense** 17 (10 gaps) | **Turn order** 33 misreads (13 gaps) | **Immunity** 3 (0 gaps)
+**Offense** 25 (25 gaps) | **Defense** 17 (10 gaps) | **Turn order** 33 misreads (1 gaps) | **Immunity** 3 (0 gaps)
 
 ### Defensive mis-model
 *Incoming hits >slop above prediction (crits/misses excluded).*
