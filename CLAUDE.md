@@ -53,7 +53,7 @@ to make green by editing expectations. This is a hard rule:
 | `data/` | `smogon_champions_slim.json` (218 Champions-legal species) + move/type data; `sets_supplement.json` = hand-entered usage stats for species the M-A sets file lacks (new M-B mons/megas), merged into `data/sets.py` at load (gap-fill) |
 | `team_preview.py` | Bring-4 selection logic |
 | `docs/DECISION_ARCHITECTURE.md` | Full narrative of how the engine works, with weight tables |
-| `tools/` | Dev/analysis scripts: battle analysis, lead stats, ELO chart, team packing, `gen_snapshot.py` |
+| `tools/` | Dev/analysis scripts: `team_report.py` (combined roster perf + prediction accuracy, `--team v2`), `accuracy_report.py` (prediction accuracy; exposes `prediction_report(games, slop)` + `_load(version, team_version)`), battle analysis, lead stats, ELO chart, team packing, `gen_snapshot.py` |
 | `CHANGELOG.md` | Per-version bug fixes — always check before investigating a bug |
 | `snapshots/turn1_openings/baseline.md` | Generated first-turn decision table (6 our leads × 20 opp leads) for the baseline roster |
 | `tests/` | pytest suite — run with `.venv\Scripts\pytest` |

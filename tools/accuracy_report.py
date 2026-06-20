@@ -15,7 +15,11 @@ surface places the model is miscalibrated.  Three sections:
 
 Usage (from repo root):
     .venv\\Scripts\\python.exe tools/accuracy_report.py 0.8.4
-    .venv\\Scripts\\python.exe tools/accuracy_report.py 0.8.4 --slop 0.15
+    .venv\\Scripts\\python.exe tools/accuracy_report.py 0.17.0 --team v2 --slop 0.15
+
+The prediction analysis is exposed as ``prediction_report(games, slop)`` and the
+loader as ``_load(version, team_version)`` so ``tools/team_report.py`` can reuse
+them in a combined roster + accuracy report.
 """
 import json
 import glob
@@ -39,19 +43,21 @@ _NONTHREAT_FIRST = frozenset({
 })
 
 
-def _load(version):
-    # Recursive: named-team runs nest logs under <version>/<team>/<team_version>/.
+def _load(version, team_version=None):
+    """Load all battle logs for *version*; optionally filter to *team_version*.
+
+    Named-team runs nest logs under ``<version>/<team>/<team_version>/``; passing
+    e.g. ``team_version="v2"`` keeps only logs under a ``/v2/`` path segment."""
     files = glob.glob(os.path.join("Battle Data", version, "**", "*.json"), recursive=True)
+    if team_version:
+        seg = os.sep + team_version + os.sep
+        files = [f for f in files if seg in f]
     return [json.load(open(f, encoding="utf-8")) for f in files]
 
 
-def report(version, slop=0.15):
-    games = _load(version)
-    if not games:
-        print(f"No battle logs found for version {version}.")
-        return
-    wins = sum(1 for g in games if g.get("outcome") == "win")
-
+def prediction_report(games, slop=0.15):
+    """Print the prediction-accuracy sections (offense / turn-order / defense /
+    immunity) for a pre-loaded *games* list.  Reused by tools/team_report.py."""
     # ── gather offense / defense / turn-order samples ────────────────────────
     off_within = off_total = 0
     off_miss = []                      # (err, mv, tg, pred, act)
@@ -159,8 +165,7 @@ def report(version, slop=0.15):
                         def_under.append((act - worst, attacker, defender, mv, None, act, "tech"))
 
     # ── 1. HIGH-LEVEL ────────────────────────────────────────────────────────
-    print(f"\n{'='*64}\n ACCURACY REPORT — v{version}  ({len(games)} games)\n{'='*64}")
-    print(f" Win rate: {wins}-{len(games)-wins}  ({wins/len(games):.0%})")
+    print(f"\n── PREDICTION ACCURACY ──")
     if off_total:
         print(f" Offense  : {off_within}/{off_total} damage predictions within "
               f"±{int(slop*100)}%  ({off_within/off_total:.0%})  |  {len(off_miss)} mis-models")
@@ -213,6 +218,21 @@ def report(version, slop=0.15):
     print()
 
 
+def report(version, slop=0.15, team_version=None):
+    """Standalone prediction-accuracy report for a version (optionally a single
+    team-version)."""
+    games = _load(version, team_version)
+    if not games:
+        print(f"No battle logs found for version {version}"
+              f"{'/' + team_version if team_version else ''}.")
+        return
+    wins = sum(1 for g in games if g.get("outcome") == "win")
+    label = f"v{version}" + (f"/{team_version}" if team_version else "")
+    print(f"\n{'='*64}\n ACCURACY REPORT — {label}  ({len(games)} games)\n{'='*64}")
+    print(f" Win rate: {wins}-{len(games)-wins}  ({wins/len(games):.0%})")
+    prediction_report(games, slop)
+
+
 if __name__ == "__main__":
     # The report uses box-drawing glyphs; force UTF-8 so it doesn't crash on the
     # Windows cp1252 console.
@@ -221,11 +241,12 @@ if __name__ == "__main__":
     except Exception:
         pass
     args = sys.argv[1:]
-    ver = args[0] if args else None
+    ver = args[0] if args and not args[0].startswith("--") else None
     slop = 0.15
     if "--slop" in args:
         slop = float(args[args.index("--slop") + 1])
+    team_version = args[args.index("--team") + 1] if "--team" in args else None
     if not ver:
-        print("usage: accuracy_report.py <version> [--slop 0.15]")
+        print("usage: accuracy_report.py <version> [--team v2] [--slop 0.15]")
         sys.exit(1)
-    report(ver, slop)
+    report(ver, slop, team_version)

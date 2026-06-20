@@ -1,5 +1,28 @@
 # WolfeyBot Changelog
 
+## 0.18.0 — 2026-06-20
+
+### `tools/team_report.py` — combined roster + prediction-accuracy report
+
+Elevates the ad-hoc per-team analysis into a reusable tool, and folds in the
+existing prediction-accuracy report so one command gives the full picture for a
+version (optionally a single named-team version):
+
+- **ROSTER** — per-mon bring rate, lead rate, win-rate-when-brought, KOs dealt,
+  faints, net (KO − faint).
+- **MOVE USAGE** — times each move was chosen per mon; least-used flagged as a
+  swap candidate.
+- **GAME LENGTH** — W/L bucketed by turn count (win-fast / lose-long signal).
+- **PREDICTION** — offense / turn-order / defensive accuracy, reused verbatim.
+
+`accuracy_report.py` refactored (no behaviour change) to expose
+`prediction_report(games, slop)` and `_load(version, team_version=None)`, so the
+new tool composes them with zero duplicated analysis. Both tools gain a `--team`
+flag. Compute helpers (`roster_stats` / `move_usage` / `length_buckets`) are pure
+functions over a games list, covered by `tests/test_team_report.py`.
+
+Engine unchanged — turn-1 baselines byte-identical (header-only bump).
+
 ## 0.17.0 — 2026-06-19
 
 ### Our stat-stage boosts now survive the per-turn request rebuild
