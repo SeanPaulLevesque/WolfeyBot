@@ -16,9 +16,11 @@ Regulation M-B follow-ups (data folded in 2026-06-17):
  their signature moves (Make It Rain/Rage Fist/Barb Barrage/Spirit Break/No Retreat),
  so a new mon could use a TM move we still lack. Fold any misses in via the same CSV
  spot-check flow.
--Model Rage Fist's hit-count scaling (currently treated as flat 50 BP). M-B behavior:
- power +50 per hit taken, and stacks now reset on switch-out. Model it if it proves
- to matter in practice.
+-[DONE 0.19.0] Model Rage Fist's hit-count scaling (was treated as flat 50 BP).
+ -> Pokemon.times_hit (per-stint, reset on switch); parser increments it on a
+ damaging move-hit; power = 50 + 50*min(times_hit,6), threaded via
+ incoming_damage/full_damage_calc. Verified Annihilape -> Basculegion lifts from
+ 50% (flat) to 98% at times_hit=1 (actual 95%).
 -Turn-order -> speed estimation (prereq DONE 0.13.0: recorder now logs per-turn
  tailwind `tw` + active boosts `b`). Mine observed move order from battle logs to
  estimate opponents' raw speed: for same-priority-bracket attack-vs-attack pairs
@@ -54,6 +56,30 @@ Add more complete weather and field effects to the engine. ie damage from sandst
  against any team.  Needs: a log → scenario extractor (pull a board state out of
  a Battle Data turn) + a scenarios/<name>.py that replays it.  The snapshot +
  auto-test machinery then guards them for free.
+-[OPEN] Make the turn-1 scenario go through the PARSER as if it were a real game,
+ instead of building BattleState directly. Today gen_snapshot constructs a clean
+ board (100% HP, no field effects, no boosts), so it does NOT model turn-1 entry
+ mechanics: opponent Intimidate lowering our Atk, lead weather (Drizzle/Drought/
+ etc.), and White Herb -> Unburden (e.g. Incineroar Intimidates our Sneasler ->
+ White Herb restores Atk + is spent -> Sneasler is Unburden-fast). So the snapshot
+ baseline is unrealistic AND can't catch parser+engine integration bugs (e.g. the
+ 0.20.0 White-Herb -clearnegativeboost bug would NOT have shown up in a snapshot).
+ The catch: Showdown only emits those entry messages during a real game, so we'd
+ have to GENERATE the turn-1 entry protocol ourselves (re-encode which abilities
+ fire, speed order, weather winner, which White Herbs pop) -- the entry logic has
+ to live somewhere. Two options:
+   A) Full parser replay: synthesize the |request| JSON for our team + a protocol
+      stream (|switch| the 4 leads, emit each lead's entry-ability messages,
+      |turn|1) and feed BattleParser -> real BattleState. Exercises the parser
+      (would have caught White Herb); bigger build (a mini turn-1 entry simulator
+      + request-JSON synthesis), and the generator itself can hide bugs.
+   B) Apply entry effects directly onto the synthetic BattleState (Intimidate -1,
+      lead weather, White Herb restore+Unburden) before running the engine.
+      Realistic board, far less code, but duplicates entry logic and does NOT
+      exercise the parser.
+ EITHER changes every snapshot baseline (Intimidate/weather/Unburden now in play)
+ -> a large reviewed regeneration per the testing rule. Recommendation: B for
+ realistic decisions, A if parser+engine integration coverage is the goal.
 -[DONE 0.7.6] it sounds like pokemon on the bench are assumed to have their items even if they are spent and then switch out. This needs to be tracked.
   -> SwitchModule now evaluates bench mons with the live tracked item (None once consumed); see CHANGELOG 0.7.6.
 -[ANSWERED] Does sneasler's unburden ability get accounted for?
