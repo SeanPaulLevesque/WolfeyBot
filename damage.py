@@ -659,6 +659,7 @@ def full_damage_calc(
         crit: bool = False,
         defender_is_full_hp: bool = True,
         ally_faint_count: int = 0,
+        times_hit: int = 0,
         defender_screens=None,
         attacker_hp_fraction: float = 1.0,
         attacker_status: str = "",
@@ -714,6 +715,12 @@ def full_damage_calc(
     # but practically capped at team size − 1 in VGC).
     if move_name == "Last Respects" and ally_faint_count > 0:
         power = 50 + min(ally_faint_count, 100) * 50
+
+    # Rage Fist (Annihilape): base 50 BP + 50 per time the user has been hit this
+    # field stint, capped at 350 (6 hits).  Stacks reset on switch-out (Reg M-B),
+    # which is handled upstream by ``times_hit`` living on the per-stint Pokemon.
+    if move_name == "Rage Fist" and times_hit > 0:
+        power = 50 + min(times_hit, 6) * 50
 
     # Weight-based variable-power moves: compute effective BP from species weights.
     # These moves have power=0 in the database; without this block they would be
@@ -978,6 +985,7 @@ def incoming_damage(
         opp_hp_fraction: float = 1.0,
         opp_status: str = "",
         opp_ally_faint_count: int = 0,
+        opp_times_hit: int = 0,
         opp_flash_fire_active: bool = False,
 ) -> list[DamageResult]:
     """
@@ -1033,6 +1041,7 @@ def incoming_damage(
             defender_boosts=our_boosts,
             defender_is_full_hp=our_defender_is_full_hp,
             ally_faint_count=opp_ally_faint_count,
+            times_hit=opp_times_hit,
             attacker_hp_fraction=opp_hp_fraction,
             attacker_status=opp_status,
             flash_fire_active=opp_flash_fire_active,
@@ -1056,6 +1065,7 @@ def outgoing_damage(
         weather: Optional[str] = None,
         opp_is_full_hp: bool = True,
         ally_faint_count: int = 0,
+        times_hit: int = 0,
         opp_current_hp: Optional[int] = None,
         opp_hp_percent: Optional[float] = None,
         opp_screens=None,
@@ -1121,6 +1131,7 @@ def outgoing_damage(
             weather=weather,
             defender_is_full_hp=opp_is_full_hp,
             ally_faint_count=ally_faint_count,
+            times_hit=times_hit,
             defender_screens=opp_screens,
             attacker_boosts=attacker_boosts,
             defender_boosts=defender_boosts,

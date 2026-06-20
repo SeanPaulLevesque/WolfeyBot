@@ -809,6 +809,11 @@ class BattleParser:
                 drop = (pending["hp0"] if pending["hp0"] is not None
                         else hp_before_frac) - mon.hp_fraction
                 pending["dmg"] = round(max(drop, 0.0), 3)
+                # Count this as a move-hit on the target (drives Rage Fist power).
+                # Only fires when a move caused the drop — residual / weather /
+                # item damage has no pending move event, so it isn't counted.
+                if drop > 0:
+                    mon.times_hit += 1
                 self._pending_event = None
 
     # ── Opponent item-evidence helpers ────────────────────────────────────────

@@ -63,6 +63,10 @@ class Pokemon:
     # (Showdown reports it as |-start|…|ability: Flash Fire).  Cleared on switch
     # (new Pokemon object).  Drives Flash Fire's +50% Fire-move boost in damage.py.
     flash_fire_active: bool = False
+    # Number of times this mon has been hit by a damaging move this field stint.
+    # Drives Rage Fist's power (50 + 50×hits, cap 350).  Reset on switch (new
+    # Pokemon object) — matches the Reg M-B "loses stacks on switch-out" rule.
+    times_hit: int = 0
 
     @property
     def hp_fraction(self) -> float:

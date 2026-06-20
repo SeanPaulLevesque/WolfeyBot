@@ -1,5 +1,31 @@
 # WolfeyBot Changelog
 
+## 0.19.0 — 2026-06-20
+
+### Model Rage Fist hit-scaling (defensive mis-model fix)
+
+From the misread triage: incoming Rage Fist (Annihilape) was badly
+under-predicted (e.g. 50% predicted vs 95% actual into Basculegion) because we
+treated it as a flat 50 BP. Rage Fist's power is 50 + 50 per time the user has
+been hit this field stint (cap 350) — structurally identical to the already-
+modelled Last Respects (50 + 50×fainted-allies), so it reuses that plumbing.
+
+- `Pokemon.times_hit` (battle_state): per-stint hit counter, reset on switch
+  (new object) — matches the Reg M-B "loses stacks on switch-out" rule.
+- Parser increments `times_hit` exactly where it already attributes move-damage
+  to a target (`_apply_hp_update` pending-event block), so residual / weather /
+  item damage (no pending move) isn't counted.
+- `damage.py`: Rage Fist power = `50 + 50×min(times_hit, 6)`; `times_hit` threaded
+  through `full_damage_calc` / `incoming_damage` (`opp_times_hit`) / `outgoing_damage`,
+  mirroring `ally_faint_count`. The engine passes `opp.times_hit` in the incoming
+  fact loops.
+- Verified: at `times_hit=1` the model now predicts 98% (was 50%) for the logged
+  Annihilape → Basculegion case (actual 95%).
+
+Turn-1 baselines byte-identical (no mon has been hit at turn 1 → flat 50 BP) —
+header-only bump. Tests: Rage Fist BP scaling + cap; parser increment on a
+damaging move and reset on switch.
+
 ## 0.18.0 — 2026-06-20
 
 ### `tools/team_report.py` — combined roster + prediction-accuracy report

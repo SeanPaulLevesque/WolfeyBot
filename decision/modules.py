@@ -1142,6 +1142,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 opp_hp_fraction=opp.hp_fraction,
                 opp_status=opp.status or "",
                 opp_ally_faint_count=opp_faints,
+                opp_times_hit=getattr(opp, "times_hit", 0),
                 opp_flash_fire_active=opp.flash_fire_active,
             )
             if any(t.ohko_with_max_roll for t in threats):
@@ -1344,6 +1345,7 @@ class SwitchModule(ScoringModule):
                 opp_hp_fraction=opp.hp_fraction,
                 opp_status=opp.status or "",
                 opp_ally_faint_count=opp_faints,
+                opp_times_hit=getattr(opp, "times_hit", 0),
                 opp_flash_fire_active=opp.flash_fire_active,
             )
             if any(t.ohko_with_max_roll for t in threats):

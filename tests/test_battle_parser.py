@@ -650,6 +650,26 @@ class TestItemAbility:
         assert mon.item is None
         assert mon.item_consumed is True
 
+    def test_times_hit_increments_on_move_damage(self):
+        """A damaging move on a mon increments its times_hit (drives Rage Fist)."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Annihilape|Annihilape, L50, M|200/200"))
+        run(parser.feed("|move|p1a: Garchomp|Dragon Claw|p2a: Annihilape"))
+        run(parser.feed("|-damage|p2a: Annihilape|150/200"))
+        assert parser.state.opp_actives[0].times_hit == 1
+
+    def test_times_hit_resets_on_switch(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Annihilape|Annihilape, L50, M|200/200"))
+        run(parser.feed("|move|p1a: Garchomp|Dragon Claw|p2a: Annihilape"))
+        run(parser.feed("|-damage|p2a: Annihilape|150/200"))
+        # Switches out and a new mon comes in — stacks gone (fresh object).
+        run(parser.feed("|switch|p2a: Pelipper|Pelipper, L50, M|160/160"))
+        run(parser.feed("|switch|p2a: Annihilape|Annihilape, L50, M|150/200"))
+        assert parser.state.opp_actives[0].times_hit == 0
+
     def test_ability_revealed(self):
         parser, _ = make_parser()
         parser.state.my_side = "p1"

@@ -387,6 +387,21 @@ class TestMoveMechanics:
                                   self._DEF, self._DEF, defender_item="Sitrus Berry").damage_avg
         assert w_item / no_item == pytest.approx(1.5, rel=0.04)
 
+    def _rage_fist_power(self, times_hit):
+        return full_damage_calc("Rage Fist", "Annihilape", "Def",
+                                self._DEF, self._DEF, times_hit=times_hit).power
+
+    def test_rage_fist_base_power(self):
+        assert self._rage_fist_power(0) == 50
+
+    def test_rage_fist_scales_with_hits(self):
+        assert self._rage_fist_power(1) == 100
+        assert self._rage_fist_power(3) == 200
+
+    def test_rage_fist_caps_at_350(self):
+        assert self._rage_fist_power(6) == 350
+        assert self._rage_fist_power(9) == 350   # capped at 6 hits
+
 
 class TestWeatherGatedAbilities:
     """Solar Power (SpA ×1.5 in sun only — the 0.8.5 fix) and Sand Force."""
