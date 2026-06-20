@@ -71,6 +71,30 @@ def _load() -> None:
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
+_ID_TO_NAME: dict[str, str] = {}
+
+
+def _to_id(s: str) -> str:
+    """Showdown item/ability ID: lowercase, alphanumerics only."""
+    return "".join(c for c in s.lower() if c.isalnum())
+
+
+def name_from_id(item: Optional[str]) -> Optional[str]:
+    """Map a Showdown item **ID** (``"choicescarf"``) to its display name
+    (``"Choice Scarf"``).  Inputs that are already display names (or unknown, or
+    empty) pass through unchanged.  Needed because the ``|request|`` JSON gives
+    our own items in ID form, but every item lookup is keyed by display name."""
+    if not item:
+        return item
+    _load()
+    if item in _ITEMS:            # already a display name
+        return item
+    global _ID_TO_NAME
+    if not _ID_TO_NAME:
+        _ID_TO_NAME = {_to_id(k): k for k in _ITEMS}
+    return _ID_TO_NAME.get(_to_id(item), item)
+
+
 def get_item(name: str) -> Optional[str]:
     """Return item description string or None if not found."""
     _load()

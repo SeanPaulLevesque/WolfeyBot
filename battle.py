@@ -6,7 +6,7 @@ import logging
 import re
 
 from battle_state import BattleState, Pokemon, ItemEvidence, _parse_hp, _parse_status  # noqa: F401
-from data import CHOICE_ITEMS
+from data import CHOICE_ITEMS, item_name_from_id, ability_name_from_id
 
 _log = logging.getLogger(__name__)
 
@@ -117,7 +117,8 @@ class BattleParser:
         side_id = data.get("side", {}).get("id", "p1")
         self.state.my_side = side_id
         side_pokemon = data.get("side", {}).get("pokemon", [])
-        self.state.my_team = [Pokemon.from_request(p, side_id) for p in side_pokemon]
+        self.state.my_team = [_normalize_member_ids(Pokemon.from_request(p, side_id))
+                              for p in side_pokemon]
         self.state.rqid = data.get("rqid")
         await self._maybe_decide()
 
@@ -139,7 +140,8 @@ class BattleParser:
         """
         _old_item_consumed = {p.ident: p.item_consumed for p in self.state.my_team}
         _old_boosts = {p.ident: dict(p.boosts) for p in self.state.my_team if p.boosts}
-        self.state.my_team = [Pokemon.from_request(p, side_id) for p in side_pokemon]
+        self.state.my_team = [_normalize_member_ids(Pokemon.from_request(p, side_id))
+                              for p in side_pokemon]
         for mon in self.state.my_team:
             if _old_item_consumed.get(mon.ident):
                 mon.item_consumed = True
@@ -951,6 +953,19 @@ def _slot_from_ident(ident: str) -> int:
 def _normalize_ident(ident: str) -> str:
     """'p1a: Garganacl' → 'p1: Garganacl' (strip slot letter for team lookup)"""
     return re.sub(r"^(p\d)[a-z]:", r"\1:", ident)
+
+
+def _normalize_member_ids(mon: Pokemon) -> Pokemon:
+    """Convert a request-built mon's item/ability from Showdown ID form
+    ('choicescarf'/'roughskin') to display names ('Choice Scarf'/'Rough Skin').
+
+    The |request| JSON gives our own items/abilities as IDs, but every lookup
+    (speed_multiplier, Unburden/weather abilities, atk_modifier, …) is keyed by
+    display name — so without this our Choice Scarf was never applied to Garchomp's
+    speed, etc.  Idempotent: display names pass through unchanged."""
+    mon.item = item_name_from_id(mon.item)
+    mon.ability = ability_name_from_id(mon.ability)
+    return mon
 
 
 

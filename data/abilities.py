@@ -64,6 +64,27 @@ def _load() -> None:
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
+_ID_TO_NAME: dict[str, str] = {}
+
+
+def name_from_id(ability: Optional[str]) -> Optional[str]:
+    """Map a Showdown ability **ID** (``"roughskin"``) to its display name
+    (``"Rough Skin"``).  Already-display names / unknown / empty pass through.
+    The ``|request|`` JSON gives our own abilities in ID form, but ability
+    lookups (Unburden, weather-speed abilities, atk_modifier) are keyed by name."""
+    if not ability:
+        return ability
+    _load()
+    if ability in _ABILITIES:
+        return ability
+    global _ID_TO_NAME
+    if not _ID_TO_NAME:
+        _ID_TO_NAME = {"".join(c for c in k.lower() if c.isalnum()): k
+                       for k in _ABILITIES}
+    key = "".join(c for c in ability.lower() if c.isalnum())
+    return _ID_TO_NAME.get(key, ability)
+
+
 def get_ability(name: str) -> Optional[dict]:
     """Return ability data dict or None."""
     _load()

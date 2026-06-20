@@ -1,5 +1,34 @@
 # WolfeyBot Changelog
 
+## 0.21.0 — 2026-06-20
+
+### Normalize our own item/ability IDs from the request (scarf-speed bug)
+
+Root-caused by pulling **all 26** Garchomp turn-order under-predictions from the
+logs (not guessing): our scarf Garchomp was ranked pos 2-4 even against slow
+opponents it clearly outspeeds. Cause: the `|request|` JSON gives our own
+**item and ability in Showdown ID form** (`"choicescarf"`, `"roughskin"`), and
+`Pokemon.from_request` stored them verbatim — but every lookup is keyed by
+**display name** (`speed_multiplier("Choice Scarf")` = 1.5, `("choicescarf")` =
+1.0). `_our_combatant` reads `mon.item` first, so **Choice Scarf was never applied
+to Garchomp's speed** (modelled 151, not 226) → systematic under-ranking. The
+0.16.0 scarf regression test passed only because it used the display-form
+`tm.item`, masking the live ID-form path.
+
+Same class of bug for abilities (Unburden / weather-speed / Adaptability) on our
+own mons, and any damage-relevant item we might run (Life Orb/Choice Band — none
+on the current team, so latent there).
+
+- `data.item_name_from_id` / `data.ability_name_from_id`: reverse ID→display
+  lookups built from the items/abilities DBs.
+- `BattleParser._normalize_member_ids` applied at both `from_request` sites
+  (team preview + per-turn rebuild) → `mon.item`/`mon.ability` are display names.
+- Verified: a request-built Choice Scarf Garchomp now resolves to 226 speed.
+
+Turn-1 baselines byte-identical (snapshots are synthetic and use display-form
+team data, never the request) — header-only bump. Tests: request normalization
++ ID→name maps.
+
 ## 0.20.0 — 2026-06-20
 
 ### Handle `-clearnegativeboost` (White Herb) — offense mis-model fix

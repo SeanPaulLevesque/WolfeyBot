@@ -65,14 +65,14 @@ from .moves import (
 # Item data
 from .items import (
     get_item, item_exists, speed_multiplier, type_boost_multiplier,
-    is_mega_stone, all_items,
+    is_mega_stone, all_items, name_from_id as item_name_from_id,
     SPEED_BOOST_ITEMS, SPEED_HALVE_ITEMS, CHOICE_ITEMS,
     FOCUS_SASH_ITEMS, TYPE_BOOST_ITEMS,
 )
 
 # Ability data
 from .abilities import (
-    get_ability, ability_description,
+    get_ability, ability_description, name_from_id as ability_name_from_id,
     speed_multiplier_for_ability, all_abilities,
     WEATHER_SPEED_ABILITIES, SPEED_BOOST_ABILITIES,
     SPEED_RELATED_ABILITIES, PRIORITY_ABILITIES,
@@ -113,11 +113,11 @@ __all__ = [
     "SPREAD_TARGETS", "NO_TARGET_STRINGS",
     # items
     "get_item", "item_exists", "speed_multiplier", "type_boost_multiplier",
-    "is_mega_stone", "all_items",
+    "is_mega_stone", "all_items", "item_name_from_id",
     "SPEED_BOOST_ITEMS", "SPEED_HALVE_ITEMS", "CHOICE_ITEMS",
     "FOCUS_SASH_ITEMS", "TYPE_BOOST_ITEMS",
     # abilities
-    "get_ability", "ability_description",
+    "get_ability", "ability_description", "ability_name_from_id",
     "speed_multiplier_for_ability", "all_abilities",
     "WEATHER_SPEED_ABILITIES", "SPEED_BOOST_ABILITIES",
     "SPEED_RELATED_ABILITIES", "PRIORITY_ABILITIES",

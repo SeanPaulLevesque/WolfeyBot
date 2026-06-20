@@ -356,6 +356,21 @@ class TestBoostUnboost:
         assert mon.boosts["atk"] == 0
         assert mon.item_consumed is False
 
+    def test_request_item_ability_normalized_to_display_names(self):
+        """Regression: the |request| JSON gives our item/ability in ID form
+        ('choicescarf'/'roughskin'); every lookup is keyed by display name, so
+        without normalising, our Choice Scarf was never applied to Garchomp's
+        speed.  _rebuild_team must convert them to 'Choice Scarf'/'Rough Skin'."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        req = {"ident": "p1: Garchomp", "details": "Garchomp, L50, M",
+               "condition": "175/175", "active": True, "item": "choicescarf",
+               "ability": "roughskin", "moves": [{"move": "Dragon Claw"}]}
+        parser._rebuild_team([req], "p1")
+        mon = parser.state.my_team[0]
+        assert mon.item == "Choice Scarf"
+        assert mon.ability == "Rough Skin"
+
     def test_our_boosts_survive_request_rebuild(self):
         """Regression (0.17.0): a per-turn |request| rebuilds my_team from JSON,
         which carries no stat stages.  An Intimidate −1 Atk on our mon (and any
