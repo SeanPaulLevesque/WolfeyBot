@@ -153,9 +153,13 @@ def compute_prediction(games, slop=0.15):
                 pred = min(int(md.group(1)) / 100.0, 1.0) * h0
                 z = e.get("z")
                 if z == "immune":
-                    # We predicted damage but the target was IMMUNE — a wrong
-                    # assumed ability (or type) gap, NOT noise.  Surface it.
-                    off_immune.append((pred, ch, ct, e.get("za")))
+                    # ACCEPT-FILTER (immunity): only a real gap if we EXPECTED
+                    # damage (wrong assumed ability/type).  A 0% prediction means
+                    # we correctly knew the target was immune and the move was
+                    # forced — a Choice-locked attacker with the immune mon as its
+                    # sole surviving target — so it is not a model error.
+                    if pred > 0:
+                        off_immune.append((pred, ch, ct, e.get("za")))
                 elif z in ("miss", "protect", "sub"):
                     continue                       # genuine non-connect — drop
                 elif e.get("h0", 0) > 0 and e.get("d") and e["d"] > 0:

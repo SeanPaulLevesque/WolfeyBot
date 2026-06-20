@@ -167,6 +167,28 @@ class TestComputePrediction:
         assert m["diff"] == 2 and m["mon"] == "my[a]" and m["pred_pos"] == 1
         assert m["act_pos"] == 3 and m["turn"] == 4
 
+    def _immune_game(self, predicted_pct):
+        """A turn where our move hit an immune target, with the engine predicting
+        *predicted_pct* damage."""
+        return {"outcome": "loss", "turns": [{
+            "my": [{"s": "Garchomp", "hp": 1.0}],
+            "opp": [{"s": "Pelipper"}],
+            "dec": [{"sl": 0, "ch": "Stomping Tantrum", "ct": "Pelipper",
+                     "acts": [{"lb": "Stomping Tantrum",
+                               "r": [f"damage_output: {predicted_pct}% HP -> x1.0"]}]}],
+            "ev": [{"o": 0, "sd": "us", "a": "Garchomp", "mv": "Stomping Tantrum",
+                    "tg": "Pelipper", "h0": 1.0, "z": "immune", "za": None}],
+        }]}
+
+    def test_immune_zero_prediction_not_flagged(self):
+        # Forced Choice-lock into a sole immune target: predicted 0% is correct,
+        # so it must NOT be reported as an immunity gap.
+        assert compute_prediction([self._immune_game(0)])["off_immune"] == []
+
+    def test_immune_positive_prediction_flagged(self):
+        # We expected damage but the target was immune -> a real model gap.
+        assert len(compute_prediction([self._immune_game(80)])["off_immune"]) == 1
+
     def test_turn_order_misread_board_state(self):
         m = compute_prediction([self._GAME])["to_miss"][0]
         assert m["my"] == ["Garchomp", "Sneasler"]

@@ -105,7 +105,7 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 
 ## Prediction accuracy
 
-**Offense** 86% (153/178 within +/-15%, 25 mis-models) | **Turn order** 57% exact (+/-1 39%, off-by-2+ 4%) | **Defense** 17 mis-models (10 model gaps, 7 tech) | **Immunity** 3 fired into immune target
+**Offense** 86% (153/178 within +/-15%, 25 mis-models) | **Turn order** 57% exact (+/-1 39%, off-by-2+ 4%) | **Defense** 17 mis-models (10 model gaps, 7 tech)
 
 ### Defensive mis-model
 *Incoming hits >slop above prediction (crits/misses excluded). Mode `known` = assessed move under-rated; `tech` = move never assessed.*
@@ -177,12 +177,3 @@ Off-by-2+ misreads (board state at the misread turn; *Predicted* = where we expe
 | 3 | Garchomp | Sneasler | Sinistcha | Annihilape | - | - | my[b] 1/4 | opp[a] > my[a] > my[b] > opp[b] |
 | 4 | Sneasler | Garchomp | Staraptor | Sinistcha | - | - | my[b] 3/4 | my[b] > my[a] > opp[a] > opp[b] |
 | 2 | Garchomp | Sneasler | Sableye | Archaludon | - | - | my[b] 1/4 | opp[a] > my[a] > my[b] > opp[b] |
-
-### Immunity gaps
-*Chose a move expecting damage, but the target was immune.*
-
-| Move | vs Target | Why |
-|---|---|---|
-| Stomping Tantrum | Pelipper | type immunity |
-| Stomping Tantrum | Pelipper | type immunity |
-| Stomping Tantrum | Pelipper | type immunity |
