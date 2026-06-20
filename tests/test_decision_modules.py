@@ -2574,9 +2574,14 @@ class TestEffectiveItem:
         """Minimal 1v1 BattleState for fact-loop integration tests."""
         from battle import BattleState
 
+        from team import find_member
         s = BattleState(battle_id="test", my_side="p1")
         s.turn = 1
-        ours = make_mon(our_species, side="p1")
+        # Mirror live construction: the parser populates mon.item from every
+        # |request| before a decision, so fixtures must too — the engine reads
+        # mon.item (no team-paste fallback).
+        _tm = find_member(our_species)
+        ours = make_mon(our_species, side="p1", item=_tm.item if _tm else None)
         s.my_actives = [ours]
         s.my_team = [ours]
         opp = make_mon(opp_species, hp=100, max_hp=100, side="p2",
@@ -2585,9 +2590,7 @@ class TestEffectiveItem:
             opp.boosts.update(opp_boosts)
         s.opp_actives = [opp]
         s.available_switches = []
-        from team import find_member
-        tm = find_member(our_species)
-        s.moves_per_slot = [[{"move": m} for m in tm.moves]]
+        s.moves_per_slot = [[{"move": m} for m in _tm.moves]]
         s.my_last_moves = [""]
         s.opp_last_moves = [""]
         s.my_slot_decisions = [None]
@@ -2756,7 +2759,10 @@ class TestBenchConsumedItem:
         """Run SwitchModule.score over one switch action to a live bench
         Kingambit; return the bench_item passed to _switch_in_survives."""
         state = TestEffectiveItem._single_slot_state("Venusaur", "Sneasler")
-        bench = make_mon("Kingambit", item=item, item_consumed=item_consumed)
+        # Mirror live: a bench mon comes from |request| with its item populated.
+        from team import find_member
+        resolved = item if item is not None else find_member("Kingambit").item
+        bench = make_mon("Kingambit", item=resolved, item_consumed=item_consumed)
         state.available_switches = [bench]
 
         action = Action(label="Switch Kingambit", switch_target="Kingambit")
@@ -2770,8 +2776,9 @@ class TestBenchConsumedItem:
     def test_consumed_bench_item_evaluated_as_none(self):
         assert self._score_bench_kingambit(item_consumed=True) is None
 
-    def test_intact_bench_falls_back_to_team_item(self):
-        """No live item tracked (fresh battle) → team.txt Chople Berry."""
+    def test_intact_bench_reads_live_item(self):
+        """An intact bench mon's live item (Chople Berry) is read straight off
+        mon.item, the same value the |request| would carry."""
         assert self._score_bench_kingambit() == "Chople Berry"
 
     def test_live_tracked_item_wins(self):
