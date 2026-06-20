@@ -8,7 +8,7 @@ import json
 
 from tools.team_report import (
     roster_stats, move_usage, length_buckets, load_games, derive_team_meta,
-    archetype_breakdown,
+    archetype_breakdown, opp_mega_breakdown,
 )
 from tools.accuracy_report import compute_prediction
 
@@ -120,6 +120,25 @@ class TestArchetypeBreakdown:
     def test_snow_maps_from_hail(self):
         a = archetype_breakdown([self._g("win", {"w": "hail"})])
         assert a["Snow"] == [1, 1]
+
+
+class TestOppMegaBreakdown:
+    def _g(self, outcome, *opp_seqs):
+        # opp_seqs: list of opp-active lists per turn
+        return {"outcome": outcome,
+                "turns": [{"opp": [{"s": s} for s in opp]} for opp in opp_seqs]}
+
+    def test_tally_and_none_bucket(self):
+        games = [
+            self._g("win", ["Charizard", "Incineroar"], ["Charizard-Mega-Y", "Incineroar"]),
+            self._g("loss", ["Charizard-Mega-Y", "Pelipper"]),
+            self._g("win", ["Garchomp", "Pelipper"]),   # no mega
+        ]
+        m = opp_mega_breakdown(games)
+        assert m["Charizard-Mega-Y"] == [1, 2]          # one win, one loss
+        assert m["None (no mega)"] == [1, 1]
+        # None is ordered last
+        assert list(m.keys())[-1] == "None (no mega)"
 
 
 class TestLoadGames:

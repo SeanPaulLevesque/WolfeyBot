@@ -116,6 +116,35 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 | Sand | 0-1 | 0% | 1 |
 | None | 16-7 | 70% | 23 |
 
+## Opponent megas
+
+*W/L vs the opponent mega that appeared (one mega-evolves per battle); `None (no mega)` = opponent never mega-evolved.*
+
+| Opponent mega | Record | Win rate | Games |
+|---|---|--:|--:|
+| Staraptor-Mega | 1-8 | 11% | 9 |
+| Metagross-Mega | 4-1 | 80% | 5 |
+| Raichu-Mega-Y | 1-2 | 33% | 3 |
+| Swampert-Mega | 1-2 | 33% | 3 |
+| Aerodactyl-Mega | 2-0 | 100% | 2 |
+| Froslass-Mega | 1-1 | 50% | 2 |
+| Altaria-Mega | 0-1 | 0% | 1 |
+| Blastoise-Mega | 1-0 | 100% | 1 |
+| Charizard-Mega-Y | 1-0 | 100% | 1 |
+| Crabominable-Mega | 1-0 | 100% | 1 |
+| Delphox-Mega | 0-1 | 0% | 1 |
+| Eelektross-Mega | 1-0 | 100% | 1 |
+| Falinks-Mega | 1-0 | 100% | 1 |
+| Gardevoir-Mega | 1-0 | 100% | 1 |
+| Gengar-Mega | 0-1 | 0% | 1 |
+| Kangaskhan-Mega | 1-0 | 100% | 1 |
+| Malamar-Mega | 1-0 | 100% | 1 |
+| Mawile-Mega | 1-0 | 100% | 1 |
+| Pyroar-Mega | 0-1 | 0% | 1 |
+| Raichu-Mega-X | 0-1 | 0% | 1 |
+| Sceptile-Mega | 0-1 | 0% | 1 |
+| None (no mega) | 6-5 | 55% | 11 |
+
 ## Prediction accuracy
 
 *Each case is a **gap** (actionable) or **accepted** (explained, with reason). Goal: gaps to zero; accepted rows stay so the checks keep running.*

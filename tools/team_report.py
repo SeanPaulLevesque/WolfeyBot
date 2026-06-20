@@ -187,6 +187,28 @@ def archetype_breakdown(games):
     return out
 
 
+def opp_mega_breakdown(games):
+    """Return ``{mega_species: [wins, total]}`` of W/L vs each opponent mega that
+    actually appeared (a mon revealed as a ``-Mega`` forme), ordered by games desc.
+
+    `None (no mega)` = games where the opponent never mega-evolved.  A game can in
+    principle count toward more than one mega, but only one mega-evolves per battle,
+    so it's effectively one tag per game."""
+    raw = collections.defaultdict(lambda: [0, 0])
+    for g in games:
+        if g.get("outcome") not in ("win", "loss"):
+            continue
+        win = g.get("outcome") == "win"
+        megas = {o["s"] for t in g.get("turns", []) for o in t.get("opp", [])
+                 if o and "-Mega" in o.get("s", "")}
+        for k in (megas or {"None (no mega)"}):
+            raw[k][1] += 1
+            raw[k][0] += 1 if win else 0
+    items = sorted(raw.items(),
+                   key=lambda kv: (kv[0] == "None (no mega)", -kv[1][1], kv[0]))
+    return collections.OrderedDict(items)
+
+
 # ── Markdown rendering ──────────────────────────────────────────────────────────
 
 def _pct(x):
@@ -267,6 +289,17 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
     for a, (w, n) in arch.items():
         if n:
             out.append(f"| {a} | {w}-{n-w} | {_pct(w/n)} | {n} |")
+
+    # 3c. OPPONENT MEGAS
+    megas = opp_mega_breakdown(games)
+    out += ["", "## Opponent megas", "",
+            "*W/L vs the opponent mega that appeared (one mega-evolves per battle); "
+            "`None (no mega)` = opponent never mega-evolved.*", "",
+            "| Opponent mega | Record | Win rate | Games |",
+            "|---|---|--:|--:|"]
+    for m, (w, n) in megas.items():
+        if n:
+            out.append(f"| {m} | {w}-{n-w} | {_pct(w/n)} | {n} |")
 
     # 4. PREDICTION ACCURACY — every case carries a disposition: `gap` (actionable
     # model error) or `accepted: <reason>` (explained / correct). The goal is to
