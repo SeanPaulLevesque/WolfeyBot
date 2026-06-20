@@ -13,8 +13,18 @@ consumed. So the −1 lingered and dragged down every fact that read our boosts.
 
 - `BattleParser._on_clearnegativeboost`: reset only the *negative* stat stages
   (positives untouched), mirroring `_on_clearboost`.
+- **And** when it came `[from] item:` (White Herb), mark the item consumed — White
+  Herb is single-use and losing it triggers **Unburden** (×2 Speed), which
+  Showdown signals via this message (not always a separate `-enditem`). So e.g.
+  Incineroar Intimidates our Sneasler → White Herb restores Atk *and* is spent →
+  Sneasler is now correctly modelled as Unburden-fast.
 - Verified: clearing the stale −1 raises the Sneasler→Scrafty prediction from
   60% toward ~91% (actual 93%).
+
+Note: the synthetic turn-1 snapshot scenario doesn't run the parser or apply
+Intimidate, so it neither sees this message nor models the Intimidate→White
+Herb→Unburden chain — hence its baselines are unaffected. That chain only fires
+in live play (a possible future scenario-generator enhancement).
 
 Engine behaviour change (mid-game boost state); turn-1 baselines byte-identical
 (no negative boosts at turn 1) — header-only bump. Parser test added.

@@ -734,11 +734,18 @@ class BattleParser:
                 mon.boosts[key] = 0
 
     async def _on_clearnegativeboost(self, args: list[str]):
-        """|-clearnegativeboost|IDENT — reset only the NEGATIVE stat stages.
+        """|-clearnegativeboost|IDENT|[from] item: White Herb — restore stat drops.
 
-        Fired when White Herb restores stat drops (e.g. an Intimidate −1 Atk, or
-        the self-drops from Close Combat) and is consumed.  Without it a stale
-        −1 Atk lingered and under-predicted our own offense (Sneasler → Scrafty).
+        Fired when White Herb restores stat drops (an Intimidate −1 Atk, or the
+        self −Def/−SpD from Close Combat) and is consumed.  Does two things:
+
+        1. Reset the negative stages (a stale −1 Atk under-predicted our offense,
+           e.g. Sneasler → Scrafty).
+        2. When it came **from White Herb**, mark the item consumed — White Herb
+           is single-use, and losing it triggers **Unburden** (×2 Speed).  Showdown
+           signals White Herb via this message, so without setting it here Unburden
+           would never fire (e.g. Incineroar Intimidates our Sneasler → White Herb
+           restores Atk and is spent → Sneasler should now be Unburden-fast).
         """
         if not args:
             return
@@ -747,6 +754,8 @@ class BattleParser:
             for key in list(mon.boosts.keys()):
                 if mon.boosts[key] < 0:
                     mon.boosts[key] = 0
+            if any("item:" in a for a in args[1:]):
+                mon.item_consumed = True
 
     async def _on_clearallboost(self, args: list[str]):
         """|-clearallboost — reset all stat stages for every Pokémon on the field."""

@@ -343,6 +343,18 @@ class TestBoostUnboost:
         mon = parser.state.opp_actives[0]
         assert mon.boosts["atk"] == 0    # negative restored
         assert mon.boosts["spe"] == 1    # positive untouched
+        assert mon.item_consumed is True  # White Herb spent -> triggers Unburden
+
+    def test_clearnegativeboost_without_item_does_not_consume(self):
+        """A non-item clear (e.g. a move) restores drops but consumes no item."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-unboost|p2a: Garchomp|atk|1"))
+        run(parser.feed("|-clearnegativeboost|p2a: Garchomp"))
+        mon = parser.state.opp_actives[0]
+        assert mon.boosts["atk"] == 0
+        assert mon.item_consumed is False
 
     def test_our_boosts_survive_request_rebuild(self):
         """Regression (0.17.0): a per-turn |request| rebuilds my_team from JSON,
