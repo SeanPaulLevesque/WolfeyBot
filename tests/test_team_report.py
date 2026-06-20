@@ -9,6 +9,7 @@ import json
 from tools.team_report import (
     roster_stats, move_usage, length_buckets, load_games, derive_team_meta,
 )
+from tools.accuracy_report import compute_prediction
 
 
 def _turn(my, team=None, dec=None, ev=None):
@@ -125,6 +126,40 @@ class TestDeriveTeamMeta:
     def test_flat_layout_returns_none(self):
         files = ["Battle Data/0.9.0/battle-z.json"]
         assert derive_team_meta(files) == (None, None)
+
+
+class TestComputePrediction:
+    """The shared analysis must carry the offense attacker and per-case
+    turn-order misreads that the Markdown report renders."""
+
+    # Full 4-move turn: our Garchomp's Poison Jab predicted 100% / pos 1/4, but
+    # actually did 30% and resolved 3rd → one offense over-miss + one off-by-2.
+    _GAME = {"outcome": "loss", "turns": [{
+        "my": [{"s": "Garchomp", "hp": 1.0}, {"s": "Sneasler", "hp": 1.0}],
+        "dec": [{"sl": 0, "ch": "Poison Jab", "ct": "Whimsicott",
+                 "acts": [{"lb": "Poison Jab",
+                           "r": ["damage_output: 100% HP -> x3.00", "turn_order: pos 1/4"]}]}],
+        "ev": [
+            {"o": 0, "sd": "opp", "a": "Whimsicott", "mv": "Moonblast"},
+            {"o": 1, "sd": "opp", "a": "Sableye", "mv": "Foul Play"},
+            {"o": 2, "sd": "us", "a": "Garchomp", "mv": "Poison Jab",
+             "tg": "Whimsicott", "h0": 1.0, "d": 0.3},
+            {"o": 3, "sd": "us", "a": "Sneasler", "mv": "Close Combat",
+             "tg": "Sableye", "h0": 1.0, "d": 0.5},
+        ],
+    }]}
+
+    def test_offense_miss_carries_attacker(self):
+        s = compute_prediction([self._GAME])
+        assert len(s["off_miss"]) == 1
+        err, our_mon, mv, tg, pred, act = s["off_miss"][0]
+        assert our_mon == "Garchomp" and mv == "Poison Jab" and tg == "Whimsicott"
+        assert err < 0          # over-prediction (predicted 100%, actual 30%)
+
+    def test_turn_order_misread_captured(self):
+        s = compute_prediction([self._GAME])
+        assert s["to_total"] == 1 and s["to_worse"] == 1
+        assert s["to_miss"] == [(2, "Garchomp", "Poison Jab", 1, 3)]
 
 
 class TestLengthBuckets:

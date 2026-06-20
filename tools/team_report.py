@@ -237,34 +237,55 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
         summ.append(f"**Turn order** {_pct(s['to_exact']/s['to_total'])} exact "
                     f"(+/-1 {_pct(s['to_off1']/s['to_total'])}, "
                     f"off-by-2+ {_pct(s['to_worse']/s['to_total'])})")
-    summ.append(f"**Defense** {len(s['def_under'])} under-predictions "
+    summ.append(f"**Defense** {len(s['def_under'])} mis-models "
                 f"({n_known} model gaps, {n_tech} tech)")
     if s["off_immune"]:
         summ.append(f"**Immunity** {len(s['off_immune'])} fired into immune target")
     out.append(" | ".join(summ))
 
+    # Defensive mis-model — incoming hits that landed harder than we predicted.
+    # Mode: `known` = we assessed the move but under-rated it; `tech` = move we
+    # never assessed (off-meta / below usage cutoff).
     if s["def_under"]:
-        out += ["", "### Defensive under-predictions",
-                "*Took >slop more than predicted (crits/misses excluded). "
-                "`known` = assessed move under-rated; `tech` = move never assessed.*",
+        out += ["", "### Defensive mis-model",
+                "*Incoming hits >slop above prediction (crits/misses excluded). "
+                "Mode `known` = assessed move under-rated; `tech` = move never assessed.*",
                 "",
-                "| Attacker | Move | vs Defender | Predicted | Actual | Delta | Kind |",
-                "|---|---|---|--:|--:|--:|---|"]
-        for err, atk, dfd, mv, pred, act, kind in sorted(s["def_under"], key=lambda x: -x[0]):
+                "| Attacker | Move | vs Defender | Predicted | Actual | Mode |",
+                "|---|---|---|--:|--:|---|"]
+        for err, atk, dfd, mv, pred, act, mode in sorted(s["def_under"], key=lambda x: -x[0]):
             pstr = _pct(pred) if pred is not None else "n/a"
-            out.append(f"| {atk} | {mv} | {dfd} | {pstr} | {_pct(act)} | "
-                       f"+{_pct(err)} | {kind} |")
+            out.append(f"| {atk} | {mv} | {dfd} | {pstr} | {_pct(act)} | {mode} |")
 
+    # Offensive mis-model — our outgoing damage off by >slop.  Mode: over/under.
     if s["off_miss"]:
-        out += ["", "### Offense mis-models",
-                "*Our predicted damage vs actual (|error| > slop).*",
+        out += ["", "### Offensive mis-model",
+                "*Our outgoing damage vs actual (|error| > slop). Mode = over/under.*",
                 "",
-                "| Move | vs Target | Predicted | Actual | Error |",
-                "|---|---|--:|--:|---|"]
-        for err, mv, tg, pred, act in sorted(s["off_miss"], key=lambda x: -abs(x[0])):
-            sign = "over" if err < 0 else "under"
-            out.append(f"| {mv} | {tg} | {_pct(pred)} | {_pct(act)} | "
-                       f"{sign} {_pct(abs(err))} |")
+                "| Attacker | Move | vs Target | Predicted | Actual | Mode |",
+                "|---|---|---|--:|--:|---|"]
+        for err, our_mon, mv, tg, pred, act in sorted(s["off_miss"], key=lambda x: -abs(x[0])):
+            mode = "over" if err < 0 else "under"
+            out.append(f"| {our_mon} | {mv} | {tg} | {_pct(pred)} | {_pct(act)} | {mode} |")
+
+    # Turn order — predicted resolution position (1 = fastest of 4) vs actual.
+    if s["to_total"]:
+        out += ["", "### Turn order",
+                "*Predicted resolution position (1 = fastest of 4) vs actual, over "
+                "full 4-move turns. Protect/Endure jumping ahead is excluded.*",
+                "",
+                "| Result | Count | Share |",
+                "|---|--:|--:|",
+                f"| exact | {s['to_exact']} | {_pct(s['to_exact']/s['to_total'])} |",
+                f"| off by 1 | {s['to_off1']} | {_pct(s['to_off1']/s['to_total'])} |",
+                f"| off by 2+ | {s['to_worse']} | {_pct(s['to_worse']/s['to_total'])} |"]
+        real = [m for m in s["to_miss"] if m[0] >= 2]
+        if real:
+            out += ["", "Off-by-2+ misreads (real speed/priority misses):", "",
+                    "| Our mon | Move | Predicted pos | Actual pos | Off by |",
+                    "|---|---|--:|--:|--:|"]
+            for diff, our_mon, mv, ppos, apos in sorted(real, key=lambda x: -x[0]):
+                out.append(f"| {our_mon} | {mv} | {ppos}/4 | {apos}/4 | {diff} |")
 
     if s["off_immune"]:
         out += ["", "### Immunity gaps",

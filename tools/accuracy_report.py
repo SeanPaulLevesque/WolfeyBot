@@ -66,9 +66,10 @@ def compute_prediction(games, slop=0.15):
     ``to_exact``/``to_off1``/``to_worse``/``to_total``."""
     # ── gather offense / defense / turn-order samples ────────────────────────
     off_within = off_total = 0
-    off_miss = []                      # (err, mv, tg, pred, act)
+    off_miss = []                      # (err, our_mon, mv, tg, pred, act)
     off_immune = []                    # (pred, mv, tg, ability) — predicted dmg on immune target
-    def_under = []                     # (err, attacker, defender, pred, act)
+    def_under = []                     # (err, attacker, defender, mv, pred, act, mode)
+    to_miss = []                       # (diff, our_mon, mv, predicted_pos, actual_pos)
     to_exact = to_off1 = to_worse = to_total = 0
 
     for g in games:
@@ -104,11 +105,15 @@ def compute_prediction(games, slop=0.15):
                     blocked_ahead = (e is not None and any(
                         x["o"] < e["o"] and x["mv"] in _NONTHREAT_FIRST for x in ev))
                     if pm and e is not None and not blocked_ahead:
-                        diff = abs((e["o"] + 1) - int(pm.group(1)))
+                        predicted_pos = int(pm.group(1))
+                        actual_pos = e["o"] + 1
+                        diff = abs(actual_pos - predicted_pos)
                         to_total += 1
                         to_exact += diff == 0
                         to_off1 += diff == 1
                         to_worse += diff >= 2
+                        if diff >= 1:
+                            to_miss.append((diff, actor, ch, predicted_pos, actual_pos))
 
                 if ch == "Protect" or not ct:
                     continue
@@ -139,7 +144,7 @@ def compute_prediction(games, slop=0.15):
                     if abs(act - pred) <= slop:
                         off_within += 1
                     else:
-                        off_miss.append((act - pred, ch, ct, pred, act))
+                        off_miss.append((act - pred, actor, ch, ct, pred, act))
 
             # ---- DEFENSE: actual incoming vs predicted, per ACTUAL move -------
             # pin: [{"a": attacker, "df": defender, "mvs": {move: pred_frac}}]
@@ -174,6 +179,7 @@ def compute_prediction(games, slop=0.15):
         "off_within": off_within, "off_total": off_total,
         "off_miss": off_miss, "off_immune": off_immune,
         "def_under": def_under,
+        "to_miss": to_miss,
         "to_exact": to_exact, "to_off1": to_off1,
         "to_worse": to_worse, "to_total": to_total,
     }
@@ -227,10 +233,10 @@ def prediction_report(games, slop=0.15):
     # offense mis-models, secondary
     if off_miss:
         print(f"\n── OFFENSE MIS-MODELS (move -> target: predicted | actual) ──")
-        for err, mv, tg, pred, act in sorted(off_miss, key=lambda x: -abs(x[0])):
+        for err, our_mon, mv, tg, pred, act in sorted(off_miss, key=lambda x: -abs(x[0])):
             sign = "over" if err < 0 else "under"
-            print(f"   {mv:16} -> {tg:14} predicted {pred:>4.0%} | actual {act:>4.0%}  "
-                  f"[{sign} {abs(err):.0%}]")
+            print(f"   {our_mon:14} {mv:16} -> {tg:14} predicted {pred:>4.0%} | "
+                  f"actual {act:>4.0%}  [{sign} {abs(err):.0%}]")
 
     # immunity model gaps — we fired into an immune target (wrong assumed ability)
     if off_immune:
