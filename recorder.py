@@ -170,6 +170,10 @@ def _snapshot_state(state: "BattleState") -> dict:
             "max_hp":  mon.max_hp,
             "status":  mon.status,
             "boosts":  _nonzero_boosts(mon),
+            # Whether our held item has been consumed — drives Unburden's ×2
+            # speed in the turn-order model; needed to characterise Unburden
+            # turn-order misreads offline (0.18.x).
+            "item_consumed": bool(getattr(mon, "item_consumed", False)),
         }
 
     def _opp_snap(mon) -> Optional[dict]:
@@ -327,6 +331,8 @@ class BattleRecorder:
                     m["sts"] = mon["status"]
                 if mon["boosts"]:
                     m["b"] = mon["boosts"]
+                if mon.get("item_consumed"):
+                    m["ic"] = True
                 my_list.append(m)
         if any(x is not None for x in my_list):
             t["my"] = my_list

@@ -106,7 +106,9 @@ target only; switches are not recorded as events (only `|move|` actions).
   "hp":  0.74,        // current HP as 0.0–1.0 fraction (0.0 = fainted)
   "sts": "brn",       // status: "brn"|"par"|"slp"|"frz"|"psn"|"tox" (omitted if none)
   "mv":  ["Earthquake", "Close Combat"],  // opp only: revealed moves (omitted if none known)
-  "b":   {"spe": 2}   // active stat boosts, non-zero only (0.13.0); omitted if all zero
+  "b":   {"spe": 2},  // active stat boosts, non-zero only (0.13.0); omitted if all zero
+  "ic":  true         // our side only (0.18.x): held item consumed — drives
+                      // Unburden ×2 speed; omitted when false
 }
 ```
 
