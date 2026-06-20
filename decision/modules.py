@@ -51,6 +51,24 @@ _log = logging.getLogger(__name__)
 
 # ── Internal helpers (used by scoring modules) ────────────────────────────────
 
+def _our_item(mon, tm) -> Optional[str]:
+    """The consumption-aware held item for one of *our* Pokemon.
+
+    Single source of truth for reading an own-side item.  ``tm`` (the team
+    roster member from ``find_member``) carries the *authoritative display-form*
+    item name; live ``mon`` may also have it (in display form after parser
+    normalization).  A consumed item (``item_consumed``) reads as ``None`` so
+    every consumer — speed pipeline, offense damage, switch board-value — sees
+    the same belief.  Prefer this over ad-hoc ``mon.item or tm.item`` /
+    ``tm.item`` reads, which disagreed on consumption (the 0.21.0 scarf-speed
+    bug class).
+    """
+    if mon is not None and getattr(mon, "item_consumed", False):
+        return None
+    live = mon.item if mon is not None else None
+    return live or (tm.item if tm is not None else None)
+
+
 def _our_combatant(state: "BattleState", slot: int) -> Optional[Combatant]:
     """Build a Combatant for our active Pokemon at *slot*."""
     if slot >= len(state.my_actives):
@@ -73,7 +91,7 @@ def _our_combatant(state: "BattleState", slot: int) -> Optional[Combatant]:
     return Combatant(
         name=mon.species, side="own", slot=slot,
         exact_speed=exact_spd,
-        item=mon.item or (tm.item if tm else None),
+        item=_our_item(mon, tm),
         ability=mon.ability or (tm.ability if tm else None),
         speed_stage=mon.boosts.get("spe", 0),
         tailwind=state.my_tailwind,
@@ -470,7 +488,7 @@ class DamageOutputModule(ScoringModule):
             cur_hp = (opp.hp if (not opp.hp_is_percentage and opp.hp > 0) else None)
             results = outgoing_damage(
                 our_species=mon.species, our_stats=stats, our_moves=[move_name],
-                opp_species=_defense_species(opp), our_ability=tm.ability, our_item=tm.item,
+                opp_species=_defense_species(opp), our_ability=tm.ability, our_item=_our_item(mon, tm),
                 opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
                 weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                 opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
@@ -1084,7 +1102,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 opp_at_full = (opp.hp >= opp.max_hp) or (opp.hp_is_percentage and opp.hp >= 100)
                 results = outgoing_damage(
                     our_species=mon.species, our_stats=stats, our_moves=[move],
-                    opp_species=_defense_species(opp), our_ability=tm.ability, our_item=tm.item,
+                    opp_species=_defense_species(opp), our_ability=tm.ability, our_item=_our_item(mon, tm),
                     opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
                     weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                     opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
@@ -1121,7 +1139,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
         # Consumption-aware defender item: a popped Chople/Sitrus must not keep
         # halving incoming damage in the facts.  Falls back to the team.txt item
         # when the battle state hasn't tracked one (tests, fresh leads).
-        our_item = None if mon.item_consumed else (mon.item or tm.item)
+        our_item = _our_item(mon, tm)
         max_roll_kills: list[int] = []
         min_roll_kills: list[int] = []
         for opp_slot, opp in enumerate(state.opp_actives):
@@ -1262,10 +1280,7 @@ class SwitchModule(ScoringModule):
             bench_mon = next(
                 (p for p in state.available_switches
                  if p is not None and p.species == action.switch_target), None)
-            bench_item = bench_tm.item
-            if bench_mon is not None:
-                bench_item = (None if bench_mon.item_consumed
-                              else (bench_mon.item or bench_tm.item))
+            bench_item = _our_item(bench_mon, bench_tm)
 
             bench_moves = [m for m in bench_tm.moves if m not in _PROTECT_MOVES]
             offense  = self._best_offense(
