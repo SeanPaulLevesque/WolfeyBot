@@ -1260,7 +1260,7 @@ class SwitchModule(ScoringModule):
         ]
         cur_offense = self._best_offense(
             state, mon.species, stats,
-            tm.ability if tm else None, tm.item if tm else None, cur_moves,
+            tm.ability if tm else None, _our_item(mon, tm), cur_moves,
         )
 
         # Is the current mon OHKO-threatened by a threat that actually connects?
