@@ -6,7 +6,9 @@ move-usage / game-length math stays correct as the tool evolves.
 """
 import json
 
-from tools.team_report import roster_stats, move_usage, length_buckets, load_games
+from tools.team_report import (
+    roster_stats, move_usage, length_buckets, load_games, derive_team_meta,
+)
 
 
 def _turn(my, team=None, dec=None, ev=None):
@@ -109,6 +111,20 @@ class TestLoadGames:
 
     def test_missing_dir_returns_empty(self, tmp_path):
         assert load_games(str(tmp_path / "nope")) == []
+
+
+class TestDeriveTeamMeta:
+    def test_named_team_layout(self):
+        files = ["Battle Data/0.17.0/meta-team/v2/battle-x.json"]
+        assert derive_team_meta(files) == ("meta-team", "v2")
+
+    def test_windows_separators(self):
+        files = [r"Battle Data\0.17.0\off-meta-team\v1\battle-y.json"]
+        assert derive_team_meta(files) == ("off-meta-team", "v1")
+
+    def test_flat_layout_returns_none(self):
+        files = ["Battle Data/0.9.0/battle-z.json"]
+        assert derive_team_meta(files) == (None, None)
 
 
 class TestLengthBuckets:

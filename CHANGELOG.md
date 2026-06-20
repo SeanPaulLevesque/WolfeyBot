@@ -15,6 +15,11 @@ version, and that emits **GitHub-flavoured Markdown** (`--out report.md`):
 - **GAME LENGTH** — W/L bucketed by turn count (win-fast / lose-long signal).
 - **PREDICTION** — offense / turn-order / defensive accuracy, reused verbatim.
 
+The report is self-documenting: it auto-derives the team name/version from the
+log paths, embeds the verbatim team paste (`teams/<name>/<tv>.txt`), and stamps
+the engine version(s) read from the logs. A rendered sample is checked in at
+`reports/meta-team_v2_0.17.0.md`.
+
 `accuracy_report.py` refactored (no behaviour change) to expose
 `compute_prediction(games, slop)` (data) + `prediction_report` (console) and
 `_load(version, team_version=None)`, so the new tool composes the analysis with

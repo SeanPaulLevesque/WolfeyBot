@@ -36,12 +36,10 @@ from data import base_forme
 from tools.accuracy_report import compute_prediction
 
 
-def load_games(path, team_version=None):
-    """Load every battle-log JSON under *path* (a directory or a glob pattern).
-
-    Recurses into subdirectories.  If *team_version* is given, keep only logs
-    whose path contains a ``/<team_version>/`` segment (named-team runs nest as
-    ``<version>/<team>/<team_version>/``)."""
+def find_log_files(path, team_version=None):
+    """Return the battle-log JSON file paths under *path* (a directory or glob),
+    recursively; if *team_version* is given keep only those with a
+    ``/<team_version>/`` path segment."""
     if os.path.isdir(path):
         files = glob.glob(os.path.join(path, "**", "*.json"), recursive=True)
     else:
@@ -49,7 +47,39 @@ def load_games(path, team_version=None):
     if team_version:
         seg = os.sep + team_version + os.sep
         files = [f for f in files if seg in f]
-    return [json.load(open(f, encoding="utf-8")) for f in files]
+    return sorted(files)
+
+
+def load_games(path, team_version=None):
+    """Load every battle-log JSON under *path* (see :func:`find_log_files`)."""
+    return [json.load(open(f, encoding="utf-8")) for f in find_log_files(path, team_version)]
+
+
+def derive_team_meta(files):
+    """Best-effort ``(team_name, team_version)`` from the log paths.
+
+    Named-team runs nest as ``Battle Data/<version>/<team>/<tv>/<file>.json``, so
+    the two path segments between the version and the filename are the team name
+    and version.  Returns ``(None, None)`` for flat/baseline layouts."""
+    for f in files:
+        parts = f.replace("\\", "/").split("/")
+        if "Battle Data" in parts:
+            i = parts.index("Battle Data")
+            segs = parts[i + 2:-1]          # between <version> and the filename
+            if len(segs) >= 2:
+                return segs[0], segs[1]
+    return None, None
+
+
+def load_paste(team_name, team_version):
+    """Return the verbatim team paste from ``teams/<name>/<tv>.txt``, or None."""
+    if not team_name or not team_version:
+        return None
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    p = os.path.join(root, "teams", team_name, f"{team_version}.txt")
+    if os.path.isfile(p):
+        return open(p, encoding="utf-8").read().strip()
+    return None
 
 
 def _len_bucket(nturns):
@@ -128,15 +158,31 @@ def _pct(x):
     return f"{x*100:.0f}%"
 
 
-def build_markdown(games, label, slop=0.15):
-    """Render the full report for *games* as a GitHub-flavoured Markdown string."""
+def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
+                   team_paste=None):
+    """Render the full report for *games* as a GitHub-flavoured Markdown string.
+
+    *team_name*/*team_version*/*team_paste* (optional) record which roster these
+    logs came from; the engine version(s) are read from the logs themselves."""
     nG = len(games)
     wins = sum(1 for g in games if g.get("outcome") == "win")
+    versions = sorted({g.get("v") for g in games if g.get("v")})
+    title = team_name or label
+    if team_version:
+        title += f" {team_version}"
     out = []
-    out.append(f"# Team Report - {label}")
+    out.append(f"# Team Report - {title}")
     out.append("")
-    out.append(f"**Games:** {nG} | **Win rate:** "
-               f"{wins}-{nG-wins} ({_pct(wins/nG) if nG else 'n/a'})")
+    meta = [f"**Games:** {nG}",
+            f"**Win rate:** {wins}-{nG-wins} ({_pct(wins/nG) if nG else 'n/a'})",
+            f"**Engine:** {', '.join('v' + v for v in versions) if versions else 'unknown'}"]
+    out.append(" | ".join(meta))
+    out.append("")
+    out.append(f"*Source: `{label}`*")
+
+    # 0. TEAM
+    if team_paste:
+        out += ["", "## Team", "", "```", team_paste, "```"]
 
     # 1. ROSTER
     stats = roster_stats(games)
@@ -242,12 +288,16 @@ if __name__ == "__main__":
     if not path:
         print("usage: team_report.py <logs-dir|glob> [--team v2] [--slop 0.15] [--out report.md]")
         sys.exit(1)
-    games = load_games(path, tv)
+    files = find_log_files(path, tv)
+    games = [json.load(open(f, encoding="utf-8")) for f in files]
     if not games:
         print(f"No battle logs found under {path}" + (f" (team {tv})" if tv else "") + ".")
         sys.exit(1)
+    team_name, derived_tv = derive_team_meta(files)
+    team_version = tv or derived_tv
+    paste = load_paste(team_name, team_version)
     label = path + (f" - team {tv}" if tv else "")
-    md = build_markdown(games, label, slop)
+    md = build_markdown(games, label, slop, team_name, team_version, paste)
     if out_file:
         with open(out_file, "w", encoding="utf-8") as f:
             f.write(md)
