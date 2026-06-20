@@ -331,6 +331,19 @@ class TestBoostUnboost:
         run(parser.feed("|-unboost|p2a: Garchomp|spe|1"))
         assert parser.state.opp_actives[0].boosts["spe"] == -1
 
+    def test_clearnegativeboost_clears_only_negatives(self):
+        """White Herb (|-clearnegativeboost|) restores stat drops but leaves any
+        positive stages — a stale -1 otherwise under-predicts our own offense."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
+        run(parser.feed("|-unboost|p2a: Garchomp|atk|1"))
+        run(parser.feed("|-boost|p2a: Garchomp|spe|1"))
+        run(parser.feed("|-clearnegativeboost|p2a: Garchomp|[from] item: White Herb"))
+        mon = parser.state.opp_actives[0]
+        assert mon.boosts["atk"] == 0    # negative restored
+        assert mon.boosts["spe"] == 1    # positive untouched
+
     def test_our_boosts_survive_request_rebuild(self):
         """Regression (0.17.0): a per-turn |request| rebuilds my_team from JSON,
         which carries no stat stages.  An Intimidate −1 Atk on our mon (and any

@@ -1,5 +1,24 @@
 # WolfeyBot Changelog
 
+## 0.20.0 — 2026-06-20
+
+### Handle `-clearnegativeboost` (White Herb) — offense mis-model fix
+
+From the offensive misread triage: our Sneasler's Close Combat into Scrafty was
+*under*-predicted (60% vs 93% actual) because Sneasler sat at a stale `atk -1`.
+The parser handled `-clearboost`/`-clearallboost` (Haze/Clear Smog) but not
+`-clearnegativeboost` — the message Showdown sends when **White Herb restores
+stat drops** (an Intimidate −1, or Close Combat's self −Def/−SpD) and is
+consumed. So the −1 lingered and dragged down every fact that read our boosts.
+
+- `BattleParser._on_clearnegativeboost`: reset only the *negative* stat stages
+  (positives untouched), mirroring `_on_clearboost`.
+- Verified: clearing the stale −1 raises the Sneasler→Scrafty prediction from
+  60% toward ~91% (actual 93%).
+
+Engine behaviour change (mid-game boost state); turn-1 baselines byte-identical
+(no negative boosts at turn 1) — header-only bump. Parser test added.
+
 ## 0.19.0 — 2026-06-20
 
 ### Model Rage Fist hit-scaling (defensive mis-model fix)

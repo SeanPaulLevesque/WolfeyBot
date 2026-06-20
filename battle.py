@@ -733,6 +733,21 @@ class BattleParser:
             for key in list(mon.boosts.keys()):
                 mon.boosts[key] = 0
 
+    async def _on_clearnegativeboost(self, args: list[str]):
+        """|-clearnegativeboost|IDENT — reset only the NEGATIVE stat stages.
+
+        Fired when White Herb restores stat drops (e.g. an Intimidate −1 Atk, or
+        the self-drops from Close Combat) and is consumed.  Without it a stale
+        −1 Atk lingered and under-predicted our own offense (Sneasler → Scrafty).
+        """
+        if not args:
+            return
+        mon = self._find_mon(args[0])
+        if mon:
+            for key in list(mon.boosts.keys()):
+                if mon.boosts[key] < 0:
+                    mon.boosts[key] = 0
+
     async def _on_clearallboost(self, args: list[str]):
         """|-clearallboost — reset all stat stages for every Pokémon on the field."""
         for mon in self.state.my_team + self.state.opp_team:
@@ -898,6 +913,7 @@ _HANDLERS = {
     "-terastallize":  BattleParser._on_terastallize,
     "cant":           BattleParser._on_cant,
     "-clearboost":    BattleParser._on_clearboost,
+    "-clearnegativeboost": BattleParser._on_clearnegativeboost,
     "-clearallboost": BattleParser._on_clearallboost,
     "-invertboost":   BattleParser._on_invertboost,
     "-setboost":      BattleParser._on_setboost,

@@ -216,9 +216,16 @@ def compute_prediction(games, slop=0.15):
                     if abs(act - pred) <= slop:
                         off_within += 1
                     else:
-                        # Disposition defaults to 'gap'; specific accepted rules
-                        # are added as offense buckets are investigated.
-                        off_miss.append((act - pred, actor, ch, ct, pred, act, "gap"))
+                        # Overkill: if we OVER-predicted but the hit still removed
+                        # the target's remaining HP (a KO, act >= h0), predicting
+                        # ≥ lethal is correct, not a mis-model — accept it.  Other
+                        # over/under cases stay 'gap' (mostly opponent build/state:
+                        # a bulkier-than-modal spread or a defensive boost).
+                        over = (act - pred) < 0
+                        ko = act >= h0 - 0.02
+                        disp = ("accepted: overkill (KO; predicted >= target's remaining HP)"
+                                if (over and ko) else "gap")
+                        off_miss.append((act - pred, actor, ch, ct, pred, act, disp))
 
             # ---- DEFENSE: actual incoming vs predicted, per ACTUAL move -------
             # pin: [{"a": attacker, "df": defender, "mvs": {move: pred_frac}}]
