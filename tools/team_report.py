@@ -1,23 +1,23 @@
 """tools/team_report.py — Combined roster-performance + prediction-accuracy
-report from instrumented battle logs.
+report from instrumented battle logs, rendered as GitHub-flavoured Markdown.
 
-One report per version (optionally a single named-team version), covering:
+Point it at a directory (or glob) of battle-log JSON files; it processes every
+log it finds (recursively), optionally filtered to one named-team version.
 
-  1. ROSTER       — per-mon bring rate, lead rate, win-rate-when-brought, KOs
-                    dealt, faints suffered, net (KO − faint).
-  2. MOVE USAGE   — how often each move was actually chosen, per mon; the
-                    least-used move is flagged as a dead-weight / swap candidate.
-  3. GAME LENGTH  — W/L bucketed by number of turns (do we win fast / lose long?).
-  4. PREDICTION   — offense / turn-order / defensive accuracy + per-case misses,
-                    reused verbatim from tools/accuracy_report.
+Sections:
+  1. ROSTER       — per-mon bring/lead rate, win-rate-when-brought, KOs, faints, net.
+  2. MOVE USAGE   — how often each move was chosen, per mon; least-used flagged.
+  3. GAME LENGTH  — W/L bucketed by number of turns.
+  4. PREDICTION   — offense / turn-order / defensive accuracy (from accuracy_report).
 
-The compute helpers (``roster_stats`` / ``move_usage`` / ``length_buckets``)
-return plain dicts and take a pre-loaded games list, so they're unit-tested in
-tests/test_team_report.py without touching the filesystem.
+The compute helpers (``roster_stats`` / ``move_usage`` / ``length_buckets`` /
+``load_games``) are pure and unit-tested in tests/test_team_report.py.
 
 Usage (from repo root):
-    .venv\\Scripts\\python.exe tools/team_report.py 0.17.0
-    .venv\\Scripts\\python.exe tools/team_report.py 0.17.0 --team v2 --slop 0.15
+    # a version's logs (the usual layout under Battle Data/)
+    .venv\\Scripts\\python.exe tools/team_report.py "Battle Data/0.17.0" --team v2
+    # any folder of logs, write Markdown to a file
+    .venv\\Scripts\\python.exe tools/team_report.py path/to/logs --out report.md
 
 Caveats: KO attribution uses a damage≥remaining-HP heuristic and spread moves log
 only their first target, so KO/faint counts are approximate.  Win-rate-when-
@@ -26,19 +26,30 @@ favourable matchups).
 """
 import os
 import sys
+import glob
+import json
 import collections
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data import base_forme
-# Reuse the loader + prediction analysis from the accuracy report (no dup logic).
-from tools.accuracy_report import _load, prediction_report
+# Reuse the prediction analysis from the accuracy report (no duplicated logic).
+from tools.accuracy_report import compute_prediction
 
-# Switch / Protect-family labels are decisions, not damaging move uses.
-_PROTECTS = frozenset({
-    "Protect", "Detect", "King's Shield", "Spiky Shield", "Baneful Bunker",
-    "Silk Trap", "Burning Bulwark", "Wide Guard", "Quick Guard", "Max Guard",
-    "Obstruct",
-})
+
+def load_games(path, team_version=None):
+    """Load every battle-log JSON under *path* (a directory or a glob pattern).
+
+    Recurses into subdirectories.  If *team_version* is given, keep only logs
+    whose path contains a ``/<team_version>/`` segment (named-team runs nest as
+    ``<version>/<team>/<team_version>/``)."""
+    if os.path.isdir(path):
+        files = glob.glob(os.path.join(path, "**", "*.json"), recursive=True)
+    else:
+        files = glob.glob(path, recursive=True)
+    if team_version:
+        seg = os.sep + team_version + os.sep
+        files = [f for f in files if seg in f]
+    return [json.load(open(f, encoding="utf-8")) for f in files]
 
 
 def _len_bucket(nturns):
@@ -84,8 +95,8 @@ def roster_stats(games):
 
 
 def move_usage(games):
-    """Return ``{species: Counter(move -> times_chosen)}`` from each turn's chosen
-    action (``dec[].ch``), excluding switches."""
+    """Return ``{species: {move: times_chosen}}`` from each turn's chosen action
+    (``dec[].ch``), excluding switches."""
     use = collections.defaultdict(collections.Counter)
     for g in games:
         for t in g.get("turns", []):
@@ -111,62 +122,139 @@ def length_buckets(games):
     return out
 
 
-# ── Printing ──────────────────────────────────────────────────────────────────
+# ── Markdown rendering ──────────────────────────────────────────────────────────
 
-def print_team_report(version, team_version=None, slop=0.15):
-    games = _load(version, team_version)
-    if not games:
-        print(f"No battle logs found for version {version}"
-              f"{'/' + team_version if team_version else ''}.")
-        return
+def _pct(x):
+    return f"{x*100:.0f}%"
+
+
+def build_markdown(games, label, slop=0.15):
+    """Render the full report for *games* as a GitHub-flavoured Markdown string."""
     nG = len(games)
     wins = sum(1 for g in games if g.get("outcome") == "win")
-    label = f"v{version}" + (f"/{team_version}" if team_version else "")
-    print(f"\n{'='*78}\n TEAM REPORT — {label}  ({nG} games)\n{'='*78}")
-    print(f" Win rate: {wins}-{nG-wins}  ({wins/nG:.0%})")
+    out = []
+    out.append(f"# Team Report - {label}")
+    out.append("")
+    out.append(f"**Games:** {nG} | **Win rate:** "
+               f"{wins}-{nG-wins} ({_pct(wins/nG) if nG else 'n/a'})")
 
     # 1. ROSTER
     stats = roster_stats(games)
-    print(f"\n── ROSTER (sorted by net KO − faint) ──")
-    print(f"  {'mon':16}{'bring':>7}{'lead':>6}{'WR|br':>7}{'KOs':>5}{'faints':>8}{'net':>6}")
+    out += ["", "## Roster", "",
+            "Sorted by net (KOs - faints). *WR (brought)* is subject to selection bias.",
+            "",
+            "| Mon | Bring | Lead | WR (brought) | KOs | Faints | Net |",
+            "|---|--:|--:|--:|--:|--:|--:|"]
     for sp in sorted(stats, key=lambda s: -(stats[s]["kos"] - stats[s]["faints"])):
         d = stats[sp]
         gb = d["games_brought"] or 1
-        print(f"  {sp:16}{d['bring']/nG:>6.0%}{d['lead']/nG:>6.0%}"
-              f"{d['wins_brought']/gb:>7.0%}{d['kos']:>5}{d['faints']:>8}"
-              f"{d['kos']-d['faints']:>+6}")
+        net = d["kos"] - d["faints"]
+        out.append(f"| {sp} | {_pct(d['bring']/nG)} | {_pct(d['lead']/nG)} | "
+                   f"{_pct(d['wins_brought']/gb)} | {d['kos']} | {d['faints']} | "
+                   f"{net:+d} |")
 
     # 2. MOVE USAGE
     use = move_usage(games)
-    print(f"\n── MOVE USAGE (times chosen; lowest flagged as swap candidate) ──")
+    out += ["", "## Move usage", "",
+            "Times each move was chosen (excludes switches). **Lowest** = swap candidate.",
+            "",
+            "| Mon | Moves (chosen count) | Lowest |",
+            "|---|---|---|"]
     for sp in sorted(use, key=lambda s: -stats.get(s, {}).get("bring", 0)):
         items = sorted(use[sp].items(), key=lambda kv: -kv[1])
         if not items:
             continue
         lo = min(items, key=lambda kv: kv[1])
         body = ", ".join(f"{m} {c}" for m, c in items)
-        print(f"  {sp:14} lowest=[{lo[0]} {lo[1]}]  |  {body}")
+        out.append(f"| {sp} | {body} | **{lo[0]} {lo[1]}** |")
 
     # 3. GAME LENGTH
-    print(f"\n── W/L BY GAME LENGTH (turns) ──")
+    out += ["", "## Game length", "",
+            "| Turns | Record | Win rate |",
+            "|---|---|--:|"]
     for b, (w, n) in length_buckets(games).items():
         if n:
-            print(f"  {b:5} turns: {w:2}W-{n-w:2}L  ({w/n:.0%})   n={n}")
+            out.append(f"| {b} | {w}-{n-w} | {_pct(w/n)} |")
 
-    # 4. PREDICTION ACCURACY (reused from accuracy_report)
-    prediction_report(games, slop)
+    # 4. PREDICTION ACCURACY
+    s = compute_prediction(games, slop)
+    pct = int(slop * 100)
+    n_known = sum(1 for c in s["def_under"] if c[6] == "known")
+    n_tech = sum(1 for c in s["def_under"] if c[6] == "tech")
+    out += ["", "## Prediction accuracy", ""]
+    summ = []
+    if s["off_total"]:
+        summ.append(f"**Offense** {_pct(s['off_within']/s['off_total'])} "
+                    f"({s['off_within']}/{s['off_total']} within +/-{pct}%, "
+                    f"{len(s['off_miss'])} mis-models)")
+    if s["to_total"]:
+        summ.append(f"**Turn order** {_pct(s['to_exact']/s['to_total'])} exact "
+                    f"(+/-1 {_pct(s['to_off1']/s['to_total'])}, "
+                    f"off-by-2+ {_pct(s['to_worse']/s['to_total'])})")
+    summ.append(f"**Defense** {len(s['def_under'])} under-predictions "
+                f"({n_known} model gaps, {n_tech} tech)")
+    if s["off_immune"]:
+        summ.append(f"**Immunity** {len(s['off_immune'])} fired into immune target")
+    out.append(" | ".join(summ))
+
+    if s["def_under"]:
+        out += ["", "### Defensive under-predictions",
+                "*Took >slop more than predicted (crits/misses excluded). "
+                "`known` = assessed move under-rated; `tech` = move never assessed.*",
+                "",
+                "| Attacker | Move | vs Defender | Predicted | Actual | Delta | Kind |",
+                "|---|---|---|--:|--:|--:|---|"]
+        for err, atk, dfd, mv, pred, act, kind in sorted(s["def_under"], key=lambda x: -x[0]):
+            pstr = _pct(pred) if pred is not None else "n/a"
+            out.append(f"| {atk} | {mv} | {dfd} | {pstr} | {_pct(act)} | "
+                       f"+{_pct(err)} | {kind} |")
+
+    if s["off_miss"]:
+        out += ["", "### Offense mis-models",
+                "*Our predicted damage vs actual (|error| > slop).*",
+                "",
+                "| Move | vs Target | Predicted | Actual | Error |",
+                "|---|---|--:|--:|---|"]
+        for err, mv, tg, pred, act in sorted(s["off_miss"], key=lambda x: -abs(x[0])):
+            sign = "over" if err < 0 else "under"
+            out.append(f"| {mv} | {tg} | {_pct(pred)} | {_pct(act)} | "
+                       f"{sign} {_pct(abs(err))} |")
+
+    if s["off_immune"]:
+        out += ["", "### Immunity gaps",
+                "*Chose a move expecting damage, but the target was immune.*",
+                "",
+                "| Move | vs Target | Why |",
+                "|---|---|---|"]
+        for pred, mv, tg, abil in sorted(s["off_immune"], key=lambda x: -x[0]):
+            out.append(f"| {mv} | {tg} | {('ability: ' + abil) if abil else 'type immunity'} |")
+
+    out.append("")
+    return "\n".join(out)
 
 
 if __name__ == "__main__":
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
     args = sys.argv[1:]
-    ver = args[0] if args and not args[0].startswith("--") else None
+    path = args[0] if args and not args[0].startswith("--") else None
     slop = float(args[args.index("--slop") + 1]) if "--slop" in args else 0.15
     tv = args[args.index("--team") + 1] if "--team" in args else None
-    if not ver:
-        print("usage: team_report.py <version> [--team v2] [--slop 0.15]")
+    out_file = args[args.index("--out") + 1] if "--out" in args else None
+    if not path:
+        print("usage: team_report.py <logs-dir|glob> [--team v2] [--slop 0.15] [--out report.md]")
         sys.exit(1)
-    print_team_report(ver, tv, slop)
+    games = load_games(path, tv)
+    if not games:
+        print(f"No battle logs found under {path}" + (f" (team {tv})" if tv else "") + ".")
+        sys.exit(1)
+    label = path + (f" - team {tv}" if tv else "")
+    md = build_markdown(games, label, slop)
+    if out_file:
+        with open(out_file, "w", encoding="utf-8") as f:
+            f.write(md)
+        print(f"Wrote {out_file} ({len(games)} games).")
+    else:
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+        print(md)

@@ -4,9 +4,9 @@
 
 ### `tools/team_report.py` — combined roster + prediction-accuracy report
 
-Elevates the ad-hoc per-team analysis into a reusable tool, and folds in the
-existing prediction-accuracy report so one command gives the full picture for a
-version (optionally a single named-team version):
+Elevates the ad-hoc per-team analysis into a reusable, team-agnostic tool that
+you **point at a logs directory** (or glob), optionally filtered to one named-team
+version, and that emits **GitHub-flavoured Markdown** (`--out report.md`):
 
 - **ROSTER** — per-mon bring rate, lead rate, win-rate-when-brought, KOs dealt,
   faints, net (KO − faint).
@@ -16,10 +16,12 @@ version (optionally a single named-team version):
 - **PREDICTION** — offense / turn-order / defensive accuracy, reused verbatim.
 
 `accuracy_report.py` refactored (no behaviour change) to expose
-`prediction_report(games, slop)` and `_load(version, team_version=None)`, so the
-new tool composes them with zero duplicated analysis. Both tools gain a `--team`
-flag. Compute helpers (`roster_stats` / `move_usage` / `length_buckets`) are pure
-functions over a games list, covered by `tests/test_team_report.py`.
+`compute_prediction(games, slop)` (data) + `prediction_report` (console) and
+`_load(version, team_version=None)`, so the new tool composes the analysis with
+zero duplication. `team_report.py` takes a path (`Battle Data/0.17.0`, any folder
+of logs, or a glob), `--team`, `--slop`, `--out`. Pure helpers
+(`load_games` / `roster_stats` / `move_usage` / `length_buckets`) are covered by
+`tests/test_team_report.py`.
 
 Engine unchanged — turn-1 baselines byte-identical (header-only bump).
 

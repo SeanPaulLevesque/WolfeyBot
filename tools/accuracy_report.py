@@ -55,9 +55,15 @@ def _load(version, team_version=None):
     return [json.load(open(f, encoding="utf-8")) for f in files]
 
 
-def prediction_report(games, slop=0.15):
-    """Print the prediction-accuracy sections (offense / turn-order / defense /
-    immunity) for a pre-loaded *games* list.  Reused by tools/team_report.py."""
+def compute_prediction(games, slop=0.15):
+    """Compute prediction-accuracy stats for a pre-loaded *games* list and return
+    them as a dict (no printing).  Shared by the console ``prediction_report`` and
+    the Markdown renderer in tools/team_report.py.
+
+    Returns keys: ``off_within``/``off_total`` (offense damage within ±slop),
+    ``off_miss`` [(err,mv,tg,pred,act)], ``off_immune`` [(pred,mv,tg,ability)],
+    ``def_under`` [(err,atk,def,mv,pred,act,kind)], and turn-order
+    ``to_exact``/``to_off1``/``to_worse``/``to_total``."""
     # ── gather offense / defense / turn-order samples ────────────────────────
     off_within = off_total = 0
     off_miss = []                      # (err, mv, tg, pred, act)
@@ -163,6 +169,24 @@ def prediction_report(games, slop=0.15):
                     worst = max(assessed.values()) if assessed else 0.0
                     if act - worst > slop:
                         def_under.append((act - worst, attacker, defender, mv, None, act, "tech"))
+
+    return {
+        "off_within": off_within, "off_total": off_total,
+        "off_miss": off_miss, "off_immune": off_immune,
+        "def_under": def_under,
+        "to_exact": to_exact, "to_off1": to_off1,
+        "to_worse": to_worse, "to_total": to_total,
+    }
+
+
+def prediction_report(games, slop=0.15):
+    """Print the prediction-accuracy sections (offense / turn-order / defense /
+    immunity) for a pre-loaded *games* list (console format)."""
+    s = compute_prediction(games, slop)
+    off_within, off_total = s["off_within"], s["off_total"]
+    off_miss, off_immune = s["off_miss"], s["off_immune"]
+    def_under = s["def_under"]
+    to_exact, to_off1, to_worse, to_total = s["to_exact"], s["to_off1"], s["to_worse"], s["to_total"]
 
     # ── 1. HIGH-LEVEL ────────────────────────────────────────────────────────
     print(f"\n── PREDICTION ACCURACY ──")

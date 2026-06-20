@@ -4,7 +4,9 @@ These exercise the pure aggregation functions on synthetic in-memory game dicts
 (battle-log schema) — no filesystem, no real logs — so the report's roster /
 move-usage / game-length math stays correct as the tool evolves.
 """
-from tools.team_report import roster_stats, move_usage, length_buckets
+import json
+
+from tools.team_report import roster_stats, move_usage, length_buckets, load_games
 
 
 def _turn(my, team=None, dec=None, ev=None):
@@ -87,6 +89,26 @@ class TestMoveUsage:
         assert u["Kingambit"]["Protect"] == 1
         # "Switch Venusaur" must not appear as a move use.
         assert "Switch Venusaur" not in u.get("Sneasler", {})
+
+
+class TestLoadGames:
+    def _write(self, p, obj):
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(obj), encoding="utf-8")
+
+    def test_loads_recursively_and_filters_by_team(self, tmp_path):
+        self._write(tmp_path / "v1" / "a.json", {"outcome": "win"})
+        self._write(tmp_path / "v2" / "b.json", {"outcome": "loss"})
+        self._write(tmp_path / "v2" / "deep" / "c.json", {"outcome": "win"})
+        # No filter: all three logs, recursively.
+        assert len(load_games(str(tmp_path))) == 3
+        # team=v2: only the two under a /v2/ path segment.
+        v2 = load_games(str(tmp_path), team_version="v2")
+        assert len(v2) == 2
+        assert {g["outcome"] for g in v2} == {"loss", "win"}
+
+    def test_missing_dir_returns_empty(self, tmp_path):
+        assert load_games(str(tmp_path / "nope")) == []
 
 
 class TestLengthBuckets:
