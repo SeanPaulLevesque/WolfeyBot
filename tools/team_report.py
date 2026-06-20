@@ -279,13 +279,25 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
                 f"| exact | {s['to_exact']} | {_pct(s['to_exact']/s['to_total'])} |",
                 f"| off by 1 | {s['to_off1']} | {_pct(s['to_off1']/s['to_total'])} |",
                 f"| off by 2+ | {s['to_worse']} | {_pct(s['to_worse']/s['to_total'])} |"]
-        real = [m for m in s["to_miss"] if m[0] >= 2]
+        real = [m for m in s["to_miss"] if m["diff"] >= 2]
         if real:
-            out += ["", "Off-by-2+ misreads (real speed/priority misses):", "",
-                    "| Our mon | Move | Predicted pos | Actual pos | Off by |",
-                    "|---|---|--:|--:|--:|"]
-            for diff, our_mon, mv, ppos, apos in sorted(real, key=lambda x: -x[0]):
-                out.append(f"| {our_mon} | {mv} | {ppos}/4 | {apos}/4 | {diff} |")
+            out += ["", "Off-by-2+ misreads (board state at the misread turn; "
+                    "*Predicted* = where we expected the flagged mon, *Actual* = the "
+                    "real resolution order):", "",
+                    "| Turn | my[a] | my[b] | opp[a] | opp[b] | TR | TW | Predicted | Actual order |",
+                    "|--:|---|---|---|---|:-:|:-:|---|---|"]
+
+            def _g(lst, i):
+                return lst[i] if i < len(lst) and lst[i] else "-"
+
+            for m in sorted(real, key=lambda x: -x["diff"]):
+                tw = m["tw"]
+                tw_s = "/".join(k for k in ("us", "opp") if tw.get(k)) or "-"
+                tr_s = "yes" if m["tr"] else "-"
+                out.append(
+                    f"| {m['turn']} | {_g(m['my'],0)} | {_g(m['my'],1)} | "
+                    f"{_g(m['opp'],0)} | {_g(m['opp'],1)} | {tr_s} | {tw_s} | "
+                    f"{m['mon']} {m['pred_pos']}/4 | {' > '.join(m['order'])} |")
 
     if s["off_immune"]:
         out += ["", "### Immunity gaps",

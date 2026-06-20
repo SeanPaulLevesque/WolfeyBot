@@ -170,13 +170,13 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 | off by 1 | 30 | 39% |
 | off by 2+ | 3 | 4% |
 
-Off-by-2+ misreads (real speed/priority misses):
+Off-by-2+ misreads (board state at the misread turn; *Predicted* = where we expected the flagged mon, *Actual* = the real resolution order):
 
-| Our mon | Move | Predicted pos | Actual pos | Off by |
-|---|---|--:|--:|--:|
-| Sneasler | Dire Claw | 1/4 | 3/4 | 2 |
-| Garchomp | Stomping Tantrum | 3/4 | 1/4 | 2 |
-| Sneasler | Close Combat | 1/4 | 3/4 | 2 |
+| Turn | my[a] | my[b] | opp[a] | opp[b] | TR | TW | Predicted | Actual order |
+|--:|---|---|---|---|:-:|:-:|---|---|
+| 3 | Garchomp | Sneasler | Sinistcha | Annihilape | - | - | my[b] 1/4 | opp[a] > my[a] > my[b] > opp[b] |
+| 4 | Sneasler | Garchomp | Staraptor | Sinistcha | - | - | my[b] 3/4 | my[b] > my[a] > opp[a] > opp[b] |
+| 2 | Garchomp | Sneasler | Sableye | Archaludon | - | - | my[b] 1/4 | opp[a] > my[a] > my[b] > opp[b] |
 
 ### Immunity gaps
 *Chose a move expecting damage, but the target was immune.*

@@ -135,7 +135,11 @@ class TestComputePrediction:
     # Full 4-move turn: our Garchomp's Poison Jab predicted 100% / pos 1/4, but
     # actually did 30% and resolved 3rd → one offense over-miss + one off-by-2.
     _GAME = {"outcome": "loss", "turns": [{
+        "n": 4,
+        "tr": False,
+        "tw": {"opp": True},
         "my": [{"s": "Garchomp", "hp": 1.0}, {"s": "Sneasler", "hp": 1.0}],
+        "opp": [{"s": "Whimsicott"}, {"s": "Sableye"}],
         "dec": [{"sl": 0, "ch": "Poison Jab", "ct": "Whimsicott",
                  "acts": [{"lb": "Poison Jab",
                            "r": ["damage_output: 100% HP -> x3.00", "turn_order: pos 1/4"]}]}],
@@ -159,7 +163,17 @@ class TestComputePrediction:
     def test_turn_order_misread_captured(self):
         s = compute_prediction([self._GAME])
         assert s["to_total"] == 1 and s["to_worse"] == 1
-        assert s["to_miss"] == [(2, "Garchomp", "Poison Jab", 1, 3)]
+        m = s["to_miss"][0]
+        assert m["diff"] == 2 and m["mon"] == "my[a]" and m["pred_pos"] == 1
+        assert m["act_pos"] == 3 and m["turn"] == 4
+
+    def test_turn_order_misread_board_state(self):
+        m = compute_prediction([self._GAME])["to_miss"][0]
+        assert m["my"] == ["Garchomp", "Sneasler"]
+        assert m["opp"] == ["Whimsicott", "Sableye"]
+        assert m["tr"] is False and m["tw"] == {"opp": True}
+        # Resolution order, slot-labelled (Whimsicott first → opp[a]).
+        assert m["order"] == ["opp[a]", "opp[b]", "my[a]", "my[b]"]
 
 
 class TestLengthBuckets:

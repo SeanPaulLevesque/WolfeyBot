@@ -113,7 +113,29 @@ def compute_prediction(games, slop=0.15):
                         to_off1 += diff == 1
                         to_worse += diff >= 2
                         if diff >= 1:
-                            to_miss.append((diff, actor, ch, predicted_pos, actual_pos))
+                            opp_l = t.get("opp", [])
+
+                            def _slot_label(e2, _my=my, _opp=opp_l):
+                                spx = _base(e2.get("a"))
+                                seq = _my if e2.get("sd") == "us" else _opp
+                                pre = "my" if e2.get("sd") == "us" else "opp"
+                                for i, mm in enumerate(seq):
+                                    if mm and _base(mm.get("s")) == spx:
+                                        return f"{pre}[{'ab'[i]}]" if i < 2 else f"{pre}[{i}]"
+                                return f"{pre}:{spx or '?'}"
+
+                            to_miss.append({
+                                "diff": diff,
+                                "turn": t.get("n"),
+                                "mon": f"my[{'ab'[sl]}]" if (sl is not None and sl < 2) else (actor or "?"),
+                                "pred_pos": predicted_pos,
+                                "act_pos": actual_pos,
+                                "my": [_base(m.get("s")) for m in my],
+                                "opp": [_base(o.get("s")) for o in opp_l],
+                                "tr": bool(t.get("tr")),
+                                "tw": t.get("tw") or {},
+                                "order": [_slot_label(x) for x in sorted(ev, key=lambda z: z["o"])],
+                            })
 
                 if ch == "Protect" or not ct:
                     continue
