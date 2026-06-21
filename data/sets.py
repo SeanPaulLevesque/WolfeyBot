@@ -236,7 +236,12 @@ def _merge_supplement() -> None:
     for name, raw in data.items():
         if name.startswith("_"):          # documentation key — not a species
             continue
-        if name in _SETS:                 # main usage file wins; fill gaps only
+        # Gap-fill by default (main usage file wins), EXCEPT entries flagged
+        # ``"override": true`` — used when the M-A main file carries a stale
+        # pre-mega count for a base that Reg M-B made mega-dominant (e.g. base
+        # Raichu's 94720 from before Raichunite existed), so the M-B Pikalytics
+        # split must win for the base-vs-mega forme decision.
+        if name in _SETS and not raw.get("override"):
             continue
         _SETS[name] = {
             "raw_count":  int(raw.get("raw_count", 0)),
@@ -327,6 +332,25 @@ def assumed_forme(name: str) -> str:
     if sum(c for _, c in megas) > base_count:
         return max(megas, key=lambda t: t[1])[0]
     return name
+
+
+def default_mega_forme(base: str) -> Optional[str]:
+    """The **highest-usage** mega forme for *base*, or None if it has none.
+
+    Unlike :func:`assumed_forme` (which only megas when mega usage outnumbers
+    the base population), this assumes a mega is happening and just answers
+    *which* one — so it is the data-driven tiebreaker for two-mega species when
+    the held stone is unknown (Charizard → -Mega-Y while Y leads X in usage,
+    flipping automatically if X ever overtakes).  Used by ``team._mega_form_name``
+    as the no-stone fallback instead of a hardcoded X/Y default.
+    """
+    _load()
+    megas = [(k, _SETS[k]["raw_count"])
+             for k in (f"{base}-Mega", f"{base}-Mega-X", f"{base}-Mega-Y")
+             if k in _SETS]
+    if not megas:
+        return None
+    return max(megas, key=lambda t: t[1])[0]
 
 
 _MEGA_STONES: Optional[frozenset] = None

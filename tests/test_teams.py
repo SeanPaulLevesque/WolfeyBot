@@ -205,12 +205,17 @@ class TestMegaFormResolution:
         assert team._mega_form_name("Raichu", "Raichunite Y") == "Raichu-Mega-Y"
         assert team._mega_form_name("Raichu", "Raichunite X") == "Raichu-Mega-X"
 
-    def test_stone_overrides_name_default(self):
-        # _MEGA_NAMES defaults Charizard to -Y; the held X stone must win.
+    def test_stone_overrides_usage_default(self):
+        # Usage defaults Charizard to -Y; the held X stone must win.
         assert team._mega_form_name("Charizard", "Charizardite X") == "Charizard-Mega-X"
 
+    def test_no_stone_falls_back_to_highest_usage_forme(self):
+        # Without a stone, the two-mega default is data-driven (Y leads X in
+        # usage), not a hardcoded constant — flips automatically if X overtakes.
+        assert team._mega_form_name("Charizard") == "Charizard-Mega-Y"
+
     def test_single_mega_still_resolves_without_item(self):
-        # No item → fall back to the <name>-Mega convention (single-mega species).
+        # Single-mega species resolves to its only forme with no item.
         assert team._mega_form_name("Lopunny") == "Lopunny-Mega"
 
 

@@ -15,9 +15,34 @@ the stone actually held — so a Charizardite **X** holder was mis-resolved to -
 
 - `_mega_form_name(base_name, item=None)` now consults `mega_forme_for_stone`
   first — the held stone is authoritative for X/Y (Raichunite Y →
-  Raichu-Mega-Y, Charizardite X → Charizard-Mega-X), falling back to the
-  `_MEGA_NAMES` default / `<name>-Mega` convention only when no stone is given.
+  Raichu-Mega-Y, Charizardite X → Charizard-Mega-X).
+- The no-stone fallback is now **data-driven**: the hardcoded `_MEGA_NAMES`
+  dict (Charizard→Y, Mewtwo→Y) is replaced by `data.default_mega_forme`, which
+  returns the highest-usage mega forme for the base (Charizard → -Mega-Y while
+  Y leads X in usage, flipping automatically if X ever overtakes). The opponent
+  assumption paths (`data.assumed_forme`, `team_preview._build_opp_mega_forms`)
+  were already usage-driven; this brings our-side resolution in line.
 - Regression tests in `TestMegaFormResolution`.
+
+### Fix Pikalytics seeder multi-mega usage split (Raichu forme assumption)
+
+`tools/seed_supplement_from_pikalytics.py` mis-split every **two-mega** species:
+it weighted *all* mega formes by `max()` of the stone usages and subtracted only
+that max from the base, so Raichu (`Raichunite Y 60.5%`, `Raichunite X 18.2%`)
+got 605 for **both** formes and base 395 — and `assumed_forme` kept Raichu base
+anyway because the stale M-A base count (94720, from before Raichunite existed)
+shadowed the gap-filled supplement.
+
+- Seeder: each mega is weighted by **its own** stone's usage (Raichu-Mega-Y 605,
+  -Mega-X 182), the base subtracts the **sum** of own-stone pcts (base 213), and
+  foreign-contamination stones scraped onto a page (e.g. Scovillainite on
+  Sceptile) are excluded from both the count math and the base item list.
+- `_merge_supplement` now honours an `"override": true` flag (emitted by the
+  seeder on every mega-capable base) so M-B Pikalytics data wins over a stale
+  pre-mega M-A base count. Of the 15 flagged mons only **Raichu** is actually in
+  the M-A file — the rest are no-ops (new M-B mons added either way).
+- Result: `assumed_forme("Raichu") → Raichu-Mega-Y`, data-driven (flips if the
+  X/Y shares ever reverse). Turn-1 snapshot baseline **unchanged**; full suite green.
 
 ### Unify own-side item reads behind `_our_item`
 

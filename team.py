@@ -23,7 +23,7 @@ from typing import Optional
 
 from data import (
     calc_all_stats, base_stats as get_base_stats, get_species,
-    mega_forme_for_stone,
+    mega_forme_for_stone, default_mega_forme,
 )
 
 # The *frozen baseline* roster — what the decision snapshots (snapshots/) and the
@@ -47,12 +47,6 @@ _ABBREV = {
     "Spe": "spe",
 }
 
-# Known mega name mappings (base → mega form name in species data)
-# Extended as needed; falls back to "{name}-Mega" automatically.
-_MEGA_NAMES: dict[str, str] = {
-    "Charizard":  "Charizard-Mega-Y",   # default Charizard mega
-    "Mewtwo":     "Mewtwo-Mega-Y",
-}
 
 
 @dataclass
@@ -108,15 +102,18 @@ def _mega_form_name(base_name: str, item: Optional[str] = None) -> Optional[str]
 
     The held stone *item* is the authoritative disambiguator for species with
     two mega formes (Raichunite Y → Raichu-Mega-Y; Charizardite X →
-    Charizard-Mega-X), so it is consulted first.  Without an item we fall back
-    to the ``_MEGA_NAMES`` default / the ``<name>-Mega`` convention.
+    Charizard-Mega-X), so it is consulted first.  Without a recognised stone we
+    fall back to the **highest-usage** mega forme (``data.default_mega_forme`` —
+    data-driven, so Charizard defaults to -Mega-Y while Y leads X and flips
+    automatically if that ever reverses), then to the ``<name>-Mega`` convention.
     """
     if item:
         by_stone = mega_forme_for_stone(item)
         if by_stone:
             return by_stone
-    if base_name in _MEGA_NAMES:
-        return _MEGA_NAMES[base_name]
+    by_usage = default_mega_forme(base_name)
+    if by_usage:
+        return by_usage
     candidate = f"{base_name}-Mega"
     if get_species(candidate) is not None:
         return candidate

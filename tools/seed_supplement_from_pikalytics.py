@@ -114,20 +114,30 @@ def main() -> None:
         if not (items or abilities or moves):
             continue                       # page had "No data yet" — leave on fallback
         megas = _mega_formes(X)
-        stone = next((it for it in items if _is_stone(it)), None)
+        # Only stones that actually power one of THIS base's mega formes count —
+        # a foreign stone scraped onto the page (e.g. Scovillainite on Sceptile)
+        # is contamination and must not skew the base/mega split.
+        mega_stone = {M: _stone_for_mega(X, M, items) for M in megas}
+        own_stones = {s for s in mega_stone.values() if s}
+        stone = next((it for it in items if it in own_stones), None)
 
-        # Gap-fill precedence is enforced by the supplement loader (main file
-        # always wins), so we write entries unconditionally here.
         if megas and stone:
-            stone_pct = max(items.get(s, 0) for s in items if _is_stone(s))
-            base_items = _renorm({it: v for it, v in items.items() if not _is_stone(it)})
-            entries[X] = {"raw_count": round((100 - stone_pct) * 10),
+            # Each mega is weighted by ITS OWN stone's usage; the base keeps the
+            # share that holds no (real) mega stone — i.e. 100 − Σ(stone pcts).
+            total_stone_pct = sum(items.get(s, 0) for s in own_stones)
+            # The base holds NO stone (own or foreign-contamination), so drop
+            # every stone from its item list; only own-stone pct feeds the count.
+            base_items = _renorm({it: v for it, v in items.items()
+                                  if not _is_stone(it)})
+            entries[X] = {"raw_count": round(max(100 - total_stone_pct, 0) * 10),
+                          "override": True,   # M-B split supersedes any stale M-A base count
                           "abilities": abilities, "items": base_items,
                           "moves": dict(moves), "spreads": dict(spreads)}
             for M in megas:
-                mstone = _stone_for_mega(X, M, items)
+                mstone = mega_stone[M]
+                mpct = items.get(mstone, 0) if mstone else 0
                 mab = ability_of(M)
-                entries[M] = {"raw_count": round(stone_pct * 10),
+                entries[M] = {"raw_count": round(mpct * 10),
                               "abilities": ({mab: 100.0} if mab else dict(abilities)),
                               "items": {mstone: 100.0} if mstone else {},
                               "moves": dict(moves), "spreads": dict(spreads)}
