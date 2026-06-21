@@ -1,5 +1,34 @@
 # WolfeyBot Changelog
 
+## 0.22.0 — 2026-06-20
+
+### Resolve two-mega species by the held stone (Raichu-Mega-Y bug)
+
+Adding Raichu @ Raichunite Y (meta-team v4) surfaced a latent gap: `team.py`'s
+`_mega_form_name` keyed the mega forme off the **base species name** only, so a
+two-mega species couldn't be disambiguated — for Raichu it built the
+non-existent `"Raichu-Mega"`, returned `None`, and the mon played as **base
+Raichu** (Static, base stats) instead of Mega-Y (No Guard, SpA 233 / Spe 182).
+Zap Cannon's No-Guard accuracy and the mega stat jump were both silently lost.
+`_MEGA_NAMES` also hard-coded X/Y defaults (Charizard→Y, Mewtwo→Y) regardless of
+the stone actually held — so a Charizardite **X** holder was mis-resolved to -Y.
+
+- `_mega_form_name(base_name, item=None)` now consults `mega_forme_for_stone`
+  first — the held stone is authoritative for X/Y (Raichunite Y →
+  Raichu-Mega-Y, Charizardite X → Charizard-Mega-X), falling back to the
+  `_MEGA_NAMES` default / `<name>-Mega` convention only when no stone is given.
+- Regression tests in `TestMegaFormResolution`.
+
+### Unify own-side item reads behind `_our_item`
+
+Folds in the 0.21.x follow-ups (no version bump until now): a single
+consumption-aware `_our_item(mon)` replaces three inconsistent item-read
+patterns (the speed path's missing consumed-check was the 0.21.0 scarf-speed
+bug class), and the dead team-paste fallback was removed after a tripwire proved
+it unreachable live (the parser repopulates `mon.item` from every `|request|`
+before any decision). Test fixtures now populate `mon.item` like `from_request`
+does, exercising the live read path. No behavior change for the current roster.
+
 ## 0.21.0 — 2026-06-20
 
 ### Normalize our own item/ability IDs from the request (scarf-speed bug)

@@ -192,6 +192,28 @@ class TestRealTeams:
         assert checked >= 1                       # at least one real team exists
 
 
+class TestMegaFormResolution:
+    """``_mega_form_name`` must disambiguate two-mega species by the HELD STONE.
+
+    The base species name alone can't tell Raichu-Mega-X from -Y (and the
+    ``<name>-Mega`` convention yields a non-existent ``Raichu-Mega``), so the
+    stone is the authoritative source.  Regression for the v4 Raichu add, where
+    a held Raichunite Y was silently dropped (mega_name=None → played as base
+    Raichu with Static instead of Mega-Y / No Guard)."""
+
+    def test_dual_mega_stone_selects_correct_forme(self):
+        assert team._mega_form_name("Raichu", "Raichunite Y") == "Raichu-Mega-Y"
+        assert team._mega_form_name("Raichu", "Raichunite X") == "Raichu-Mega-X"
+
+    def test_stone_overrides_name_default(self):
+        # _MEGA_NAMES defaults Charizard to -Y; the held X stone must win.
+        assert team._mega_form_name("Charizard", "Charizardite X") == "Charizard-Mega-X"
+
+    def test_single_mega_still_resolves_without_item(self):
+        # No item → fall back to the <name>-Mega convention (single-mega species).
+        assert team._mega_form_name("Lopunny") == "Lopunny-Mega"
+
+
 # ── ELO-log A/B tagging (main.EloTracker) ─────────────────────────────────────
 
 class TestEloTagging:

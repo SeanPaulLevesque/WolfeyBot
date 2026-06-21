@@ -21,7 +21,10 @@ import json, pathlib, re
 from dataclasses import dataclass, field
 from typing import Optional
 
-from data import calc_all_stats, base_stats as get_base_stats, get_species
+from data import (
+    calc_all_stats, base_stats as get_base_stats, get_species,
+    mega_forme_for_stone,
+)
 
 # The *frozen baseline* roster — what the decision snapshots (snapshots/) and the
 # test suite are built from.  It lives under snapshots/ alongside its generated
@@ -100,8 +103,18 @@ def _parse_evs(ev_string: str) -> dict[str, int]:
     return result
 
 
-def _mega_form_name(base_name: str) -> Optional[str]:
-    """Return the mega form species name, or None if unknown."""
+def _mega_form_name(base_name: str, item: Optional[str] = None) -> Optional[str]:
+    """Return the mega form species name, or None if unknown.
+
+    The held stone *item* is the authoritative disambiguator for species with
+    two mega formes (Raichunite Y → Raichu-Mega-Y; Charizardite X →
+    Charizard-Mega-X), so it is consulted first.  Without an item we fall back
+    to the ``_MEGA_NAMES`` default / the ``<name>-Mega`` convention.
+    """
+    if item:
+        by_stone = mega_forme_for_stone(item)
+        if by_stone:
+            return by_stone
     if base_name in _MEGA_NAMES:
         return _MEGA_NAMES[base_name]
     candidate = f"{base_name}-Mega"
@@ -179,7 +192,7 @@ def load_team(path: Optional[pathlib.Path] = None) -> list[TeamMember]:
         mega_name: Optional[str] = None
         mega_computed: Optional[dict] = None
         if _is_mega_stone(item):
-            mega_name = _mega_form_name(name)
+            mega_name = _mega_form_name(name, item)
             if mega_name:
                 mega_bs = get_base_stats(mega_name)
                 if mega_bs:
