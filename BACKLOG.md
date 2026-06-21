@@ -117,7 +117,19 @@ The 0.8.5 batches wired every ability that keys off move flags, move type, categ
 -Out of format, revisit only if the legal pool changes (no Champions-legal holder today): Slow Start (Regigigas), Orichalcum Pulse (Koraidon), Hadron Engine (Miraidon; also needs Electric Terrain), Flower Gift (Cherrim). Any of these would also need turns-active and/or terrain tracking that we deliberately skipped.
 
 model calibration:
--Make turn-order (TurnOrderModule `pos X/4`) priority-aware. It currently ranks on
+-Team-preview offense scoring ignores STAB. `_offensive_score` (team_preview.py)
+ ranks bring/lead picks by the best type-effectiveness our MOVE types achieve vs
+ each opponent's typing — it never adds the same-type bonus, so a mon attacking
+ off-STAB scores identically to one with STAB. The forme typing IS resolved on the
+ defensive side (`_defensive_types`/`_defensive_ability` correctly use the mega
+ form, e.g. Mega Staraptor = Fighting/Flying + Contrary), but offense is move-only
+ and forme-independent, so Mega Staraptor turning Fighting-type does NOT lift its
+ lead score for Close Combat the way real damage would. Fix: in `_offensive_score`,
+ multiply a move type's effectiveness by ~1.5 when that type is in the member's
+ ACTIVE-forme typing (`_defensive_types(member)` already gives the mega typing) —
+ so STAB coverage outranks equal off-STAB coverage. Pure preview/lead scoring; no
+ in-battle damage path, so no snapshot baseline shift. NB this is coverage-shaping
+ (which mon leads), still not raw damage — a deliberately coarse pick heuristic. It currently ranks on
  RAW SPEED only (`will_outspeed(ours, other)` called without the moves), so it
  ignores both move priority (Fake Out / Bullet Punch / Aqua Jet) and ability
  priority (Prankster, Gale Wings). On the 0.13.0 accuracy run this was ~65% of all
