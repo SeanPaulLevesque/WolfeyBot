@@ -203,17 +203,18 @@ class TestComputePrediction:
     def test_offense_miss_carries_attacker(self):
         s = compute_prediction([self._GAME])
         assert len(s["off_miss"]) == 1
-        err, our_mon, mv, tg, pred, act, disp = s["off_miss"][0]
+        err, our_mon, mv, tg, pred, act, disp, loc = s["off_miss"][0]
         assert our_mon == "Garchomp" and mv == "Poison Jab" and tg == "Whimsicott"
         assert err < 0          # over-prediction (predicted 100%, actual 30%)
         assert disp == "gap"    # offense defaults to actionable until investigated
+        assert loc == "?:t4"    # incident locator (battle:turn) for tracing back
 
     def test_turn_order_misread_captured(self):
         s = compute_prediction([self._GAME])
         assert s["to_total"] == 1 and s["to_worse"] == 1
         m = s["to_miss"][0]
         assert m["diff"] == 2 and m["mon"] == "my[a]" and m["pred_pos"] == 1
-        assert m["act_pos"] == 3 and m["turn"] == 4
+        assert m["act_pos"] == 3 and m["turn"] == 4 and m["loc"] == "?:t4"
         # No priority/TR/paralysis explains it -> a genuine speed gap.
         assert m["disposition"] == "gap"
 

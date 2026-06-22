@@ -334,9 +334,9 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
                 "",
                 "| Attacker | Move | vs Defender | Predicted | Actual | Disposition |",
                 "|---|---|---|--:|--:|---|"]
-        for err, atk, dfd, mv, pred, act, disp in sorted(s["def_under"], key=_disp_sort_def):
+        for err, atk, dfd, mv, pred, act, disp, loc in sorted(s["def_under"], key=_disp_sort_def):
             pstr = _pct(pred) if pred is not None else "n/a"
-            out.append(f"| {atk} | {mv} | {dfd} | {pstr} | {_pct(act)} | {disp} |")
+            out.append(f"| {atk} | {mv} | {dfd} | {pstr} | {_pct(act)} | {disp}<!-- {loc} --> |")
 
     # Offensive mis-model
     if s["off_miss"]:
@@ -345,10 +345,10 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
                 "",
                 "| Attacker | Move | vs Target | Predicted | Actual | Dir | Disposition |",
                 "|---|---|---|--:|--:|:-:|---|"]
-        for err, our_mon, mv, tg, pred, act, disp in sorted(
+        for err, our_mon, mv, tg, pred, act, disp, loc in sorted(
                 s["off_miss"], key=lambda x: (x[6] != "gap", -abs(x[0]))):
             out.append(f"| {our_mon} | {mv} | {tg} | {_pct(pred)} | {_pct(act)} | "
-                       f"{'over' if err < 0 else 'under'} | {disp} |")
+                       f"{'over' if err < 0 else 'under'} | {disp}<!-- {loc} --> |")
 
     # Turn order
     if s["to_total"]:
@@ -379,7 +379,8 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
                 out.append(
                     f"| {m['turn']} | {_g(m['my'],0)} | {_g(m['my'],1)} | "
                     f"{_g(m['opp'],0)} | {_g(m['opp'],1)} | {tr_s} | {tw_s} | "
-                    f"{m['mon']} {m['pred_pos']}/4 | {' > '.join(m['order'])} | {m['disposition']} |")
+                    f"{m['mon']} {m['pred_pos']}/4 | {' > '.join(m['order'])} | "
+                    f"{m['disposition']}<!-- {m['loc']} --> |")
 
     # Immunity
     if s["off_immune"]:
@@ -388,9 +389,9 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
                 "",
                 "| Move | vs Target | Predicted | Why | Disposition |",
                 "|---|---|--:|---|---|"]
-        for pred, mv, tg, abil, disp in sorted(s["off_immune"], key=lambda x: (x[4] != "gap", -x[0])):
+        for pred, mv, tg, abil, disp, loc in sorted(s["off_immune"], key=lambda x: (x[4] != "gap", -x[0])):
             why = f"ability: {abil}" if abil else "type immunity"
-            out.append(f"| {mv} | {tg} | {_pct(pred)} | {why} | {disp} |")
+            out.append(f"| {mv} | {tg} | {_pct(pred)} | {why} | {disp}<!-- {loc} --> |")
 
     out.append("")
     return "\n".join(out)

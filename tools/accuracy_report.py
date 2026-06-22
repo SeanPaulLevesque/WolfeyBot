@@ -115,7 +115,9 @@ def compute_prediction(games, slop=0.15):
     to_exact = to_off1 = to_worse = to_total = 0
 
     for g in games:
+        gid = (g.get("id") or "?").split("-")[-1]   # short battle number for locators
         for t in g.get("turns", []):
+            loc = f"{gid}:t{t.get('n')}"             # incident locator (battle:turn)
             ev = t.get("ev", [])
             my = t.get("my", [])
             pin = t.get("pin", [])
@@ -171,6 +173,7 @@ def compute_prediction(games, slop=0.15):
                             to_miss.append({
                                 "diff": diff,
                                 "turn": t.get("n"),
+                                "loc": loc,
                                 "mon": f"my[{'ab'[sl]}]" if (sl is not None and sl < 2) else (actor or "?"),
                                 "pred_pos": predicted_pos,
                                 "act_pos": actual_pos,
@@ -205,7 +208,7 @@ def compute_prediction(games, slop=0.15):
                     # immune mon as its sole surviving target — so it's accepted.
                     disp = ("gap" if pred > 0 else
                             "accepted: forced (0% predicted, Choice-locked into sole immune target)")
-                    off_immune.append((pred, ch, ct, e.get("za"), disp))
+                    off_immune.append((pred, ch, ct, e.get("za"), disp, loc))
                 elif z in ("miss", "protect", "sub"):
                     continue                       # genuine non-connect — drop
                 elif e.get("h0", 0) > 0 and e.get("d") and e["d"] > 0:
@@ -225,7 +228,7 @@ def compute_prediction(games, slop=0.15):
                         ko = act >= h0 - 0.02
                         disp = ("accepted: overkill (KO; predicted >= target's remaining HP)"
                                 if (over and ko) else "gap")
-                        off_miss.append((act - pred, actor, ch, ct, pred, act, disp))
+                        off_miss.append((act - pred, actor, ch, ct, pred, act, disp, loc))
 
             # ---- DEFENSE: actual incoming vs predicted, per ACTUAL move -------
             # pin: [{"a": attacker, "df": defender, "mvs": {move: pred_frac}}]
@@ -250,14 +253,14 @@ def compute_prediction(games, slop=0.15):
                     pred = assessed[mv]               # we assessed this exact move
                     if act - pred > slop:
                         # We assessed this move but under-rated it -> real gap.
-                        def_under.append((act - pred, attacker, defender, mv, pred, act, "gap"))
+                        def_under.append((act - pred, attacker, defender, mv, pred, act, "gap", loc))
                 else:
                     # Move we never assessed (off-meta tech / below usage cutoff):
                     # accepted as a coverage limit, tracked separately.
                     worst = max(assessed.values()) if assessed else 0.0
                     if act - worst > slop:
                         def_under.append((act - worst, attacker, defender, mv, None, act,
-                                          "accepted: unassessed move (off-meta / below usage cutoff)"))
+                                          "accepted: unassessed move (off-meta / below usage cutoff)", loc))
 
     return {
         "off_within": off_within, "off_total": off_total,

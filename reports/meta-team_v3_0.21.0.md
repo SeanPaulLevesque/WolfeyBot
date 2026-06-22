@@ -154,48 +154,48 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 
 | Attacker | Move | vs Defender | Predicted | Actual | Disposition |
 |---|---|---|--:|--:|---|
-| Annihilape | Rage Fist | Venusaur-Mega | 21% | 85% | gap |
-| Primarina | Hyper Voice | Kingambit | 13% | 47% | gap |
-| Farigiraf | Psychic | Staraptor-Mega | 51% | 78% | gap |
-| Slowking | Muddy Water | Garchomp | 51% | 72% | gap |
-| Sinistcha | Matcha Gotcha | Basculegion | 49% | 69% | gap |
-| Garchomp | Earthquake | Garchomp | 39% | 55% | gap |
-| Volcarona | Giga Drain | Basculegion | n/a | 74% | accepted: unassessed move (off-meta / below usage cutoff) |
-| Musharna | Shadow Ball | Gholdengo | n/a | 63% | accepted: unassessed move (off-meta / below usage cutoff) |
-| Rampardos | Ice Beam | Garchomp | n/a | 100% | accepted: unassessed move (off-meta / below usage cutoff) |
-| Staraptor | Final Gambit | Garchomp | n/a | 100% | accepted: unassessed move (off-meta / below usage cutoff) |
-| Sableye | Foul Play | Venusaur-Mega | n/a | 22% | accepted: unassessed move (off-meta / below usage cutoff) |
+| Annihilape | Rage Fist | Venusaur-Mega | 21% | 85% | gap<!-- 2636096126:t1 --> |
+| Primarina | Hyper Voice | Kingambit | 13% | 47% | gap<!-- 2636106712:t4 --> |
+| Farigiraf | Psychic | Staraptor-Mega | 51% | 78% | gap<!-- eocion8emm7sdjch5543m6i9xd213kopw:t4 --> |
+| Slowking | Muddy Water | Garchomp | 51% | 72% | gap<!-- 2636142190:t5 --> |
+| Sinistcha | Matcha Gotcha | Basculegion | 49% | 69% | gap<!-- rxn2pdjhaqcnii7on8v6lhuf9a78u0vpw:t3 --> |
+| Garchomp | Earthquake | Garchomp | 39% | 55% | gap<!-- q2ih4j02bu254y5ardym801vvc08hatpw:t2 --> |
+| Volcarona | Giga Drain | Basculegion | n/a | 74% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 8ndttwjuigdnam6uqpqveiwq2wkf7fppw:t5 --> |
+| Musharna | Shadow Ball | Gholdengo | n/a | 63% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2636145009:t2 --> |
+| Rampardos | Ice Beam | Garchomp | n/a | 100% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2636145009:t2 --> |
+| Staraptor | Final Gambit | Garchomp | n/a | 100% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2636101084:t1 --> |
+| Sableye | Foul Play | Venusaur-Mega | n/a | 22% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2636127845:t5 --> |
 
 ### Offensive mis-model
 *Our outgoing damage vs actual (|error| > slop). Dir = over/under.*
 
 | Attacker | Move | vs Target | Predicted | Actual | Dir | Disposition |
 |---|---|---|--:|--:|:-:|---|
-| Gholdengo | Thunderbolt | Staraptor-Mega | 78% | 15% | over | gap |
-| Gholdengo | Thunderbolt | Staraptor-Mega | 77% | 15% | over | gap |
-| Kingambit | Kowtow Cleave | Farigiraf | 100% | 43% | over | gap |
-| Gholdengo | Shadow Ball | Sinistcha-Masterpiece | 81% | 30% | over | gap |
-| Kingambit | Kowtow Cleave | Farigiraf | 100% | 50% | over | gap |
-| Kingambit | Kowtow Cleave | Farigiraf | 100% | 50% | over | gap |
-| Venusaur-Mega | Sludge Bomb | Staraptor-Mega | 80% | 32% | over | gap |
-| Garchomp | Dragon Claw | Dragapult | 100% | 63% | over | gap |
-| Garchomp | Poison Jab | Whimsicott | 100% | 66% | over | gap |
-| Kingambit | Kowtow Cleave | Froslass | 100% | 69% | over | gap |
-| Garchomp | Poison Jab | Whimsicott | 100% | 70% | over | gap |
-| Gholdengo | Shadow Ball | Annihilape | 90% | 61% | over | gap |
-| Garchomp | Dragon Claw | Staraptor | 35% | 62% | under | gap |
-| Basculegion | Wave Crash | Crabominable-Mega | 28% | 54% | under | gap |
-| Garchomp | Poison Jab | Rotom-Wash | 41% | 16% | over | gap |
-| Kingambit | Kowtow Cleave | Pelipper | 61% | 36% | over | gap |
-| Garchomp | Dragon Claw | Sinistcha-Masterpiece | 58% | 33% | over | gap |
-| Kingambit | Low Kick | Kingambit | 59% | 83% | under | gap |
-| Kingambit | Kowtow Cleave | Farigiraf | 100% | 77% | over | gap |
-| Garchomp | Poison Jab | Grimmsnarl | 63% | 42% | over | gap |
-| Garchomp | Stomping Tantrum | Vanilluxe | 60% | 41% | over | gap |
-| Gholdengo | Flash Cannon | Whimsicott | 100% | 81% | over | gap |
-| Basculegion | Wave Crash | Crabominable-Mega | 28% | 46% | under | gap |
-| Basculegion | Wave Crash | Mawile | 63% | 80% | under | gap |
-| Gholdengo | Flash Cannon | Farigiraf | 45% | 30% | over | gap |
+| Gholdengo | Thunderbolt | Staraptor-Mega | 78% | 15% | over | gap<!-- 2636122437:t3 --> |
+| Gholdengo | Thunderbolt | Staraptor-Mega | 77% | 15% | over | gap<!-- 1bmgkoj1u6d6mmh4jgnjw2pcse4a713pw:t5 --> |
+| Kingambit | Kowtow Cleave | Farigiraf | 100% | 43% | over | gap<!-- 2636137084:t1 --> |
+| Gholdengo | Shadow Ball | Sinistcha-Masterpiece | 81% | 30% | over | gap<!-- 0jll745op03jp7yfuavtkx2xcg5jdh5pw:t1 --> |
+| Kingambit | Kowtow Cleave | Farigiraf | 100% | 50% | over | gap<!-- eocion8emm7sdjch5543m6i9xd213kopw:t1 --> |
+| Kingambit | Kowtow Cleave | Farigiraf | 100% | 50% | over | gap<!-- 2636121650:t1 --> |
+| Venusaur-Mega | Sludge Bomb | Staraptor-Mega | 80% | 32% | over | gap<!-- j32qy5bx1ypkjtbe3blolf7pw10nbflpw:t5 --> |
+| Garchomp | Dragon Claw | Dragapult | 100% | 63% | over | gap<!-- wy0gsk8jev90cv0xn9if1p9widfqsr2pw:t1 --> |
+| Garchomp | Poison Jab | Whimsicott | 100% | 66% | over | gap<!-- 2636099479:t1 --> |
+| Kingambit | Kowtow Cleave | Froslass | 100% | 69% | over | gap<!-- rxn2pdjhaqcnii7on8v6lhuf9a78u0vpw:t1 --> |
+| Garchomp | Poison Jab | Whimsicott | 100% | 70% | over | gap<!-- 2636092305:t1 --> |
+| Gholdengo | Shadow Ball | Annihilape | 90% | 61% | over | gap<!-- 2636153133:t1 --> |
+| Garchomp | Dragon Claw | Staraptor | 35% | 62% | under | gap<!-- 2636131021:t1 --> |
+| Basculegion | Wave Crash | Crabominable-Mega | 28% | 54% | under | gap<!-- 2636137084:t7 --> |
+| Garchomp | Poison Jab | Rotom-Wash | 41% | 16% | over | gap<!-- 2636099479:t3 --> |
+| Kingambit | Kowtow Cleave | Pelipper | 61% | 36% | over | gap<!-- wy0gsk8jev90cv0xn9if1p9widfqsr2pw:t4 --> |
+| Garchomp | Dragon Claw | Sinistcha-Masterpiece | 58% | 33% | over | gap<!-- 2636148433:t7 --> |
+| Kingambit | Low Kick | Kingambit | 59% | 83% | under | gap<!-- 2636094509:t5 --> |
+| Kingambit | Kowtow Cleave | Farigiraf | 100% | 77% | over | gap<!-- 2636093539:t3 --> |
+| Garchomp | Poison Jab | Grimmsnarl | 63% | 42% | over | gap<!-- 2636121650:t1 --> |
+| Garchomp | Stomping Tantrum | Vanilluxe | 60% | 41% | over | gap<!-- 2636126957:t3 --> |
+| Gholdengo | Flash Cannon | Whimsicott | 100% | 81% | over | gap<!-- jtfyaed153cafytf7l8uxb8k7o0rygvpw:t3 --> |
+| Basculegion | Wave Crash | Crabominable-Mega | 28% | 46% | under | gap<!-- 2636137084:t8 --> |
+| Basculegion | Wave Crash | Mawile | 63% | 80% | under | gap<!-- xvr030n8x2f5h7rab5sqgheb2hl7uqnpw:t1 --> |
+| Gholdengo | Flash Cannon | Farigiraf | 45% | 30% | over | gap<!-- 2636129704:t1 --> |
 
 ### Turn order
 *Predicted resolution position (1 = fastest of 4) vs actual, over full 4-move turns. Protect/Endure jumping ahead is excluded.*
@@ -210,7 +210,7 @@ Off-by-2+ misreads (board state at the misread turn; *Predicted* = where we expe
 
 | Turn | my[a] | my[b] | opp[a] | opp[b] | TR | TW | Predicted | Actual order | Disposition |
 |--:|---|---|---|---|:-:|:-:|---|---|---|
-| 1 | Basculegion | Garchomp | Rotom-Wash | Whimsicott | - | - | my[b] 1/4 | opp[b] > opp[a] > my[b] > my[a] | accepted: priority (higher-priority move resolved ahead) |
-| 1 | Venusaur | Garchomp | Whimsicott | Glimmora | - | - | my[b] 1/4 | opp[a] > opp[b] > my[b] > my[a] | accepted: priority (higher-priority move resolved ahead) |
-| 1 | Garchomp | Gholdengo | Grimmsnarl | Annihilape | - | - | my[b] 2/4 | opp[a] > my[a] > opp[b] > my[b] | accepted: priority (higher-priority move resolved ahead) |
-| 2 | Garchomp | Gholdengo | Grimmsnarl | Annihilape | - | - | my[b] 2/4 | opp[a] > my[a] > opp[b] > my[b] | accepted: priority (higher-priority move resolved ahead) |
+| 1 | Basculegion | Garchomp | Rotom-Wash | Whimsicott | - | - | my[b] 1/4 | opp[b] > opp[a] > my[b] > my[a] | accepted: priority (higher-priority move resolved ahead)<!-- 2636099479:t1 --> |
+| 1 | Venusaur | Garchomp | Whimsicott | Glimmora | - | - | my[b] 1/4 | opp[a] > opp[b] > my[b] > my[a] | accepted: priority (higher-priority move resolved ahead)<!-- 2636107949:t1 --> |
+| 1 | Garchomp | Gholdengo | Grimmsnarl | Annihilape | - | - | my[b] 2/4 | opp[a] > my[a] > opp[b] > my[b] | accepted: priority (higher-priority move resolved ahead)<!-- 2636153133:t1 --> |
+| 2 | Garchomp | Gholdengo | Grimmsnarl | Annihilape | - | - | my[b] 2/4 | opp[a] > my[a] > opp[b] > my[b] | accepted: priority (higher-priority move resolved ahead)<!-- 2636153133:t2 --> |
