@@ -68,6 +68,16 @@ def total_battles() -> int:
 
 # ── Public write API ──────────────────────────────────────────────────────────
 
+def reset() -> None:
+    """Clear all accumulated lead stats (writes a blank structure).
+
+    Used to drop a stale prior — e.g. the Reg M-A-derived counts when the
+    ladder rolls to M-B — before reseeding from recent battles
+    (``tools/seed_lead_stats.py``).
+    """
+    _save({"total_battles": 0, "counts": {}})
+
+
 def record_leads(leads: list[str]) -> None:
     """Increment lead counts for each species in *leads* and persist.
 
