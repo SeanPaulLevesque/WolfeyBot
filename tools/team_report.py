@@ -256,17 +256,20 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
     # 1. ROSTER
     stats = roster_stats(games)
     out += ["", "## Roster", "",
-            "Sorted by net (KOs - faints). *WR (brought)* is subject to selection bias.",
+            "Sorted by net (KOs - faints). KDR = KOs/faints (∞ = no faints). "
+            "*WR (brought)* is subject to selection bias.",
             "",
-            "| Mon | Bring | Lead | WR (brought) | KOs | Faints | Net |",
-            "|---|--:|--:|--:|--:|--:|--:|"]
+            "| Mon | Bring | Lead | WR (brought) | KOs | Faints | Net | KDR |",
+            "|---|--:|--:|--:|--:|--:|--:|--:|"]
     for sp in sorted(stats, key=lambda s: -(stats[s]["kos"] - stats[s]["faints"])):
         d = stats[sp]
         gb = d["games_brought"] or 1
         net = d["kos"] - d["faints"]
+        kdr = (f"{d['kos']/d['faints']:.2f}" if d["faints"]
+               else ("∞" if d["kos"] else "0.00"))
         out.append(f"| {sp} | {_pct(d['bring']/nG)} | {_pct(d['lead']/nG)} | "
                    f"{_pct(d['wins_brought']/gb)} | {d['kos']} | {d['faints']} | "
-                   f"{net:+d} |")
+                   f"{net:+d} | {kdr} |")
 
     # 2. MOVE USAGE
     use = move_usage(games)

@@ -70,16 +70,16 @@ Adamant Nature
 
 ## Roster
 
-Sorted by net (KOs - faints). *WR (brought)* is subject to selection bias.
+Sorted by net (KOs - faints). KDR = KOs/faints (∞ = no faints). *WR (brought)* is subject to selection bias.
 
-| Mon | Bring | Lead | WR (brought) | KOs | Faints | Net |
-|---|--:|--:|--:|--:|--:|--:|
-| Gholdengo | 84% | 33% | 53% | 35 | 26 | +9 |
-| Basculegion | 45% | 25% | 43% | 21 | 14 | +7 |
-| Venusaur | 82% | 37% | 50% | 30 | 26 | +4 |
-| Staraptor | 16% | 6% | 50% | 3 | 3 | +0 |
-| Garchomp | 98% | 69% | 52% | 32 | 35 | -3 |
-| Kingambit | 75% | 29% | 53% | 18 | 23 | -5 |
+| Mon | Bring | Lead | WR (brought) | KOs | Faints | Net | KDR |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| Gholdengo | 84% | 33% | 53% | 35 | 26 | +9 | 1.35 |
+| Basculegion | 45% | 25% | 43% | 21 | 14 | +7 | 1.50 |
+| Venusaur | 82% | 37% | 50% | 30 | 26 | +4 | 1.15 |
+| Staraptor | 16% | 6% | 50% | 3 | 3 | +0 | 1.00 |
+| Garchomp | 98% | 69% | 52% | 32 | 35 | -3 | 0.91 |
+| Kingambit | 75% | 29% | 53% | 18 | 23 | -5 | 0.78 |
 
 ## Move usage
 
