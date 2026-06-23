@@ -9,6 +9,10 @@ import json, pathlib
 from typing import Optional
 
 _DATA_FILE = pathlib.Path(__file__).parent / "smogon_champions_slim.json"
+# Champions mega formes (types/stats/ability) — not present in the slim usage
+# file, so kept as a sibling data file and loaded the same way (no hardcoded
+# Python tables; correct any value by editing the JSON).
+_MEGA_FILE = pathlib.Path(__file__).parent / "champions_megas.json"
 
 _SPECIES: dict[str, dict] = {}
 
@@ -52,168 +56,6 @@ _FORM_ALIASES: dict[str, str] = {
     "Meowstic":         "Meowstic-M",
 }
 
-_MEGA_SUPPLEMENTS: dict[str, dict] = {
-    "Abomasnow-Mega":    {"name":"Abomasnow-Mega",    "types":["Grass","Ice"],        "hp":90,  "atk":132,"def":105,"spa":132,"spd":105,"spe":30,  "formats":["OU"]},
-    "Absol-Mega":        {"name":"Absol-Mega",         "types":["Dark"],               "hp":65,  "atk":150,"def":60, "spa":115,"spd":60, "spe":115, "formats":["OU"]},
-    "Aerodactyl-Mega":   {"name":"Aerodactyl-Mega",    "types":["Rock","Flying"],       "hp":80,  "atk":135,"def":85, "spa":70, "spd":95, "spe":150, "formats":["OU"]},
-    "Aggron-Mega":       {"name":"Aggron-Mega",        "types":["Steel"],              "hp":70,  "atk":140,"def":230,"spa":60, "spd":80, "spe":50,  "formats":["OU"]},
-    "Alakazam-Mega":     {"name":"Alakazam-Mega",      "types":["Psychic"],            "hp":55,  "atk":50, "def":65, "spa":175,"spd":105,"spe":150, "formats":["OU"]},
-    "Altaria-Mega":      {"name":"Altaria-Mega",       "types":["Dragon","Fairy"],     "hp":75,  "atk":110,"def":110,"spa":110,"spd":105,"spe":80,  "formats":["OU"]},
-    "Ampharos-Mega":     {"name":"Ampharos-Mega",      "types":["Electric","Dragon"],  "hp":90,  "atk":95, "def":105,"spa":165,"spd":110,"spe":45,  "formats":["OU"]},
-    "Audino-Mega":       {"name":"Audino-Mega",        "types":["Normal","Fairy"],     "hp":103, "atk":60, "def":126,"spa":80, "spd":126,"spe":50,  "formats":["OU"]},
-    "Banette-Mega":      {"name":"Banette-Mega",       "types":["Ghost"],              "hp":64,  "atk":165,"def":75, "spa":93, "spd":83, "spe":75,  "formats":["OU"]},
-    "Beedrill-Mega":     {"name":"Beedrill-Mega",      "types":["Bug","Poison"],       "hp":65,  "atk":150,"def":40, "spa":15, "spd":80, "spe":145, "formats":["OU"]},
-    "Blastoise-Mega":    {"name":"Blastoise-Mega",     "types":["Water"],              "hp":79,  "atk":103,"def":120,"spa":135,"spd":115,"spe":78,  "formats":["OU"]},
-    "Camerupt-Mega":     {"name":"Camerupt-Mega",      "types":["Fire","Ground"],      "hp":70,  "atk":120,"def":100,"spa":145,"spd":105,"spe":20,  "formats":["OU"]},
-    "Chandelure-Mega":   {"name":"Chandelure-Mega",    "types":["Ghost","Fire"],       "hp":60,  "atk":75, "def":110,"spa":175,"spd":110,"spe":90,  "formats":["OU"]},
-    "Charizard-Mega-X":  {"name":"Charizard-Mega-X",   "types":["Fire","Dragon"],      "hp":78,  "atk":130,"def":111,"spa":130,"spd":85, "spe":100, "formats":["OU"]},
-    "Charizard-Mega-Y":  {"name":"Charizard-Mega-Y",   "types":["Fire","Flying"],      "hp":78,  "atk":104,"def":78, "spa":159,"spd":115,"spe":100, "formats":["OU"]},
-    "Chesnaught-Mega":   {"name":"Chesnaught-Mega",    "types":["Grass","Fighting"],   "hp":88,  "atk":137,"def":172,"spa":74, "spd":115,"spe":44,  "formats":["OU"]},
-    "Chimecho-Mega":     {"name":"Chimecho-Mega",      "types":["Psychic","Steel"],    "hp":75,  "atk":50, "def":110,"spa":135,"spd":120,"spe":65,  "formats":["OU"]},
-    "Clefable-Mega":     {"name":"Clefable-Mega",      "types":["Fairy","Flying"],     "hp":95,  "atk":80, "def":93, "spa":135,"spd":110,"spe":70,  "formats":["OU"]},
-    "Crabominable-Mega": {"name":"Crabominable-Mega",  "types":["Normal","Dragon"],    "hp":97,  "atk":157,"def":122,"spa":62, "spd":107,"spe":33,  "formats":["OU"]},
-    "Delphox-Mega":      {"name":"Delphox-Mega",       "types":["Fire","Psychic"],     "hp":75,  "atk":69, "def":72, "spa":159,"spd":125,"spe":134, "formats":["OU"]},
-    "Drampa-Mega":       {"name":"Drampa-Mega",        "types":["Grass","Fire"],       "hp":78,  "atk":85, "def":110,"spa":160,"spd":116,"spe":36,  "formats":["OU"]},
-    "Dragonite-Mega":    {"name":"Dragonite-Mega",     "types":["Dragon","Flying"],    "hp":91,  "atk":124,"def":115,"spa":145,"spd":125,"spe":100, "formats":["OU"]},
-    "Emboar-Mega":       {"name":"Emboar-Mega",        "types":["Fire","Fighting"],    "hp":110, "atk":148,"def":75, "spa":110,"spd":110,"spe":75,  "formats":["OU"]},
-    "Excadrill-Mega":    {"name":"Excadrill-Mega",     "types":["Ground","Steel"],     "hp":110, "atk":165,"def":100,"spa":65, "spd":65, "spe":103, "formats":["OU"]},
-    "Feraligatr-Mega":   {"name":"Feraligatr-Mega",    "types":["Water","Dragon"],     "hp":85,  "atk":160,"def":125,"spa":89, "spd":93, "spe":78,  "formats":["OU"]},
-    "Floette-Mega":      {"name":"Floette-Mega",       "types":["Fairy"],              "hp":74,  "atk":85, "def":87, "spa":155,"spd":148,"spe":102, "formats":["OU"]},
-    "Froslass-Mega":     {"name":"Froslass-Mega",      "types":["Ice","Ghost"],        "hp":70,  "atk":80, "def":70, "spa":140,"spd":100,"spe":120, "formats":["OU"]},
-    "Gallade-Mega":      {"name":"Gallade-Mega",       "types":["Psychic","Fighting"], "hp":68,  "atk":165,"def":95, "spa":65, "spd":115,"spe":110, "formats":["OU"]},
-    "Garchomp-Mega":     {"name":"Garchomp-Mega",      "types":["Dragon","Ground"],    "hp":108, "atk":170,"def":115,"spa":120,"spd":95, "spe":92,  "formats":["OU"]},
-    "Gardevoir-Mega":    {"name":"Gardevoir-Mega",     "types":["Psychic","Fairy"],    "hp":68,  "atk":85, "def":65, "spa":165,"spd":135,"spe":100, "formats":["OU"]},
-    "Gengar-Mega":       {"name":"Gengar-Mega",        "types":["Ghost","Poison"],     "hp":60,  "atk":65, "def":80, "spa":170,"spd":95, "spe":130, "formats":["OU"]},
-    "Glalie-Mega":       {"name":"Glalie-Mega",        "types":["Ice"],                "hp":80,  "atk":120,"def":80, "spa":120,"spd":80, "spe":100, "formats":["OU"]},
-    "Glimmora-Mega":     {"name":"Glimmora-Mega",      "types":["Rock","Poison"],      "hp":83,  "atk":90, "def":105,"spa":150,"spd":96, "spe":101, "formats":["OU"]},
-    "Golurk-Mega":       {"name":"Golurk-Mega",        "types":["Ground","Ghost"],     "hp":89,  "atk":159,"def":105,"spa":70, "spd":105,"spe":55,  "formats":["OU"]},
-    "Greninja-Mega":     {"name":"Greninja-Mega",      "types":["Water","Dark"],       "hp":72,  "atk":125,"def":77, "spa":133,"spd":81, "spe":142, "formats":["OU"]},
-    "Gyarados-Mega":     {"name":"Gyarados-Mega",      "types":["Water","Dark"],       "hp":95,  "atk":155,"def":109,"spa":70, "spd":130,"spe":81,  "formats":["OU"]},
-    "Hawlucha-Mega":     {"name":"Hawlucha-Mega",      "types":["Fighting","Ice"],     "hp":78,  "atk":137,"def":100,"spa":74, "spd":93, "spe":118, "formats":["OU"]},
-    "Heracross-Mega":    {"name":"Heracross-Mega",     "types":["Bug","Fighting"],     "hp":80,  "atk":185,"def":115,"spa":40, "spd":105,"spe":75,  "formats":["OU"]},
-    "Houndoom-Mega":     {"name":"Houndoom-Mega",      "types":["Dark","Fire"],        "hp":75,  "atk":90, "def":90, "spa":140,"spd":90, "spe":115, "formats":["OU"]},
-    "Kangaskhan-Mega":   {"name":"Kangaskhan-Mega",    "types":["Normal"],             "hp":105, "atk":125,"def":100,"spa":60, "spd":100,"spe":100, "formats":["OU"]},
-    "Lopunny-Mega":      {"name":"Lopunny-Mega",       "types":["Normal","Fighting"],  "hp":65,  "atk":136,"def":94, "spa":54, "spd":96, "spe":135, "formats":["OU"]},
-    "Lucario-Mega":      {"name":"Lucario-Mega",       "types":["Fighting","Steel"],   "hp":70,  "atk":145,"def":88, "spa":140,"spd":70, "spe":112, "formats":["OU"]},
-    "Manectric-Mega":    {"name":"Manectric-Mega",     "types":["Electric"],           "hp":70,  "atk":75, "def":80, "spa":135,"spd":80, "spe":135, "formats":["OU"]},
-    "Medicham-Mega":     {"name":"Medicham-Mega",      "types":["Fighting","Psychic"], "hp":60,  "atk":100,"def":85, "spa":80, "spd":85, "spe":100, "formats":["OU"]},
-    "Meganium-Mega":     {"name":"Meganium-Mega",      "types":["Grass","Fairy"],      "hp":80,  "atk":92, "def":115,"spa":143,"spd":115,"spe":80,  "formats":["OU"]},
-    "Meowstic-F-Mega":   {"name":"Meowstic-F-Mega",   "types":["Fighting","Flying"],  "hp":74,  "atk":48, "def":76, "spa":83, "spd":81, "spe":104, "formats":["OU"]},
-    "Meowstic-M-Mega":   {"name":"Meowstic-M-Mega",   "types":["Psychic"],            "hp":74,  "atk":48, "def":76, "spa":143,"spd":101,"spe":124, "formats":["OU"]},
-    "Pidgeot-Mega":      {"name":"Pidgeot-Mega",       "types":["Normal","Flying"],    "hp":83,  "atk":80, "def":80, "spa":135,"spd":80, "spe":121, "formats":["OU"]},
-    "Pinsir-Mega":       {"name":"Pinsir-Mega",        "types":["Bug","Flying"],       "hp":65,  "atk":155,"def":120,"spa":65, "spd":90, "spe":105, "formats":["OU"]},
-    "Sableye-Mega":      {"name":"Sableye-Mega",       "types":["Dark","Ghost"],       "hp":50,  "atk":85, "def":125,"spa":85, "spd":115,"spe":20,  "formats":["OU"]},
-    "Scizor-Mega":       {"name":"Scizor-Mega",        "types":["Bug","Steel"],        "hp":70,  "atk":150,"def":140,"spa":65, "spd":100,"spe":75,  "formats":["OU"]},
-    "Scovillain-Mega":   {"name":"Scovillain-Mega",    "types":["Rock","Poison"],      "hp":65,  "atk":138,"def":85, "spa":138,"spd":85, "spe":75,  "formats":["OU"]},
-    "Sharpedo-Mega":     {"name":"Sharpedo-Mega",      "types":["Water","Dark"],       "hp":70,  "atk":140,"def":70, "spa":110,"spd":65, "spe":105, "formats":["OU"]},
-    "Skarmory-Mega":     {"name":"Skarmory-Mega",      "types":["Steel","Flying"],     "hp":65,  "atk":140,"def":110,"spa":40, "spd":100,"spe":110, "formats":["OU"]},
-    "Slowbro-Mega":      {"name":"Slowbro-Mega",       "types":["Water","Psychic"],    "hp":95,  "atk":75, "def":180,"spa":130,"spd":80, "spe":30,  "formats":["OU"]},
-    "Starmie-Mega":      {"name":"Starmie-Mega",       "types":["Water","Psychic"],    "hp":60,  "atk":100,"def":105,"spa":130,"spd":105,"spe":120, "formats":["OU"]},
-    "Steelix-Mega":      {"name":"Steelix-Mega",       "types":["Steel","Ground"],     "hp":75,  "atk":125,"def":230,"spa":55, "spd":95, "spe":30,  "formats":["OU"]},
-    "Tyranitar-Mega":    {"name":"Tyranitar-Mega",     "types":["Rock","Dark"],        "hp":100, "atk":164,"def":150,"spa":95, "spd":120,"spe":71,  "formats":["OU"]},
-    "Venusaur-Mega":     {"name":"Venusaur-Mega",      "types":["Grass","Poison"],     "hp":80,  "atk":100,"def":123,"spa":122,"spd":120,"spe":80,  "formats":["OU"]},
-    "Victreebel-Mega":   {"name":"Victreebel-Mega",    "types":["Grass","Poison"],     "hp":80,  "atk":125,"def":85, "spa":135,"spd":95, "spe":70,  "formats":["OU"]},
-    # ── Regulation M-B (2026-06-17) — new official megas ─────────────────────
-    "Raichu-Mega-X":     {"name":"Raichu-Mega-X",      "types":["Electric"],           "hp":60,  "atk":135,"def":95, "spa":90, "spd":95, "spe":110, "formats":["Champions"]},
-    "Raichu-Mega-Y":     {"name":"Raichu-Mega-Y",      "types":["Electric"],           "hp":60,  "atk":100,"def":55, "spa":160,"spd":80, "spe":130, "formats":["Champions"]},
-    "Sceptile-Mega":     {"name":"Sceptile-Mega",      "types":["Grass","Dragon"],     "hp":70,  "atk":110,"def":75, "spa":145,"spd":85, "spe":145, "formats":["Champions"]},
-    "Blaziken-Mega":     {"name":"Blaziken-Mega",      "types":["Fire","Fighting"],    "hp":80,  "atk":160,"def":80, "spa":130,"spd":80, "spe":100, "formats":["Champions"]},
-    "Swampert-Mega":     {"name":"Swampert-Mega",      "types":["Water","Ground"],     "hp":100, "atk":150,"def":110,"spa":95, "spd":110,"spe":70,  "formats":["Champions"]},
-    "Mawile-Mega":       {"name":"Mawile-Mega",        "types":["Steel","Fairy"],      "hp":50,  "atk":105,"def":125,"spa":55, "spd":95, "spe":50,  "formats":["Champions"]},
-    "Metagross-Mega":    {"name":"Metagross-Mega",     "types":["Steel","Psychic"],    "hp":80,  "atk":145,"def":150,"spa":105,"spd":110,"spe":110, "formats":["Champions"]},
-    "Staraptor-Mega":    {"name":"Staraptor-Mega",     "types":["Fighting","Flying"],  "hp":85,  "atk":140,"def":100,"spa":60, "spd":90, "spe":110, "formats":["Champions"]},
-    "Scolipede-Mega":    {"name":"Scolipede-Mega",     "types":["Bug","Poison"],       "hp":60,  "atk":140,"def":149,"spa":75, "spd":99, "spe":62,  "formats":["Champions"]},
-    "Scrafty-Mega":      {"name":"Scrafty-Mega",       "types":["Dark","Fighting"],    "hp":65,  "atk":130,"def":135,"spa":55, "spd":135,"spe":68,  "formats":["Champions"]},
-    "Eelektross-Mega":   {"name":"Eelektross-Mega",    "types":["Electric"],           "hp":85,  "atk":145,"def":80, "spa":135,"spd":90, "spe":80,  "formats":["Champions"]},
-    "Pyroar-Mega":       {"name":"Pyroar-Mega",        "types":["Fire","Normal"],      "hp":86,  "atk":88, "def":92, "spa":129,"spd":86, "spe":126, "formats":["Champions"]},
-    "Malamar-Mega":      {"name":"Malamar-Mega",       "types":["Dark","Psychic"],     "hp":86,  "atk":102,"def":88, "spa":98, "spd":120,"spe":88,  "formats":["Champions"]},
-    "Barbaracle-Mega":   {"name":"Barbaracle-Mega",    "types":["Rock","Fighting"],    "hp":72,  "atk":140,"def":130,"spa":64, "spd":106,"spe":88,  "formats":["Champions"]},
-    "Dragalge-Mega":     {"name":"Dragalge-Mega",      "types":["Poison","Dragon"],    "hp":65,  "atk":85, "def":105,"spa":132,"spd":163,"spe":44,  "formats":["Champions"]},
-    "Falinks-Mega":      {"name":"Falinks-Mega",       "types":["Fighting"],           "hp":65,  "atk":135,"def":135,"spa":70, "spd":65, "spe":100, "formats":["Champions"]},
-}
-
-
-# Mega-evolution abilities (Champions format).
-# Keyed by the same mega form names used in _MEGA_SUPPLEMENTS.
-_MEGA_ABILITY_SUPPLEMENTS: dict[str, str] = {
-    "Abomasnow-Mega":    "Snow Warning",
-    "Absol-Mega":        "Magic Bounce",
-    "Aerodactyl-Mega":   "Tough Claws",
-    "Aggron-Mega":       "Filter",
-    "Alakazam-Mega":     "Trace",
-    "Altaria-Mega":      "Pixilate",
-    "Ampharos-Mega":     "Mold Breaker",
-    "Audino-Mega":       "Healer",
-    "Banette-Mega":      "Prankster",
-    "Beedrill-Mega":     "Adaptability",
-    "Blastoise-Mega":    "Mega Launcher",
-    "Camerupt-Mega":     "Sheer Force",
-    "Chandelure-Mega":   "Infiltrator",
-    "Charizard-Mega-X":  "Tough Claws",
-    "Charizard-Mega-Y":  "Drought",
-    "Chesnaught-Mega":   "Bulletproof",
-    "Chimecho-Mega":     "Levitate",
-    "Clefable-Mega":     "Magic Bounce",
-    "Crabominable-Mega": "Iron Fist",
-    "Delphox-Mega":      "Levitate",
-    "Drampa-Mega":       "Berserk",
-    "Dragonite-Mega":    "Multiscale",
-    "Emboar-Mega":       "Mold Breaker",
-    "Excadrill-Mega":    "Piercing Drill",
-    "Feraligatr-Mega":   "Dragonize",
-    "Floette-Mega":      "Fairy Aura",
-    "Froslass-Mega":     "Snow Warning",
-    "Gallade-Mega":      "Inner Focus",
-    "Garchomp-Mega":     "Sand Force",
-    "Gardevoir-Mega":    "Pixilate",
-    "Gengar-Mega":       "Shadow Tag",
-    "Glalie-Mega":       "Refrigerate",
-    "Glimmora-Mega":     "Adaptability",
-    "Golurk-Mega":       "Unseen Fist",
-    "Greninja-Mega":     "Protean",
-    "Gyarados-Mega":     "Mold Breaker",
-    "Hawlucha-Mega":     "No Guard",
-    "Heracross-Mega":    "Skill Link",
-    "Houndoom-Mega":     "Solar Power",
-    "Kangaskhan-Mega":   "Parental Bond",
-    "Lopunny-Mega":      "Scrappy",
-    "Lucario-Mega":      "Adaptability",
-    "Manectric-Mega":    "Intimidate",
-    "Medicham-Mega":     "Pure Power",
-    "Meganium-Mega":     "Mega Sol",
-    "Meowstic-F-Mega":   "Trace",
-    "Meowstic-M-Mega":   "Trace",
-    "Pidgeot-Mega":      "No Guard",
-    "Pinsir-Mega":       "Aerilate",
-    "Sableye-Mega":      "Magic Bounce",
-    "Scizor-Mega":       "Technician",
-    "Scovillain-Mega":   "Spicy Spray",
-    "Sharpedo-Mega":     "Strong Jaw",
-    "Skarmory-Mega":     "Stalwart",
-    "Slowbro-Mega":      "Shell Armor",
-    "Starmie-Mega":      "Huge Power",
-    "Steelix-Mega":      "Sand Force",
-    "Tyranitar-Mega":    "Sand Stream",
-    "Venusaur-Mega":     "Thick Fat",
-    "Victreebel-Mega":   "Innards Out",
-    # ── Regulation M-B (2026-06-17) ──────────────────────────────────────────
-    "Raichu-Mega-X":     "Electric Surge",
-    "Raichu-Mega-Y":     "No Guard",
-    "Sceptile-Mega":     "Lightning Rod",
-    "Blaziken-Mega":     "Speed Boost",
-    "Swampert-Mega":     "Swift Swim",
-    "Mawile-Mega":       "Huge Power",
-    "Metagross-Mega":    "Tough Claws",
-    "Staraptor-Mega":    "Contrary",
-    "Scolipede-Mega":    "Shell Armor",
-    "Scrafty-Mega":      "Intimidate",
-    "Eelektross-Mega":   "Eelevate",
-    "Pyroar-Mega":       "Fire Mane",
-    "Malamar-Mega":      "Contrary",
-    "Barbaracle-Mega":   "Tough Claws",
-    "Dragalge-Mega":     "Regenerator",
-    "Falinks-Mega":      "Defiant",
-}
 
 
 def _load() -> None:
@@ -223,10 +65,12 @@ def _load() -> None:
     with open(_DATA_FILE, encoding="utf-8") as f:
         raw: list[dict] = json.load(f)
     _SPECIES = {entry["name"]: entry for entry in raw}
-    # Merge mega supplements (not present in slim JSON)
-    for name, entry in _MEGA_SUPPLEMENTS.items():
-        if name not in _SPECIES:
-            _SPECIES[name] = entry
+    # Merge Champions mega formes from their data file (not in the slim JSON).
+    # Same schema as base species (types/stats/abilities), so all lookups —
+    # types_of, base_stats, ability_of — resolve them through the normal path.
+    with open(_MEGA_FILE, encoding="utf-8") as f:
+        for entry in json.load(f):
+            _SPECIES.setdefault(entry["name"], entry)
 
 
 # ── Public API ───────────────────────────────────────────────────────────────
@@ -301,12 +145,11 @@ def types_of(name: str) -> Optional[list[str]]:
 def ability_of(name: str) -> Optional[str]:
     """Return the primary ability for a species, or None if unknown.
 
-    For mega forms, returns the Champions-format mega ability from
-    ``_MEGA_ABILITY_SUPPLEMENTS``.  For base forms, returns the first entry
-    in the species' ability list (the most common / default ability).
+    Returns the first entry in the species' ability list (the most common /
+    default ability).  Mega formes carry their Champions mega ability as the
+    sole entry in that list (from ``champions_megas.json``), so they resolve
+    through the same path as base forms.
     """
-    if name in _MEGA_ABILITY_SUPPLEMENTS:
-        return _MEGA_ABILITY_SUPPLEMENTS[name]
     entry = get_species(name)
     if entry is None:
         return None

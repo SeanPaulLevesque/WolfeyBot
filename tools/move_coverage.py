@@ -22,7 +22,7 @@ if str(_REPO) not in sys.path:
 
 from data.moves import get_move                       # noqa: E402
 from data.sets import all_pokemon, move_distribution  # noqa: E402
-from data.species import get_species, _MEGA_SUPPLEMENTS, _load  # noqa: E402
+from data.species import all_species, _load  # noqa: E402
 
 
 def main(argv=None) -> None:
@@ -63,10 +63,7 @@ def main(argv=None) -> None:
     # pre-existing low-usage mons so the actionable set (new mons needing
     # hand-compiled usage) is clear.
     new_no_usage, old_no_usage = [], []
-    for n, e in sorted(((s["name"], s) for s in [get_species(x) for x in
-                        {se["name"] for se in __import__("json").load(
-                            open(_REPO / "data" / "smogon_champions_slim.json", encoding="utf-8"))}
-                        | set(_MEGA_SUPPLEMENTS)] if s)):
+    for n, e in sorted(all_species().items()):
         if n in with_usage:
             continue
         (new_no_usage if e.get("formats") == ["Champions"] else old_no_usage).append(n)

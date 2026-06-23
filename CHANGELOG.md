@@ -44,6 +44,27 @@ shadowed the gap-filled supplement.
 - Result: `assumed_forme("Raichu") → Raichu-Mega-Y`, data-driven (flips if the
   X/Y shares ever reverse). Turn-1 snapshot baseline **unchanged**; full suite green.
 
+### De-hardcode Champions mega data + fix 5 mangled typings
+
+The mega formes' types/stats/abilities lived in two hand-maintained Python
+dicts in `species.py` (`_MEGA_SUPPLEMENTS`, `_MEGA_ABILITY_SUPPLEMENTS`), and
+several typings were wrong (surfaced while chasing a Basculegion→Crabominable
+under-prediction: the data said Crabominable-Mega was Normal/Dragon).
+
+- New data file `data/champions_megas.json` (76 megas, same schema as the slim
+  species file: types/stats/`abilities`). `species.py` loads it in `_load`
+  alongside the slim file; the two hardcoded dicts and the `ability_of`
+  mega special-case are **deleted** — megas now resolve through the same
+  `get_species`/`types_of`/`base_stats`/`ability_of` path as every base species.
+- Typings corrected against the authoritative Smogon/Serebii Champions dex:
+  Crabominable-Mega Normal/Dragon→**Ice/Fighting**, Hawlucha-Mega
+  Fighting/Ice→**Fighting/Flying**, Drampa-Mega Grass/Fire→**Normal/Dragon**,
+  Meowstic-F-Mega Fighting/Flying→**Psychic**, Scovillain-Mega
+  Rock/Poison→**Fire/Grass**. Stats/abilities were already correct.
+- `tools/move_coverage.py` updated to enumerate megas via `all_species()`.
+- Turn-1 snapshot unchanged (none of the 5 retyped megas alter a turn-1
+  decision); full suite green.
+
 ### Unify own-side item reads behind `_our_item`
 
 Folds in the 0.21.x follow-ups (no version bump until now): a single
