@@ -107,6 +107,13 @@ def roster_stats(games):
                 stats[sp]["wins_brought"] += 1
         for sp in leads:
             stats[sp]["lead"] += 1
+        # Faint detection (once per game per mon).  A fainted mon is replaced by
+        # its switch-in before the next decision snapshot, so scanning `my` for
+        # hp<=0 almost never catches it — count faints the same way KOs are
+        # counted: an *incoming* hit that removed our mon's remaining HP
+        # (d >= h0).  The hp<=0 snapshot is kept as a fallback for the rarer
+        # residual/recoil faints (no attacker event) that linger in a
+        # force-switch snapshot.
         fainted_seen = set()
         for t in turns:
             for m in t.get("my", []):
@@ -116,11 +123,16 @@ def roster_stats(games):
                         stats[sp]["faints"] += 1
                         fainted_seen.add(sp)
             for e in t.get("ev", []):
-                if e.get("sd") != "us":
-                    continue
                 d, h0 = e.get("d"), e.get("h0")
-                if d is not None and h0 and d >= h0 - 0.02:
-                    stats[base_forme(e.get("a"))]["kos"] += 1
+                lethal = d is not None and h0 and d >= h0 - 0.02
+                if e.get("sd") == "us":
+                    if lethal:
+                        stats[base_forme(e.get("a"))]["kos"] += 1
+                elif e.get("sd") == "opp" and lethal:
+                    sp = base_forme(e.get("tg"))
+                    if sp not in fainted_seen:
+                        stats[sp]["faints"] += 1
+                        fainted_seen.add(sp)
     return dict(stats)
 
 

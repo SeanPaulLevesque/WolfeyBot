@@ -85,6 +85,24 @@ class TestRosterStats:
         ]}
         assert roster_stats([g])["Sneasler"]["faints"] == 1
 
+    def test_faint_from_incoming_ko_when_never_seen_at_zero_hp(self):
+        # The real-log case: a fainted mon is replaced by its switch-in before
+        # the next decision snapshot, so it is NEVER observed at hp<=0.  The
+        # faint must still be counted, from the incoming lethal hit (d >= h0) —
+        # symmetric to KO attribution.  (Regression: Basculegion read 0 faints
+        # across 23 games it was brought to.)
+        g = {"outcome": "loss", "turns": [
+            _turn(my=[{"s": "Basculegion", "hp": 0.4}, {"s": "Garchomp", "hp": 1.0}],
+                  team=[{"s": "Basculegion"}, {"s": "Garchomp"}],
+                  ev=[{"o": 0, "sd": "opp", "a": "Whimsicott", "mv": "Moonblast",
+                       "tg": "Basculegion", "h0": 0.4, "d": 0.55}]),
+            # next snapshot already shows the switch-in, not the 0-HP Basculegion
+            _turn(my=[{"s": "Venusaur", "hp": 1.0}, {"s": "Garchomp", "hp": 1.0}]),
+        ]}
+        s = roster_stats([g])
+        assert s["Basculegion"]["faints"] == 1
+        assert "Whimsicott" not in s   # opp attacker is never credited in our roster
+
 
 class TestMoveUsage:
     def test_counts_chosen_moves_excluding_switches(self):

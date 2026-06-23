@@ -74,12 +74,12 @@ Sorted by net (KOs - faints). *WR (brought)* is subject to selection bias.
 
 | Mon | Bring | Lead | WR (brought) | KOs | Faints | Net |
 |---|--:|--:|--:|--:|--:|--:|
-| Gholdengo | 84% | 33% | 53% | 35 | 5 | +30 |
-| Garchomp | 98% | 69% | 52% | 32 | 6 | +26 |
-| Venusaur | 82% | 37% | 50% | 30 | 5 | +25 |
-| Basculegion | 45% | 25% | 43% | 21 | 0 | +21 |
-| Kingambit | 75% | 29% | 53% | 18 | 9 | +9 |
-| Staraptor | 16% | 6% | 50% | 3 | 1 | +2 |
+| Gholdengo | 84% | 33% | 53% | 35 | 26 | +9 |
+| Basculegion | 45% | 25% | 43% | 21 | 14 | +7 |
+| Venusaur | 82% | 37% | 50% | 30 | 26 | +4 |
+| Staraptor | 16% | 6% | 50% | 3 | 3 | +0 |
+| Garchomp | 98% | 69% | 52% | 32 | 35 | -3 |
+| Kingambit | 75% | 29% | 53% | 18 | 23 | -5 |
 
 ## Move usage
 
