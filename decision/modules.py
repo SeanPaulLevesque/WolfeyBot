@@ -30,6 +30,7 @@ from data import (
     base_forme as _base_forme,
     mega_stones as _mega_stones,
     mega_forme_for_stone as _mega_forme_for_stone,
+    population_move_users as _population_move_users,
     SPEED_BOOST_ITEMS as _SPEED_BOOST_ITEMS,
     note_gap as _note_gap,
 )
@@ -1662,63 +1663,21 @@ class FakeOutModule(ScoringModule):
                 )
 
 
-# Species that commonly run Trick Room in the Champions format (≥40% TR usage
-# in the gen9championsvgc2026regma usage stats).  Base (non-mega) names only —
-# membership is checked via _is_tr_setter → _modeled_forme (infer forme, then
-# mega-normalise), so mega forms match without a "-Mega" duplicate.  Regional
-# formes (Slowbro-Galar, Gourgeist-Super) are distinct species and stay listed.
+# Trick Room / Tailwind setters — derived from Champions usage data
+# (population-weighted ≥ threshold of a base forme's population), not hand lists,
+# so they stay complete and self-update with the stats.  Base names only
+# (population_move_users keys by base_forme); membership is checked via
+# _is_tr_setter / _is_tw_setter → _modeled_forme (infer forme, then
+# base_forme-normalise), so mega forms match without a "-Mega" duplicate.
 # Guarded by test_no_mega_entries_in_species_sets.
-_TR_SETTER_SPECIES: frozenset[str] = frozenset({
-    "Armarouge",
-    "Aromatisse",
-    "Audino",
-    "Chandelure",
-    "Chimecho",
-    "Cofagrigus",
-    "Espeon",
-    "Farigiraf",
-    "Gallade",
-    "Gardevoir",
-    "Gengar",
-    "Gourgeist-Super",
-    "Hatterene",
-    "Mimikyu",
-    "Mr. Rime",
-    "Oranguru",
-    "Reuniclus",
-    "Runerigus",
-    "Sinistcha",
-    "Slowbro", "Slowbro-Galar",
-    "Slowking", "Slowking-Galar",
-    "Spiritomb",
-    "Trevenant",
-    "Wyrdeer",
-})
-
-# Species that commonly run Tailwind in the Champions format (≥20% TW usage in
-# the gen9championsvgc2026regma usage stats).  Base (non-mega) names only — see
-# _TR_SETTER_SPECIES.  Whimsicott and Talonflame are listed here AND filtered out
-# by _tw_setter_has_priority because their Tailwind always has +1 priority and
-# cannot be denied.
-_TAILWIND_SETTER_SPECIES: frozenset[str] = frozenset({
-    "Aerodactyl",
-    "Altaria",
-    "Corviknight",
-    "Decidueye",
-    "Dragonite",
-    "Gliscor",
-    "Hydreigon",
-    "Kleavor",
-    "Noivern",
-    "Pelipper",
-    "Pidgeot",
-    "Skarmory",
-    "Talonflame",        # Gale Wings at full HP → filtered by _tw_setter_has_priority
-    "Toucannon",
-    "Vivillon", "Vivillon-Fancy", "Vivillon-Pokeball",
-    "Volcarona",
-    "Whimsicott",        # Prankster → filtered by _tw_setter_has_priority
-})
+#
+# TW note: priority-Tailwind setters (Talonflame's Gale Wings, Whimsicott's
+# Prankster) remain in the derived set and are filtered downstream by
+# _tw_setter_has_priority, which is where the "cannot be denied" logic lives.
+_TR_SETTER_MIN_PCT = 40.0
+_TAILWIND_SETTER_MIN_PCT = 20.0
+_TR_SETTER_SPECIES: frozenset[str] = _population_move_users("Trick Room", _TR_SETTER_MIN_PCT)
+_TAILWIND_SETTER_SPECIES: frozenset[str] = _population_move_users("Tailwind", _TAILWIND_SETTER_MIN_PCT)
 
 
 def _tw_setter_has_priority(opp: "Pokemon") -> bool:

@@ -428,6 +428,33 @@ def move_distribution(name: str) -> list[tuple[str, float]]:
     return list(d["moves"]) if d else []
 
 
+def population_move_users(move: str, min_pct: float) -> frozenset[str]:
+    """Base-formes whose **population-weighted** usage of *move* is ≥ *min_pct*.
+
+    Replaces the hand-maintained ``_FAKE_OUT_USERS`` / ``_TR_SETTER_SPECIES`` /
+    ``_TAILWIND_SETTER_SPECIES`` frozensets: derives them straight from the usage
+    data so they are complete and self-update when stats refresh.
+
+    For each species the move's usage pct is weighted by its ``raw_count`` and
+    aggregated per :func:`base_forme` (so Charizard / Charizard-Mega-Y share one
+    "Charizard" tally — mirrors :func:`assumed_forme`'s population weighting).
+    The result holds **base names only**, matching how the engine's membership
+    predicates normalise an on-field mon (``base_forme(modeled_forme)``).
+    """
+    _load()
+    num: dict[str, float] = {}
+    den: dict[str, float] = {}
+    for name, entry in _SETS.items():
+        rc = entry.get("raw_count", 0) or 0
+        if rc <= 0:
+            continue
+        pct = dict(entry["moves"]).get(move, 0.0)
+        b = base_forme(name)
+        num[b] = num.get(b, 0.0) + rc * pct
+        den[b] = den.get(b, 0.0) + rc
+    return frozenset(b for b in num if den[b] > 0 and num[b] / den[b] >= min_pct)
+
+
 def teammate_distribution(name: str) -> list[tuple[str, float]]:
     """Return ``[(teammate_name, pct), …]`` sorted descending, or ``[]``."""
     d = get_sets(name)

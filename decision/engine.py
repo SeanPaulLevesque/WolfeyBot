@@ -29,6 +29,7 @@ from dataclasses import dataclass, field
 from typing import Optional, TYPE_CHECKING
 
 from data.moves import needs_target, is_spread_move
+from data import population_move_users
 
 if TYPE_CHECKING:
     from battle import BattleState, Pokemon
@@ -44,40 +45,15 @@ _PROTECT_MOVES = frozenset({
 
 # Species that can use Fake Out (priority +3, flinches target, first-turn only).
 # Used by FakeOutModule to detect when a fresh switch-in poses a flinch threat.
-# Derived from Champions format usage data (sets-gen9championsvgc2026regma).
-# Both pre-mega and mega forms are listed because the engine checks the current
-# species name, which may be either form depending on whether mega-evolution
-# has occurred yet this battle.
-# Base (non-mega) names only.  Membership is always checked through
-# ``decision.modules._is_fake_out_user`` → ``_modeled_forme`` (infer forme, then
-# ``base_forme`` mega-normalise), so a pre- or post-mega Kangaskhan/Lopunny/etc.
-# both match without listing a "-Mega" duplicate here.  Regional/gender formes
-# (Raichu-Alola, Meowstic-M/F) are distinct species and stay listed explicitly.
+# Species that commonly carry Fake Out — derived from Champions usage data
+# (population-weighted ≥ _FAKE_OUT_MIN_PCT of a base forme's population), not a
+# hand-maintained list, so it stays complete and self-updates with the stats.
+# Holds base names only (population_move_users keys by base_forme); membership is
+# checked through ``decision.modules._is_fake_out_user`` → ``_modeled_forme``
+# (infer forme, then base_forme-normalise), so pre-/post-mega both match.
 # Guarded by test_no_mega_entries_in_species_sets.
-_FAKE_OUT_USERS = frozenset({
-    "Blastoise",
-    "Incineroar",
-    "Infernape",
-    "Kangaskhan",
-    "Liepard",
-    "Lopunny",
-    "Medicham",
-    # Showdown's species string for the male is plain "Meowstic" — the bare
-    # name must be present or the on-field membership check never matches
-    # (62% of Meowstic carry Fake Out; audit 0.7.6).
-    "Meowstic", "Meowstic-M", "Meowstic-F",
-    "Morpeko",
-    "Mr. Rime",
-    "Pikachu",
-    "Raichu", "Raichu-Alola",
-    "Sableye",
-    "Salazzle",
-    "Simipour",
-    "Sneasler",
-    "Tinkaton",
-    "Toxicroak",
-    "Weavile",
-})
+_FAKE_OUT_MIN_PCT = 30.0
+_FAKE_OUT_USERS = population_move_users("Fake Out", _FAKE_OUT_MIN_PCT)
 
 
 # ── Core data types ───────────────────────────────────────────────────────────

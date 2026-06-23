@@ -40,7 +40,7 @@ from .sets import (
     default_mega_forme,
     spread_distribution, item_distribution,
     ability_distribution, move_distribution,
-    teammate_distribution,
+    teammate_distribution, population_move_users,
     parse_spread, all_pokemon,
 )
 
@@ -100,7 +100,7 @@ __all__ = [
     "default_mega_forme",
     "spread_distribution", "item_distribution",
     "ability_distribution", "move_distribution",
-    "teammate_distribution",
+    "teammate_distribution", "population_move_users",
     "parse_spread", "all_pokemon",
     # diagnostics
     "note_gap", "drain_gaps",

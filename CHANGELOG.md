@@ -65,6 +65,26 @@ under-prediction: the data said Crabominable-Mega was Normal/Dragon).
 - Turn-1 snapshot unchanged (none of the 5 retyped megas alter a turn-1
   decision); full suite green.
 
+### De-hardcode Fake-Out / TR / Tailwind setter sets (data-derived)
+
+The three species frozensets (`_FAKE_OUT_USERS` in engine.py, `_TR_SETTER_SPECIES`
+/ `_TAILWIND_SETTER_SPECIES` in modules.py) were hand-maintained and had drifted
+out of date (e.g. Fake Out was missing Scrafty). Replaced with a single data-layer
+helper `data.population_move_users(move, min_pct)` — the **population-weighted**
+(by `raw_count`, aggregated per `base_forme`) set of species running a move ≥ a
+threshold — so the sets are complete and self-update with the usage stats.
+
+- `_FAKE_OUT_USERS = population_move_users("Fake Out", 30.0)`,
+  `_TR_SETTER_SPECIES = (… "Trick Room", 40.0)`,
+  `_TAILWIND_SETTER_SPECIES = (… "Tailwind", 20.0)`. Thresholds are the only
+  remaining tuning knobs.
+- Behavior deltas vs the old hand lists, all correct: **+Scrafty** (Fake Out, was
+  missing); **−Gengar** (TR, pop-weighted <40% — Gengar-Mega ~0% TR, per the
+  0.7.6 audit); **−Vivillon-Fancy/-Pokeball** (TW cosmetic formes with no
+  qualifying usage; base Vivillon still qualifies).
+- Turn-1 snapshot byte-identical; full suite green (incl.
+  test_no_mega_entries_in_species_sets — derived sets are base-name keyed).
+
 ### Unify own-side item reads behind `_our_item`
 
 Folds in the 0.21.x follow-ups (no version bump until now): a single
