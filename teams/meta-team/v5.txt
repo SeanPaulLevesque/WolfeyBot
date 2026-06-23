@@ -18,17 +18,16 @@ Adamant Nature
 - Low Kick
 - Protect
 
-Gholdengo @ Focus Sash
-Ability: Good as Gold
-Level: 50
-EVs: 2 HP / 32 SpA / 32 Spe
-Timid Nature
-- Flash Cannon
-- Shadow Ball
-- Thunderbolt
+Arcanine-Hisui @ Focus Sash
+Ability: Rock Head
+EVs: 2 HP / 32 Atk / 32 Spe
+Jolly Nature
+- Flare Blitz
+- Head Smash
+- Iron Head
 - Protect
 
-Basculegion-M (M) @ Sitrus Berry
+Basculegion-M (M) @ Mystic Water
 Ability: Adaptability
 Level: 50
 EVs: 32 HP / 17 Atk / 17 Def
@@ -38,15 +37,14 @@ Adamant Nature
 - Psychic Fangs
 - Protect
 
-Venusaur @ Venusaurite
-Ability: Chlorophyll
-Level: 50
-EVs: 32 HP / 7 Def / 18 SpA / 9 Spe
-Modest Nature
-- Sludge Bomb
-- Giga Drain
-- Earth Power
+Metagross @ Metagrossite
+Ability: Clear Body
+EVs: 14 HP / 27 Atk / 25 Spe
+Jolly Nature
 - Protect
+- Body Press
+- Psychic Fangs
+- Iron Head
 
 Garchomp @ Choice Scarf
 Ability: Rough Skin
@@ -57,3 +55,4 @@ Adamant Nature
 - Stomping Tantrum
 - Poison Jab
 - Rock Tomb
+
