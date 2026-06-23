@@ -89,11 +89,12 @@ def _len_bucket(nturns):
 def roster_stats(games):
     """Return ``{species: {...}}`` of per-mon performance over *games*.
 
-    Keys per mon: bring, lead, games_brought, wins_brought, kos, faints.
+    Keys per mon: bring, lead, games_brought, wins_brought, wins_led, kos, faints.
     KO = one of our hits whose damage removed the target's remaining HP
-    (``d >= h0``); faint = our mon observed at 0 HP (counted once per game)."""
+    (``d >= h0``); faint = our mon observed at 0 HP (counted once per game).
+    ``wins_led`` enables WR-when-led, separating lead value from bring value."""
     stats = collections.defaultdict(lambda: dict(
-        bring=0, lead=0, games_brought=0, wins_brought=0, kos=0, faints=0))
+        bring=0, lead=0, games_brought=0, wins_brought=0, wins_led=0, kos=0, faints=0))
     for g in games:
         win = g.get("outcome") == "win"
         turns = g.get("turns", [])
@@ -107,6 +108,8 @@ def roster_stats(games):
                 stats[sp]["wins_brought"] += 1
         for sp in leads:
             stats[sp]["lead"] += 1
+            if win:
+                stats[sp]["wins_led"] += 1
         # Faint detection (once per game per mon).  A fainted mon is replaced by
         # its switch-in before the next decision snapshot, so scanning `my` for
         # hp<=0 almost never catches it — count faints the same way KOs are
@@ -134,6 +137,51 @@ def roster_stats(games):
                         stats[sp]["faints"] += 1
                         fainted_seen.add(sp)
     return dict(stats)
+
+
+def lead_outcomes(games, opening_turns=3):
+    """Assess lead/opening decisions (not just per-mon descriptive stats).
+
+    Returns ``{"pairs": [...], "opening": {...}}``:
+    * ``pairs`` — per lead PAIR (the two turn-1 actives, base-forme, order-
+      independent): games, wins, win rate. Shows which openings the engine
+      picks and how they fare.
+    * ``opening`` — the opening exchange over the first *opening_turns* turns:
+      our KOs vs our faints (same d>=h0 attribution as the roster), the net,
+      and win rate split by whether we came out of the opening ahead (net>0),
+      even (net==0), or behind (net<0). This is the closest read on whether the
+      lead engine is choosing good openings, independent of late-game play.
+    """
+    pairs = collections.defaultdict(lambda: dict(games=0, wins=0))
+    ahead = collections.defaultdict(lambda: dict(games=0, wins=0))  # sign -> rec
+    tot_kos = tot_faints = 0
+    for g in games:
+        win = g.get("outcome") == "win"
+        turns = g.get("turns", [])
+        if not turns:
+            continue
+        leads = tuple(sorted({base_forme(m["s"]) for m in turns[0].get("my", []) if m}))
+        if len(leads) == 2:
+            pairs[leads]["games"] += 1
+            pairs[leads]["wins"] += win
+        kos = faints = 0
+        for t in turns[:opening_turns]:
+            for e in t.get("ev", []):
+                d, h0 = e.get("d"), e.get("h0")
+                if not (d is not None and h0 and d >= h0 - 0.02):
+                    continue
+                if e.get("sd") == "us":
+                    kos += 1
+                elif e.get("sd") == "opp":
+                    faints += 1
+        tot_kos += kos
+        tot_faints += faints
+        sign = (kos > faints) - (kos < faints)   # 1 ahead / 0 even / -1 behind
+        ahead[sign]["games"] += 1
+        ahead[sign]["wins"] += win
+    return {"pairs": dict(pairs), "opening": {
+        "turns": opening_turns, "kos": tot_kos, "faints": tot_faints,
+        "by_sign": dict(ahead)}}
 
 
 def move_usage(games):
@@ -257,19 +305,47 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
     stats = roster_stats(games)
     out += ["", "## Roster", "",
             "Sorted by net (KOs - faints). KDR = KOs/faints (∞ = no faints). "
-            "*WR (brought)* is subject to selection bias.",
+            "*WR (brought)/(led)* are subject to selection bias; compare them to "
+            "the team's overall win rate, not 50%.",
             "",
-            "| Mon | Bring | Lead | WR (brought) | KOs | Faints | Net | KDR |",
-            "|---|--:|--:|--:|--:|--:|--:|--:|"]
+            "| Mon | Bring | Lead | WR (brought) | WR (led) | KOs | Faints | Net | KDR |",
+            "|---|--:|--:|--:|--:|--:|--:|--:|--:|"]
     for sp in sorted(stats, key=lambda s: -(stats[s]["kos"] - stats[s]["faints"])):
         d = stats[sp]
         gb = d["games_brought"] or 1
         net = d["kos"] - d["faints"]
         kdr = (f"{d['kos']/d['faints']:.2f}" if d["faints"]
                else ("∞" if d["kos"] else "0.00"))
+        wr_led = _pct(d["wins_led"] / d["lead"]) if d["lead"] else "—"
         out.append(f"| {sp} | {_pct(d['bring']/nG)} | {_pct(d['lead']/nG)} | "
-                   f"{_pct(d['wins_brought']/gb)} | {d['kos']} | {d['faints']} | "
+                   f"{_pct(d['wins_brought']/gb)} | {wr_led} | {d['kos']} | {d['faints']} | "
                    f"{net:+d} | {kdr} |")
+
+    # 1b. LEADS — decision-success view (not per-mon descriptive)
+    lo = lead_outcomes(games)
+    op = lo["opening"]
+    out += ["", "## Leads", "",
+            f"Opening exchange = first {op['turns']} turns. *Ahead/even/behind* "
+            "= whether our KOs out/under-paced our faints in that window; the win "
+            "rate beside each shows how often the opening result held up.",
+            "",
+            f"**Opening KOs {op['kos']} vs faints {op['faints']}** "
+            f"(net {op['kos']-op['faints']:+d} over {nG} games).",
+            "",
+            "| Opening result | Games | Win rate |",
+            "|---|--:|--:|"]
+    for sign, lbl in ((1, "ahead"), (0, "even"), (-1, "behind")):
+        rec = op["by_sign"].get(sign)
+        if rec and rec["games"]:
+            out.append(f"| {lbl} | {rec['games']} | {_pct(rec['wins']/rec['games'])} |")
+    pairs = lo["pairs"]
+    if pairs:
+        out += ["", "Lead pairs (order-independent), by games led:", "",
+                "| Lead pair | Games | W-L | Win rate |",
+                "|---|--:|--:|--:|"]
+        for pr in sorted(pairs, key=lambda p: -pairs[p]["games"]):
+            r = pairs[pr]; w = r["wins"]; gp = r["games"]
+            out.append(f"| {' + '.join(pr)} | {gp} | {w}-{gp-w} | {_pct(w/gp)} |")
 
     # 2. MOVE USAGE
     use = move_usage(games)

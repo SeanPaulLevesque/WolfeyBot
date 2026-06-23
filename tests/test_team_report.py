@@ -8,7 +8,7 @@ import json
 
 from tools.team_report import (
     roster_stats, move_usage, length_buckets, load_games, derive_team_meta,
-    archetype_breakdown, opp_mega_breakdown,
+    archetype_breakdown, opp_mega_breakdown, lead_outcomes,
 )
 from tools.accuracy_report import compute_prediction
 
@@ -76,6 +76,27 @@ class TestRosterStats:
         assert s["Garchomp"]["kos"] == 1            # the one d≥h0 hit (turn 1)
         assert s["Sneasler"]["faints"] == 1         # observed at 0 HP once
         assert s["Garchomp"]["faints"] == 0
+
+    def test_wins_when_led(self):
+        # Garchomp leads both games (win + loss) -> 1 win-when-led of 2 led.
+        s = roster_stats([_GAME_WIN, _GAME_LOSS])
+        assert s["Garchomp"]["lead"] == 2 and s["Garchomp"]["wins_led"] == 1
+        # Sneasler is benched in the win (not a lead) -> never counts as led.
+        assert s["Sneasler"]["lead"] == 0 and s["Sneasler"]["wins_led"] == 0
+
+
+class TestLeadOutcomes:
+    def test_lead_pair_and_opening_sign(self):
+        lo = lead_outcomes([_GAME_WIN, _GAME_LOSS])
+        # Each game has a distinct lead pair (order-independent keys).
+        assert lo["pairs"][("Garchomp", "Kingambit")] == {"games": 1, "wins": 1}  # win
+        assert lo["pairs"][("Garchomp", "Venusaur")] == {"games": 1, "wins": 0}   # loss
+        # _GAME_WIN: 1 opening KO (Garchomp->Pelipper), 0 faints -> ahead, won.
+        # _GAME_LOSS: no lethal events -> even, lost.
+        op = lo["opening"]
+        assert op["kos"] == 1 and op["faints"] == 0
+        assert op["by_sign"][1] == {"games": 1, "wins": 1}    # ahead -> won
+        assert op["by_sign"][0] == {"games": 1, "wins": 0}    # even  -> lost
 
     def test_faint_counted_once_per_game(self):
         # Sneasler at 0 HP across two turns should still count as one faint.
