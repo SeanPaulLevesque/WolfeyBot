@@ -1,6 +1,6 @@
 # Team Report - meta-team v5
 
-**Games:** 101 | **Win rate:** 49-52 (49%) | **Engine:** v0.22.0
+**Games:** 100 | **Win rate:** 48-52 (48%) | **Engine:** v0.22.0 | **Excluded:** 1 immediate forfeit(s)
 
 *Source: `Battle Data/0.22.0/meta-team/v5/*.json`*
 
@@ -72,23 +72,23 @@ Sorted by net (KOs - faints). KDR = KOs/faints (∞ = no faints). *WR (brought)/
 
 | Mon | Bring | Lead | WR (brought) | WR (led) | KOs | Faints | Net | KDR |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
-| Basculegion | 49% | 15% | 47% | 40% | 42 | 26 | +16 | 1.62 |
+| Basculegion | 48% | 15% | 46% | 40% | 42 | 26 | +16 | 1.62 |
 | Kingambit | 87% | 43% | 45% | 47% | 64 | 52 | +12 | 1.23 |
-| Garchomp | 93% | 64% | 48% | 49% | 67 | 57 | +10 | 1.18 |
-| Raichu | 28% | 18% | 57% | 61% | 23 | 17 | +6 | 1.35 |
-| Metagross | 68% | 36% | 49% | 44% | 46 | 42 | +4 | 1.10 |
-| Arcanine-Hisui | 75% | 25% | 50% | 52% | 49 | 57 | -8 | 0.86 |
+| Garchomp | 93% | 64% | 47% | 48% | 67 | 57 | +10 | 1.18 |
+| Raichu | 27% | 17% | 56% | 59% | 23 | 17 | +6 | 1.35 |
+| Metagross | 69% | 36% | 49% | 44% | 46 | 42 | +4 | 1.10 |
+| Arcanine-Hisui | 76% | 25% | 50% | 52% | 49 | 57 | -8 | 0.86 |
 
 ## Leads
 
 Opening exchange = first 3 turns. *Ahead/even/behind* = whether our KOs out/under-paced our faints in that window; the win rate beside each shows how often the opening result held up.
 
-**Opening KOs 157 vs faints 113** (net +44 over 101 games).
+**Opening KOs 157 vs faints 113** (net +44 over 100 games).
 
 | Opening result | Games | Win rate |
 |---|--:|--:|
 | ahead | 48 | 67% |
-| even | 30 | 40% |
+| even | 29 | 38% |
 | behind | 23 | 22% |
 
 Lead pairs (order-independent), by games led:
@@ -99,9 +99,9 @@ Lead pairs (order-independent), by games led:
 | Garchomp + Metagross | 16 | 7-9 | 44% |
 | Arcanine-Hisui + Garchomp | 15 | 10-5 | 67% |
 | Kingambit + Metagross | 9 | 6-3 | 67% |
-| Garchomp + Raichu | 8 | 5-3 | 62% |
 | Kingambit + Raichu | 7 | 4-3 | 57% |
 | Basculegion + Metagross | 7 | 1-6 | 14% |
+| Garchomp + Raichu | 7 | 4-3 | 57% |
 | Basculegion + Garchomp | 6 | 3-3 | 50% |
 | Arcanine-Hisui + Kingambit | 5 | 1-4 | 20% |
 | Arcanine-Hisui + Metagross | 3 | 1-2 | 33% |
@@ -115,7 +115,7 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 
 | Mon | Moves (chosen count) | Lowest |
 |---|---|---|
-| Garchomp | Stomping Tantrum 91, Dragon Claw 78, Poison Jab 47, Rock Tomb 22 | **Rock Tomb 22** |
+| Garchomp | Stomping Tantrum 90, Dragon Claw 78, Poison Jab 47, Rock Tomb 22 | **Rock Tomb 22** |
 | Kingambit | Kowtow Cleave 134, Iron Head 63, Low Kick 47, Protect 20 | **Protect 20** |
 | Arcanine-Hisui | Head Smash 137, Flare Blitz 45, Protect 15 | **Protect 15** |
 | Metagross | Psychic Fangs 89, Iron Head 43, Body Press 34, Protect 17 | **Protect 17** |
@@ -126,7 +126,7 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 
 | Turns | Record | Win rate |
 |---|---|--:|
-| 1-3 | 9-0 | 100% |
+| 1-3 | 8-0 | 100% |
 | 4-6 | 26-27 | 49% |
 | 7-9 | 13-21 | 38% |
 | 10+ | 1-4 | 20% |
@@ -142,7 +142,7 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 | Rain | 9-6 | 60% | 15 |
 | Sun | 2-6 | 25% | 8 |
 | Sand | 1-3 | 25% | 4 |
-| None | 26-22 | 54% | 48 |
+| None | 25-22 | 53% | 47 |
 
 ## Opponent megas
 
@@ -150,37 +150,39 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 
 | Opponent mega | Record | Win rate | Games |
 |---|---|--:|--:|
-| Staraptor-Mega | 2-8 | 20% | 10 |
+| Metagross-Mega | 4-11 | 27% | 15 |
+| Staraptor-Mega | 4-8 | 33% | 12 |
+| Raichu-Mega-Y | 3-7 | 30% | 10 |
+| Sceptile-Mega | 5-4 | 56% | 9 |
 | Blaziken-Mega | 2-5 | 29% | 7 |
 | Mawile-Mega | 5-1 | 83% | 6 |
 | Swampert-Mega | 4-2 | 67% | 6 |
 | Eelektross-Mega | 3-2 | 60% | 5 |
 | Pyroar-Mega | 0-5 | 0% | 5 |
-| Metagross-Mega | 1-3 | 25% | 4 |
-| Raichu-Mega-Y | 2-2 | 50% | 4 |
-| Sceptile-Mega | 1-3 | 25% | 4 |
 | Charizard-Mega-Y | 0-3 | 0% | 3 |
 | Dragonite-Mega | 1-1 | 50% | 2 |
 | Gengar-Mega | 1-1 | 50% | 2 |
 | Golurk-Mega | 1-1 | 50% | 2 |
 | Greninja-Mega | 1-1 | 50% | 2 |
+| Malamar-Mega | 1-1 | 50% | 2 |
 | Meganium-Mega | 1-1 | 50% | 2 |
 | Pinsir-Mega | 2-0 | 100% | 2 |
 | Aggron-Mega | 0-1 | 0% | 1 |
 | Altaria-Mega | 1-0 | 100% | 1 |
 | Chesnaught-Mega | 0-1 | 0% | 1 |
 | Chimecho-Mega | 1-0 | 100% | 1 |
+| Clefable-Mega | 1-0 | 100% | 1 |
 | Floette-Mega | 1-0 | 100% | 1 |
 | Froslass-Mega | 1-0 | 100% | 1 |
 | Garchomp-Mega | 0-1 | 0% | 1 |
 | Gardevoir-Mega | 1-0 | 100% | 1 |
 | Glimmora-Mega | 1-0 | 100% | 1 |
-| Malamar-Mega | 0-1 | 0% | 1 |
+| Houndoom-Mega | 1-0 | 100% | 1 |
 | Scovillain-Mega | 1-0 | 100% | 1 |
 | Scrafty-Mega | 0-1 | 0% | 1 |
 | Starmie-Mega | 1-0 | 100% | 1 |
 | Victreebel-Mega | 1-0 | 100% | 1 |
-| None (no mega) | 13-8 | 62% | 21 |
+| None (no mega) | 3-4 | 43% | 7 |
 
 ## Prediction accuracy
 

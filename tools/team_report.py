@@ -266,6 +266,11 @@ def opp_mega_breakdown(games):
                  if o and "-Mega" in o.get("s", "")}
         megas |= {e["a"] for t in g.get("turns", []) for e in t.get("ev", [])
                   if e.get("sd") == "opp" and "-Mega" in str(e.get("a", ""))}
+        # Also our hits' targets: a mega that evolved but was KO'd the same turn
+        # before it could act never appears as a snapshot forme or an opp event
+        # actor — but our killing move records it as the target.
+        megas |= {e["tg"] for t in g.get("turns", []) for e in t.get("ev", [])
+                  if e.get("sd") == "us" and "-Mega" in str(e.get("tg", ""))}
         for k in (megas or {"None (no mega)"}):
             raw[k][1] += 1
             raw[k][0] += 1 if win else 0
@@ -280,12 +285,25 @@ def _pct(x):
     return f"{x*100:.0f}%"
 
 
+def _is_forfeit(g):
+    """A non-battle: the opponent never took an action (preview/turn-1 forfeit or
+    timeout — e.g. a turn-1 'win').  Such games have no opponent move events and
+    distort every W/L breakdown, so the report excludes them wholesale."""
+    return not any(e.get("sd") == "opp"
+                   for t in g.get("turns", []) for e in t.get("ev", []))
+
+
 def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
                    team_paste=None):
     """Render the full report for *games* as a GitHub-flavoured Markdown string.
 
     *team_name*/*team_version*/*team_paste* (optional) record which roster these
-    logs came from; the engine version(s) are read from the logs themselves."""
+    logs came from; the engine version(s) are read from the logs themselves.
+
+    Immediate forfeits (opponent never acted) are filtered from the **entire**
+    report — they aren't real battles and skew every breakdown."""
+    n_forfeit = sum(1 for g in games if _is_forfeit(g))
+    games = [g for g in games if not _is_forfeit(g)]
     nG = len(games)
     wins = sum(1 for g in games if g.get("outcome") == "win")
     versions = sorted({g.get("v") for g in games if g.get("v")})
@@ -298,6 +316,8 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
     meta = [f"**Games:** {nG}",
             f"**Win rate:** {wins}-{nG-wins} ({_pct(wins/nG) if nG else 'n/a'})",
             f"**Engine:** {', '.join('v' + v for v in versions) if versions else 'unknown'}"]
+    if n_forfeit:
+        meta.append(f"**Excluded:** {n_forfeit} immediate forfeit(s)")
     out.append(" | ".join(meta))
     out.append("")
     out.append(f"*Source: `{label}`*")

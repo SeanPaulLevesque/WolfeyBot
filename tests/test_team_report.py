@@ -207,6 +207,18 @@ class TestOppMegaBreakdown:
         assert m["Charizard-Mega-Y"] == [1, 1]
         assert "None (no mega)" not in m            # not falsely bucketed as no-mega
 
+    def test_detects_mega_killed_the_turn_it_evolved(self):
+        # Evolved then KO'd before acting: not in the (pre-evo) snapshot, never an
+        # opp event actor — but our killing move records it as the target.
+        g = {"outcome": "win", "turns": [{
+            "opp": [{"s": "Metagross"}, {"s": "Incineroar"}],   # snapshot: pre-evolution
+            "ev": [{"sd": "us", "a": "Garchomp", "mv": "Earthquake",
+                    "tg": "Metagross-Mega", "d": 1.0, "h0": 0.9}],
+        }]}
+        m = opp_mega_breakdown([g])
+        assert m["Metagross-Mega"] == [1, 1]
+        assert "None (no mega)" not in m
+
 
 class TestLoadGames:
     def _write(self, p, obj):
