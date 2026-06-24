@@ -1,5 +1,19 @@
 # WolfeyBot Changelog
 
+## 0.23.0 — 2026-06-23
+
+Re-baseline release — **no new functional changes** beyond 0.22.0. The version is
+bumped purely to open a fresh battle-log epoch (`Battle Data/0.23.0/`) so the
+session's gameplay-affecting fixes can be validated on a clean sample,
+un-comingled with the pre-fix 0.22.0 games:
+
+- Ally Switch `|swap|` handling (opponent active-slot desync),
+- our mega ability applied to **offense**, not just incoming (Tough Claws etc.),
+- corrected Champions mega data (5 typings) + de-hardcoded `champions_megas.json`,
+- Garchomp Life-Orb item prior (M-B stopgap),
+- M-B opponent-lead-stat reseed,
+- explicit `opp_formes` recording + report fixes (forfeit filter, mega detection).
+
 ## 0.22.0 — 2026-06-20
 
 ### Resolve two-mega species by the held stone (Raichu-Mega-Y bug)
