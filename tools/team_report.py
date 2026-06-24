@@ -259,8 +259,13 @@ def opp_mega_breakdown(games):
         if g.get("outcome") not in ("win", "loss"):
             continue
         win = g.get("outcome") == "win"
+        # Detect from BOTH the per-turn opp snapshots AND the move events: a mega
+        # that evolved can be missed by the snapshot alone (stale forme / slot
+        # desync), but its -Mega name still shows as an event actor.
         megas = {o["s"] for t in g.get("turns", []) for o in t.get("opp", [])
                  if o and "-Mega" in o.get("s", "")}
+        megas |= {e["a"] for t in g.get("turns", []) for e in t.get("ev", [])
+                  if e.get("sd") == "opp" and "-Mega" in str(e.get("a", ""))}
         for k in (megas or {"None (no mega)"}):
             raw[k][1] += 1
             raw[k][0] += 1 if win else 0

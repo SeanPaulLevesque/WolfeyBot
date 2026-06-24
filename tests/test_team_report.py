@@ -196,6 +196,17 @@ class TestOppMegaBreakdown:
         # None is ordered last
         assert list(m.keys())[-1] == "None (no mega)"
 
+    def test_detects_mega_from_events_when_snapshot_misses_it(self):
+        # The mon mega-evolved but the opp snapshot kept the stale base forme
+        # (slot desync / timing); its -Mega name still appears as an event actor.
+        g = {"outcome": "win", "turns": [{
+            "opp": [{"s": "Aerodactyl"}, {"s": "Raichu-Mega-Y"}],   # snapshot: no Charizard mega
+            "ev": [{"sd": "opp", "a": "Charizard-Mega-Y", "mv": "Heat Wave"}],
+        }]}
+        m = opp_mega_breakdown([g])
+        assert m["Charizard-Mega-Y"] == [1, 1]
+        assert "None (no mega)" not in m            # not falsely bucketed as no-mega
+
 
 class TestLoadGames:
     def _write(self, p, obj):

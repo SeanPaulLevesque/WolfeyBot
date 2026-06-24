@@ -152,14 +152,14 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 |---|---|--:|--:|
 | Staraptor-Mega | 2-8 | 20% | 10 |
 | Blaziken-Mega | 2-5 | 29% | 7 |
+| Mawile-Mega | 5-1 | 83% | 6 |
+| Swampert-Mega | 4-2 | 67% | 6 |
 | Eelektross-Mega | 3-2 | 60% | 5 |
 | Pyroar-Mega | 0-5 | 0% | 5 |
-| Swampert-Mega | 3-2 | 60% | 5 |
-| Mawile-Mega | 4-0 | 100% | 4 |
 | Metagross-Mega | 1-3 | 25% | 4 |
+| Raichu-Mega-Y | 2-2 | 50% | 4 |
 | Sceptile-Mega | 1-3 | 25% | 4 |
-| Raichu-Mega-Y | 2-1 | 67% | 3 |
-| Charizard-Mega-Y | 0-2 | 0% | 2 |
+| Charizard-Mega-Y | 0-3 | 0% | 3 |
 | Dragonite-Mega | 1-1 | 50% | 2 |
 | Gengar-Mega | 1-1 | 50% | 2 |
 | Golurk-Mega | 1-1 | 50% | 2 |
@@ -171,6 +171,7 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 | Chesnaught-Mega | 0-1 | 0% | 1 |
 | Chimecho-Mega | 1-0 | 100% | 1 |
 | Floette-Mega | 1-0 | 100% | 1 |
+| Froslass-Mega | 1-0 | 100% | 1 |
 | Garchomp-Mega | 0-1 | 0% | 1 |
 | Gardevoir-Mega | 1-0 | 100% | 1 |
 | Glimmora-Mega | 1-0 | 100% | 1 |
@@ -179,7 +180,7 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 | Scrafty-Mega | 0-1 | 0% | 1 |
 | Starmie-Mega | 1-0 | 100% | 1 |
 | Victreebel-Mega | 1-0 | 100% | 1 |
-| None (no mega) | 16-11 | 59% | 27 |
+| None (no mega) | 13-8 | 62% | 21 |
 
 ## Prediction accuracy
 
