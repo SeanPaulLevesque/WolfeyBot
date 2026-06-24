@@ -56,7 +56,11 @@ from decision.modules import (
     build_turn_context,
     TurnContext,
     make_engine,
+    RedirectionModule,
+    _RAGE_POWDER_USERS,
+    _FOLLOW_ME_USERS,
 )
+from decision.engine import Action
 from damage import DamageResult
 
 
@@ -2833,3 +2837,67 @@ class TestOurConsumedItem:
         ctx = build_turn_context(self._state(item_consumed=True))
         assert 0 in ctx.incoming_ohko[0]
         assert 0 in ctx.incoming_certain[0]       # berry gone: certain kill
+
+
+class TestRedirectionModule:
+    """Hedge single-target attacks vs an active opponent redirector."""
+
+    def _state(self, our_species, opp_list):
+        from battle import BattleState
+        from team import find_member
+        s = BattleState(battle_id="t", my_side="p1")
+        s.turn = 1
+        s.my_actives = [make_mon(our_species, side="p1")]
+        s.my_team = list(s.my_actives)
+        s.opp_actives = [make_mon(sp, hp=100, max_hp=100, side="p2", hp_is_percentage=True)
+                         for sp in opp_list]
+        s.available_switches = []
+        tm = find_member(our_species)
+        s.moves_per_slot = [[{"move": m} for m in tm.moves]]
+        s.my_last_moves = [""]; s.opp_last_moves = ["", ""]
+        s.my_slot_decisions = [None]; s.my_disabled_moves = [None]; s.my_encored_moves = [None]
+        s.opp_tailwind = False; s.opp_tailwind_turns_left = 0
+        s.trick_room = False; s.trick_room_turns_left = 0
+        s.weather = None; s.my_tailwind = False; s.designated_mega = None
+        return s
+
+    def test_sanity_sets(self):
+        assert "Sinistcha" in _RAGE_POWDER_USERS and "Clefable" in _FOLLOW_ME_USERS
+
+    def test_scales_single_target_attack_vs_rage_powder(self):
+        # Garchomp Dragon Claw aimed at Whimsicott (slot 1) gets pulled onto the
+        # Rage Powder Sinistcha (slot 0); neutral + bulky -> not an OHKO -> < 1.0.
+        s = self._state("Garchomp", ["Sinistcha", "Whimsicott"])
+        acts = [
+            Action(label="Dragon Claw", move_name="Dragon Claw", target_slot=1, weight=1.0),
+            Action(label="Earthquake", move_name="Earthquake", target_slot=None, weight=1.0),  # spread
+            Action(label="Protect", move_name="Protect", target_slot=None, weight=1.0),
+        ]
+        RedirectionModule().score(s, 0, acts)
+        assert any("redirection" in r for r in acts[0].reasons)
+        assert acts[0].weight < 1.0
+        # spread + Protect are not redirected
+        assert not any("redirection" in r for r in acts[1].reasons)
+        assert acts[2].weight == 1.0
+
+    def test_grass_attacker_immune_to_rage_powder(self):
+        # Venusaur is Grass -> Rage Powder cannot redirect it -> no hedge.
+        s = self._state("Venusaur", ["Sinistcha", "Whimsicott"])
+        acts = [Action(label="Sludge Bomb", move_name="Sludge Bomb", target_slot=1, weight=1.0)]
+        RedirectionModule().score(s, 0, acts)
+        assert not any("redirection" in r for r in acts[0].reasons)
+        assert acts[0].weight == 1.0
+
+    def test_grass_attacker_still_redirected_by_follow_me(self):
+        # Follow Me has no Grass immunity -> Venusaur IS pulled onto Clefable.
+        s = self._state("Venusaur", ["Clefable", "Whimsicott"])
+        acts = [Action(label="Sludge Bomb", move_name="Sludge Bomb", target_slot=1, weight=1.0)]
+        RedirectionModule().score(s, 0, acts)
+        assert any("redirection" in r for r in acts[0].reasons)
+
+    def test_no_redirector_no_effect(self):
+        s = self._state("Garchomp", ["Incineroar", "Whimsicott"])
+        acts = [Action(label="Dragon Claw", move_name="Dragon Claw", target_slot=1, weight=1.0)]
+        RedirectionModule().score(s, 0, acts)
+        assert not any("redirection" in r for r in acts[0].reasons)
+        assert acts[0].weight == 1.0

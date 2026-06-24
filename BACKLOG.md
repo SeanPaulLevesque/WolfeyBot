@@ -1,7 +1,3 @@
-Data analysis tasks:
--on my team, what are the moves which saw the least usage? Should they be changed?
--what are the team archetypes that give us the most trouble?
-
 process / regression:
 -Separate big changes for regression testing. Sweeping correctness changes (e.g. the 0.8.0 SP->stat formula fix) silently invalidate every prior win-rate baseline, so they must land in ISOLATION with their own before/after sample, not stacked with team/tuning edits — otherwise win-rate effects can't be attributed. Lesson from 0.8.0: the SP fix and the Scarf-Garchomp team change went out together, so the next ladder run measures both at once. Going forward: land one big lever at a time, re-baseline, then the next.
 -Verify the engine uses champions_moves.json's `championsChanges` field (modified PP/power vs base game) rather than base-game move power anywhere. The authoritative move-change data + other reference files live in the "VGC Champions" Claude project's /mnt/project/ directory — NOT accessible from the WolfeyBot dev environment (path does not exist here). Need the user to surface those files (copy into the repo, or paste) before this can be checked. Other files in that directory should be cross-checked against the engine's data layer too.
@@ -91,13 +87,23 @@ Add more complete weather and field effects to the engine. ie damage from sandst
  are +2 priority). The engine doesn't know this: _build_actions emits one
  (move,target) per live opponent and scores each target independently, so it has
  no concept that a redirector forces a target.
-   * OPPONENT redirects: when an opp redirector is active, our single-target
-     attacks get pulled onto it, so a damage/KO calc against the *intended*
-     target is invalid that turn — the action should be re-pointed at the
-     redirector (or the slot should play around it: Protect, spread move, or
-     switch). Immunities to respect: Rage Powder does NOT redirect Grass-types,
-     Overcoat holders, or Safety Goggles holders (Follow Me redirects all).
-     Spread moves and self/ally-target moves ignore redirection.
+   * [DONE 0.24.0 — opponent side] RedirectionModule (phase-1): scales each of
+     our single-target attacks by its damage to an active opp Rage Powder /
+     Follow Me user (capped 1.0); immune→x0, KO-the-redirector→x1, and the
+     scale-down naturally favours Protect/switch/spread. Data-driven user sets
+     (_RAGE_POWDER_USERS / _FOLLOW_ME_USERS via population_move_users).
+     Exemptions: spread/status/switch; Stalwart/Propeller Tail (both); Rage
+     Powder also exempts Grass / Overcoat / Safety Goggles.
+     REMAINING refinements (4/5/6 from the design review):
+       (4) blend with intended-target damage instead of assuming redirect ALWAYS
+           fires (the pure version over-hedges when the opp won't click it);
+           e.g. alpha*(dmg to redirector) + (1-alpha)*(dmg to intended).
+       (5) skip the hedge for a move already aimed AT the redirector (currently a
+           minor double-count vs DamageOutput's own damage scaling).
+       (6) coordinate the second slot so both attacks don't over-commit onto the
+           redirector once one covers it (check whether DoublingAdjuster already
+           handles this); also Spotlight + Storm Drain/Lightning Rod variants,
+           and the multi-redirector (both opp slots) tie-break (v1 uses slot 0).
    * OUR redirects: a support-value signal for using Rage Powder/Follow Me to
      soak a predicted attack off a threatened/setup partner (pairs with the
      anti-setup item, Task #20, and the likely-moves switch module above).

@@ -1,5 +1,34 @@
 # WolfeyBot Changelog
 
+## 0.24.0 — 2026-06-24
+
+### Model opponent redirection (Rage Powder / Follow Me)
+
+Redirection was unmodeled — the engine scored each single-target attack against
+its intended target, oblivious that an active Rage Powder / Follow Me user pulls
+those moves onto itself.  Log analysis: opponents use redirection in ~16% of
+games (530-game M-B sample) and we win only 39% of those vs 47% overall.
+
+- Data-driven user sets via `population_move_users`: `_RAGE_POWDER_USERS`
+  (Ariados, Scovillain, Sinistcha, Vivillon, Volcarona), `_FOLLOW_ME_USERS`
+  (Clefable, Maushold) — self-updating with usage stats; two sets because the
+  immunities differ.
+- New phase-1 `RedirectionModule`: when an active opponent redirector would pull
+  our move, scale each single-target attack by its damage **to the redirector**
+  (capped at 1.0).  Immune move → ×0 (don't feed it); a move that KOs the
+  redirector → ×1 (removing it ends the redirection); and scaling attacks down
+  naturally favours Protect / switch / spread (the "play around it" answer).
+- Exemptions: spread/status/switch aren't redirected; Stalwart / Propeller Tail
+  on our attacker ignore both moves; Rage Powder additionally doesn't redirect a
+  Grass-type attacker, or one with Overcoat / Safety Goggles (Follow Me has no
+  such immunity).
+- Backlog: blend with intended-target damage (don't assume redirect always
+  fires); skip the hedge for a move already aimed at the redirector; coordinate
+  the second slot off the redirector once covered.
+
+Turn-1 snapshots unchanged (no redirector flips a turn-1 lead decision). Tests:
+`TestRedirectionModule`.
+
 ## 0.23.0 — 2026-06-23
 
 Re-baseline release — **no new functional changes** beyond 0.22.0. The version is

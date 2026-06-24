@@ -1681,6 +1681,21 @@ _TAILWIND_SETTER_MIN_PCT = 20.0
 _TR_SETTER_SPECIES: frozenset[str] = _population_move_users("Trick Room", _TR_SETTER_MIN_PCT)
 _TAILWIND_SETTER_SPECIES: frozenset[str] = _population_move_users("Tailwind", _TAILWIND_SETTER_MIN_PCT)
 
+# Redirection users — same data-driven derivation (base names; membership via
+# _modeled_forme).  Kept as two sets because the two moves differ on immunities
+# (see RedirectionModule): Rage Powder does NOT redirect Grass-types / Overcoat /
+# Safety Goggles holders; Follow Me redirects everything.
+_RAGE_POWDER_MIN_PCT = 30.0
+_FOLLOW_ME_MIN_PCT   = 30.0
+_RAGE_POWDER_USERS: frozenset[str] = _population_move_users("Rage Powder", _RAGE_POWDER_MIN_PCT)
+_FOLLOW_ME_USERS:   frozenset[str] = _population_move_users("Follow Me", _FOLLOW_ME_MIN_PCT)
+
+# Attacker abilities that make a move IGNORE redirection entirely (both Rage
+# Powder and Follow Me).  Not modal on any current Champions mon, so this only
+# matters when an attacker is actually confirmed to carry one — but then we must
+# not apply the hedge.
+_REDIRECT_IGNORE_ABILITIES: frozenset[str] = frozenset({"Stalwart", "Propeller Tail"})
+
 
 def _tw_setter_has_priority(opp: "Pokemon") -> bool:
     """
@@ -1911,6 +1926,116 @@ class FieldConditionModule(ScoringModule):
                 )
 
 
+class RedirectionModule(ScoringModule):
+    """Hedge our single-target attacks against an active opponent redirector
+    (Rage Powder / Follow Me).
+
+    When a redirector is on the field, our single-target moves get pulled onto
+    it, so each such attack is only as useful as the damage it does **to the
+    redirector**: scale its weight by that fraction (capped at 1.0).  This gives
+    the two anchor cases for free — a move the redirector is immune to → ×0
+    (don't feed it), a move that KOs the redirector → ×1 (removing the redirector
+    ends the redirection) — and, by scaling attacks down, automatically raises
+    the relative value of Protect / switching / spread moves (the "play around
+    it" answer) without touching them directly.
+
+    Exemptions (the move is NOT redirected, so we skip the hedge):
+      * Spread / status / switch candidates — only single-target attacks
+        (``target_slot is not None`` and a damaging move) are redirected.
+      * Stalwart / Propeller Tail on our attacker — ignore redirection entirely
+        (both moves).
+      * Rage Powder only: a Grass-type attacker, or one with Overcoat, or holding
+        Safety Goggles.  Follow Me has no such immunity.
+
+    Backlog (not handled here): blend with intended-target damage instead of
+    assuming redirection always fires; skip the hedge for a move already aimed at
+    the redirector (minor double-count vs DamageOutput); coordinate the second
+    slot so it doesn't over-commit onto the redirector once it's covered.
+    """
+
+    name = "redirection"
+
+    def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
+        mon = state.my_actives[slot] if slot < len(state.my_actives) else None
+        if mon is None:
+            return
+        tm = find_member(mon.species)
+        stats = _our_stats(state, slot)
+        if tm is None or stats is None:
+            return
+
+        # Active opponent redirectors, tagged by which move (immunities differ).
+        redirectors: list[tuple[int, bool]] = []   # (opp_slot, is_rage_powder)
+        for os, opp in enumerate(state.opp_actives):
+            if opp is None or opp.fainted:
+                continue
+            forme = _modeled_forme(opp)
+            if forme in _RAGE_POWDER_USERS:
+                redirectors.append((os, True))
+            elif forme in _FOLLOW_ME_USERS:
+                redirectors.append((os, False))
+        if not redirectors:
+            return
+
+        # Our attacker's active-forme type/ability/item (mega-aware) decide which
+        # redirectors actually pull our moves.
+        is_mega   = mon.species == tm.mega_name
+        will_mega = (not is_mega and tm.mega_stats is not None
+                     and state.designated_mega == tm.name)
+        forme_name = tm.mega_name if ((is_mega or will_mega) and tm.mega_name) else mon.species
+        sp_data = _get_species(forme_name)
+        our_types = sp_data.get("types", []) if sp_data else []
+        our_ability = _our_ability_for_damage(tm, mon.species, state.designated_mega)
+        our_item = _our_item(mon)
+
+        def _redirects_us(is_rage_powder: bool) -> bool:
+            if our_ability in _REDIRECT_IGNORE_ABILITIES:
+                return False                       # Stalwart / Propeller Tail
+            if is_rage_powder:
+                if "Grass" in our_types:           return False
+                if our_ability == "Overcoat":      return False
+                if our_item == "Safety Goggles":   return False
+            return True
+
+        pullers = [os for os, rp in redirectors if _redirects_us(rp)]
+        if not pullers:
+            return
+        redir_slot = pullers[0]                    # one redirector is the norm
+        redir = state.opp_actives[redir_slot]
+        ally_faints = sum(1 for p in state.my_team if p.fainted)
+
+        def _frac(move_name: str) -> float:
+            """Avg damage fraction of *move_name* against the redirector."""
+            cur_hp = (redir.hp if (not redir.hp_is_percentage and redir.hp > 0) else None)
+            results = outgoing_damage(
+                our_species=mon.species, our_stats=stats, our_moves=[move_name],
+                opp_species=_defense_species(redir),
+                our_ability=our_ability, our_item=our_item,
+                opp_ability=_effective_ability(redir) or "", opp_item=_opp_item(state, redir),
+                weather=_assumed_weather(state), ally_faint_count=ally_faints,
+                opp_current_hp=cur_hp,
+                opp_hp_percent=(redir.hp if (redir.hp_is_percentage and 0 < redir.hp < 100) else None),
+                opp_screens=getattr(state, "opp_screens", None),
+                attacker_boosts=mon.boosts, defender_boosts=redir.boosts,
+                attacker_hp_fraction=mon.hp_fraction, attacker_status=mon.status or "",
+                flash_fire_active=mon.flash_fire_active,
+            )
+            return results[0].hp_fraction_avg if results else 0.0
+
+        for action in actions:
+            # Only single-target damaging attacks are redirected; spread (target
+            # None) / status / switches are not.
+            if not action.is_move or action.target_slot is None:
+                continue
+            if get_move_category(action.move_name) == "Status":
+                continue
+            frac = min(_frac(action.move_name), 1.0)
+            action.weight *= frac
+            action.reasons.append(
+                f"{self.name}: pulled to redirector -> {frac:.0%} dmg -> x{frac:.2f}"
+            )
+
+
 # ── Factory ───────────────────────────────────────────────────────────────────
 
 def make_engine() -> DecisionEngine:
@@ -1960,7 +2085,8 @@ def make_engine() -> DecisionEngine:
             ConsecutiveProtectModule(),   # 8: penalise back-to-back Protect (×0.2)
             FakeOutModule(),              # 9: discount attacks / boost Protect vs fresh Fake Out users
             FieldConditionModule(),       # 10: stall on last turn of opp Tailwind / Trick Room
-            SwitchModule(),               # 11: evaluate switch options
+            RedirectionModule(),          # 11: hedge single-target attacks vs an active redirector
+            SwitchModule(),               # 12: evaluate switch options
         ],
         joint=[
             DoublingAdjuster(),           # both attack same target: ×0.40–0.70, ×0.05 if overkill
