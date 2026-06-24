@@ -448,6 +448,13 @@ class BattleRecorder:
                 payload["team_version"] = self.team_version
         if self._preview is not None:
             payload["preview"] = self._preview
+        # Reliable record of every opponent forme/mega that appeared (accumulated
+        # by the parser as it happens), independent of the decision-time
+        # snapshots — so analysis needn't reconstruct megas from snapshot/event
+        # triangulation.
+        formes = sorted(getattr(self._state, "opp_formes_seen", None) or ())
+        if formes:
+            payload["opp_formes"] = formes
         payload["turns"] = turns
         # Data-layer lookup failures seen during this battle (deduped
         # "kind:species" strings).  Present only when something went wrong —

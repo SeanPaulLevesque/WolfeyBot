@@ -270,6 +270,7 @@ class BattleParser:
             while len(self.state.opp_actives) <= slot:
                 self.state.opp_actives.append(None)
             self.state.opp_actives[slot] = updated
+            self.state.opp_formes_seen.add(species)
             # Reset last-move for this slot so FakeOutModule correctly treats
             # the incoming mon as a Fake Out threat until it reveals a move.
             while len(self.state.opp_last_moves) <= slot:
@@ -600,6 +601,11 @@ class BattleParser:
         mon = self._find_mon(args[0])
         if mon:
             mon.species = args[1].split(",")[0]
+            # Record opponent forme/mega evolutions as they happen — the
+            # decision-time snapshots can miss a forme that appears and vanishes
+            # within one turn (e.g. a mega KO'd the turn it evolves).
+            if _side_from_ident(args[0]) != self.state.my_side:
+                self.state.opp_formes_seen.add(mon.species)
 
     async def _on_error(self, args: list[str]):
         msg = args[0] if args else "unknown"

@@ -98,6 +98,28 @@ class TestSwitchMessage:
         assert parser.state.my_actives[0].species == "Garganacl"
 
 
+class TestOppFormesSeen:
+    """The parser records every opponent forme that appears (switch-in + mega/
+    forme change), so analysis has a reliable record independent of the
+    decision-time snapshots."""
+
+    def test_records_switch_in_and_mega_evolution(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Charizard|Charizard, L50, M|153/153"))
+        assert "Charizard" in parser.state.opp_formes_seen
+        # mega-evolves the same battle
+        run(parser.feed("|detailschange|p2a: Charizard|Charizard-Mega-Y, L50, M"))
+        assert "Charizard-Mega-Y" in parser.state.opp_formes_seen
+
+    def test_ignores_our_own_forme_changes(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p2"
+        run(parser.feed("|switch|p2a: Venusaur|Venusaur, L50|175/175"))
+        run(parser.feed("|detailschange|p2a: Venusaur|Venusaur-Mega, L50"))
+        assert parser.state.opp_formes_seen == set()   # p2 is us, not the opponent
+
+
 class TestAllySwitch:
     """`|swap|` (Ally Switch) must exchange the two active slots; otherwise our
     slot tracking desyncs from the field for the rest of the game (the bug that

@@ -191,6 +191,13 @@ class BattleState:
     # assessment that drives the OHKO facts.
     predicted_incoming_log: dict = field(default_factory=dict)
 
+    # Every opponent forme observed on the field this battle (base + any mega /
+    # forme-change), accumulated as it appears — independent of the decision-time
+    # snapshots, which can miss a transient forme (e.g. a mega that evolves and is
+    # KO'd the same turn).  The reliable record of "which opponent megas/formes
+    # appeared" for offline analysis.
+    opp_formes_seen: set = field(default_factory=set)
+
     # Current request data (from most recent |request| message)
     # moves_per_slot[i] = list of move dicts for active slot i
     moves_per_slot: list[list[dict]] = field(default_factory=list)

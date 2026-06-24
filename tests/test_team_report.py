@@ -219,6 +219,15 @@ class TestOppMegaBreakdown:
         assert m["Metagross-Mega"] == [1, 1]
         assert "None (no mega)" not in m
 
+    def test_prefers_explicit_opp_formes_field(self):
+        # 0.22.0+ logs carry a reliable parser-recorded forme list; it's used
+        # directly even when the snapshots/events would say "no mega".
+        g = {"outcome": "loss", "opp_formes": ["Incineroar", "Venusaur-Mega"],
+             "turns": [{"opp": [{"s": "Incineroar"}, {"s": "Venusaur"}], "ev": []}]}
+        m = opp_mega_breakdown([g])
+        assert m["Venusaur-Mega"] == [0, 1]
+        assert "None (no mega)" not in m
+
 
 class TestLoadGames:
     def _write(self, p, obj):

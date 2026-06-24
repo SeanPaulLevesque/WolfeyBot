@@ -259,18 +259,21 @@ def opp_mega_breakdown(games):
         if g.get("outcome") not in ("win", "loss"):
             continue
         win = g.get("outcome") == "win"
-        # Detect from BOTH the per-turn opp snapshots AND the move events: a mega
-        # that evolved can be missed by the snapshot alone (stale forme / slot
-        # desync), but its -Mega name still shows as an event actor.
-        megas = {o["s"] for t in g.get("turns", []) for o in t.get("opp", [])
-                 if o and "-Mega" in o.get("s", "")}
-        megas |= {e["a"] for t in g.get("turns", []) for e in t.get("ev", [])
-                  if e.get("sd") == "opp" and "-Mega" in str(e.get("a", ""))}
-        # Also our hits' targets: a mega that evolved but was KO'd the same turn
-        # before it could act never appears as a snapshot forme or an opp event
-        # actor — but our killing move records it as the target.
-        megas |= {e["tg"] for t in g.get("turns", []) for e in t.get("ev", [])
-                  if e.get("sd") == "us" and "-Mega" in str(e.get("tg", ""))}
+        if "opp_formes" in g:
+            # Reliable parser-recorded list of every opponent forme that appeared
+            # (0.22.0+). Preferred over reconstructing from snapshots/events.
+            megas = {s for s in g["opp_formes"] if "-Mega" in s}
+        else:
+            # Back-compat for older logs without opp_formes: triangulate across
+            # the per-turn opp snapshots, opp event actors, and our hits' targets
+            # (the last catches a mega KO'd the turn it evolved, which is in
+            # neither the pre-evo snapshot nor an opp actor).
+            megas = {o["s"] for t in g.get("turns", []) for o in t.get("opp", [])
+                     if o and "-Mega" in o.get("s", "")}
+            megas |= {e["a"] for t in g.get("turns", []) for e in t.get("ev", [])
+                      if e.get("sd") == "opp" and "-Mega" in str(e.get("a", ""))}
+            megas |= {e["tg"] for t in g.get("turns", []) for e in t.get("ev", [])
+                      if e.get("sd") == "us" and "-Mega" in str(e.get("tg", ""))}
         for k in (megas or {"None (no mega)"}):
             raw[k][1] += 1
             raw[k][0] += 1 if win else 0

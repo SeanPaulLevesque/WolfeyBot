@@ -85,6 +85,20 @@ threshold — so the sets are complete and self-update with the usage stats.
 - Turn-1 snapshot byte-identical; full suite green (incl.
   test_no_mega_entries_in_species_sets — derived sets are base-name keyed).
 
+### Record opponent formes explicitly (durable fix for snapshot unreliability)
+
+Root-cause fix for the recurring "opponent snapshots are unreliable" issue
+(stale formes / transient formes missed because snapshots are decision-time
+only). The parser now accumulates every opponent forme that appears —
+switch-ins and mega/forme changes (`|detailschange|`) — into
+`BattleState.opp_formes_seen`, and the recorder writes it as `opp_formes` on the
+game log. This is a reliable record independent of the decision-time snapshots
+(which can miss e.g. a mega that evolves and is KO'd the same turn).
+
+`opp_mega_breakdown` now prefers `opp_formes` when present, falling back to the
+snapshot/event/target triangulation for pre-0.22.0 logs. Tests:
+`TestOppFormesSeen` (parser), `test_prefers_explicit_opp_formes_field` (report).
+
 ### Report: fix defensive forme-reconciliation + disposition labels
 
 Two `tools/accuracy_report.py` defensive-accuracy fixes (report-only):
