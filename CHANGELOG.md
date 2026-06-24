@@ -85,6 +85,22 @@ threshold — so the sets are complete and self-update with the usage stats.
 - Turn-1 snapshot byte-identical; full suite green (incl.
   test_no_mega_entries_in_species_sets — derived sets are base-name keyed).
 
+### Report: fix defensive forme-reconciliation + disposition labels
+
+Two `tools/accuracy_report.py` defensive-accuracy fixes (report-only):
+- **Forme reconciliation** (`_same_line`): an event was matched to its
+  prediction (pin) via `base_forme`, which strips only `-Mega` — so a move we
+  *did* assess under one inferred forme was falsely flagged "unassessed" when
+  the mon turned out to be a different same-species forme (assessed
+  Floette-Eternal, actual Floette-Mega). `_same_line` reconciles same-species
+  formes (now correctly a small *gap* from the Eternal-vs-Mega stat mismatch,
+  not a phantom coverage hole) while keeping competitively-distinct formes
+  (regionals, Rotom-Wash vs -Heat) separate.
+- **Disposition labels**: split the "unassessed" accept into *attacker not
+  active at our decision (switched in)* vs *move below usage cutoff* — the
+  former (e.g. the Aerodactyl case, an opponent switch-in we can't predict) was
+  previously mislabeled as off-meta tech.
+
 ### Handle `|swap|` (Ally Switch) — fix opponent active-slot desync
 
 The parser had **no `|swap|` handler**, so Ally Switch (which exchanges a side's

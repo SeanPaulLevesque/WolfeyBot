@@ -185,7 +185,7 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 
 *Each case is a **gap** (actionable) or **accepted** (explained, with reason). Goal: gaps to zero; accepted rows stay so the checks keep running.*
 
-**Offense** 42 (42 gaps) | **Defense** 24 (12 gaps) | **Turn order** 60 misreads (1 gaps) | **Immunity** 0 (0 gaps)
+**Offense** 42 (42 gaps) | **Defense** 24 (13 gaps) | **Turn order** 60 misreads (1 gaps) | **Immunity** 0 (0 gaps)
 
 ### Defensive mis-model
 *Incoming hits >slop above prediction (crits/misses excluded).*
@@ -204,8 +204,8 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 | Kingambit | Kowtow Cleave | Metagross-Mega | 77% | 94% | gap<!-- 2637925078:t5 --> |
 | Kingambit | Sucker Punch | Metagross-Mega | 64% | 80% | gap<!-- 2638010141:t5 --> |
 | Hydrapple | Earth Power | Kingambit | 66% | 82% | gap<!-- 2637892017:t2 --> |
+| Floette-Mega | Dazzling Gleam | Kingambit | 34% | 50% | gap<!-- 2637992326:t3 --> |
 | Sableye | Foul Play | Metagross-Mega | n/a | 83% | accepted: unassessed move (off-meta / below usage cutoff)<!-- wgs6nb3jilroh1kvrrt6onx1qgcpqmwpw:t4 --> |
-| Floette-Mega | Dazzling Gleam | Kingambit | n/a | 50% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2637992326:t3 --> |
 | Pyroar-Mega | Scorching Sands | Arcanine-Hisui | n/a | 99% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2637939098:t2 --> |
 | Pyroar-Mega | Scorching Sands | Arcanine-Hisui | n/a | 95% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 7gucltwd08kwqswr72btp7seob2pj3ypw:t6 --> |
 | Araquanid | Hydro Pump | Basculegion | n/a | 94% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2637943073:t3 --> |
@@ -215,7 +215,7 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 | Dragonite | Earthquake | Metagross-Mega | n/a | 72% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2637939098:t6 --> |
 | Starmie-Mega | Waterfall | Metagross | n/a | 96% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2637976513:t2 --> |
 | Grimmsnarl | Foul Play | Kingambit | n/a | 41% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2637917804:t7 --> |
-| Aerodactyl | Dual Wingbeat | Basculegion | n/a | 16% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2637997338:t5 --> |
+| Aerodactyl | Dual Wingbeat | Basculegion | n/a | 16% | accepted: attacker not active at our decision (switched in)<!-- 2637997338:t5 --> |
 
 ### Offensive mis-model
 *Our outgoing damage vs actual (|error| > slop). Dir = over/under.*

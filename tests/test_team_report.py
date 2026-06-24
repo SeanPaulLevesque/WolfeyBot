@@ -10,7 +10,24 @@ from tools.team_report import (
     roster_stats, move_usage, length_buckets, load_games, derive_team_meta,
     archetype_breakdown, opp_mega_breakdown, lead_outcomes,
 )
-from tools.accuracy_report import compute_prediction
+from tools.accuracy_report import compute_prediction, _same_line
+
+
+class TestSameLine:
+    """Pin↔event forme reconciliation: a mis-inferred same-species forme must
+    match (so an assessed move isn't falsely flagged 'unassessed'), but
+    competitively-distinct formes must stay separate."""
+
+    def test_reconciles_mega_and_special_forme_of_same_species(self):
+        # The Floette case: assessed Floette-Eternal, actual Floette-Mega.
+        assert _same_line("Floette-Eternal", "Floette-Mega")
+        assert _same_line("Floette", "Floette-Eternal")
+        assert _same_line("Garchomp-Mega", "Garchomp")   # plain mega vs base
+
+    def test_keeps_distinct_formes_separate(self):
+        assert not _same_line("Rotom-Wash", "Rotom-Heat")   # two distinct formes
+        assert not _same_line("Stunfisk", "Stunfisk-Galar")  # regional (distinct)
+        assert not _same_line("Garchomp", "Dragonite")       # unrelated
 
 
 def _turn(my, team=None, dec=None, ev=None):

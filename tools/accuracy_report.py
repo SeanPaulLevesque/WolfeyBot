@@ -29,8 +29,32 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data import base_forme as _base   # canonical forme-equivalence normaliser
+from data.species import _DISTINCT_FORME_SUFFIXES
 from data.moves import move_priority, move_category, move_type
 from decision.modules import _assumed_ability
+
+
+def _same_line(a: str, b: str) -> bool:
+    """True if two forme names denote the SAME on-field opponent, for matching a
+    recorded event back to its prediction (pin).
+
+    Reconciles a mis-inferred same-species forme — e.g. we assessed the opponent
+    as ``Floette-Eternal`` but it was actually ``Floette-Mega`` (both ``Floette``)
+    — which ``base_forme`` alone leaves distinct (it strips only ``-Mega``).
+    Does NOT merge competitively-distinct formes: a forme suffix in
+    ``_DISTINCT_FORME_SUFFIXES`` (Galar/Alola/…, regionals/styles) keeps the
+    names separate, and two non-base formes of one species (Rotom-Wash vs
+    Rotom-Heat) never match."""
+    a, b = _base(a), _base(b)
+    if a == b:
+        return True
+    for x, y in ((a, b), (b, a)):
+        # y is a forme of base-species x (x is y's leading token) and y's forme
+        # suffix is not a competitively-distinct one
+        if "-" in y and y.split("-", 1)[0] == x \
+                and not (set(y.split("-")[1:]) & _DISTINCT_FORME_SUFFIXES):
+            return True
+    return False
 
 DMG_RE = re.compile(r"damage_output: (\d+)% HP")
 POS_RE = re.compile(r"pos (\d)/4")
@@ -240,7 +264,7 @@ def compute_prediction(games, slop=0.15):
                     continue                      # skip misses (no d) and crits
                 defender, attacker, mv, act = e["tg"], e["a"], e["mv"], e["d"]
                 entry = next((p for p in pin if _base(p["df"]) == _base(defender)
-                              and _base(p["a"]) == _base(attacker)), None)
+                              and _same_line(p["a"], attacker)), None)
                 # 0.8.6+ stores per-move map "mvs"; older logs stored a single
                 # scariest {"mv","p"} — fall back to that for backward compat.
                 if entry and "mvs" in entry:
@@ -255,12 +279,17 @@ def compute_prediction(games, slop=0.15):
                         # We assessed this move but under-rated it -> real gap.
                         def_under.append((act - pred, attacker, defender, mv, pred, act, "gap", loc))
                 else:
-                    # Move we never assessed (off-meta tech / below usage cutoff):
-                    # accepted as a coverage limit, tracked separately.
+                    # Move we never assessed — accepted as a coverage limit, but
+                    # distinguish WHY: if we have no pin entry for this attacker at
+                    # all, it wasn't on the field at our decision (an opponent
+                    # switch-in we can't predict); otherwise it's a real move that
+                    # fell below the top-N usage cutoff.
                     worst = max(assessed.values()) if assessed else 0.0
                     if act - worst > slop:
-                        def_under.append((act - worst, attacker, defender, mv, None, act,
-                                          "accepted: unassessed move (off-meta / below usage cutoff)", loc))
+                        disp = ("accepted: attacker not active at our decision (switched in)"
+                                if entry is None else
+                                "accepted: unassessed move (off-meta / below usage cutoff)")
+                        def_under.append((act - worst, attacker, defender, mv, None, act, disp, loc))
 
     return {
         "off_within": off_within, "off_total": off_total,
