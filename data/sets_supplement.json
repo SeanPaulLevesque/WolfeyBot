@@ -1647,5 +1647,59 @@
     "spreads": {
       "Adamant:32/32/0/0/2/0": 100.0
     }
+  },
+  "Garchomp": {
+    "override": true,
+    "_note": "M-B stopgap: opponent Garchomp now predominantly Life Orb (meta shift; pre-Smogon-M-B-stats ~July 2026). Remove this entry when real M-B usage lands.",
+    "raw_count": 1787384,
+    "abilities": {
+      "Rough Skin": 93.852,
+      "Sand Veil": 6.148
+    },
+    "items": {
+      "Life Orb": 45.0,
+      "Choice Scarf": 27.89,
+      "Sitrus Berry": 16.534,
+      "Soft Sand": 13.314,
+      "White Herb": 12.468,
+      "Haban Berry": 9.664,
+      "Lum Berry": 6.429,
+      "Focus Sash": 2.832,
+      "Roseli Berry": 2.48,
+      "Bright Powder": 2.136,
+      "Dragon Fang": 2.13
+    },
+    "spreads": {
+      "Jolly:2/32/0/0/0/32": 18.938,
+      "Adamant:2/32/0/0/0/32": 9.574,
+      "Jolly:0/32/0/0/2/32": 3.271,
+      "Adamant:32/7/1/0/1/25": 2.41,
+      "Jolly:0/32/2/0/0/32": 1.925,
+      "Jolly:0/32/1/0/1/32": 1.888
+    },
+    "moves": {
+      "Earthquake": 91.473,
+      "Rock Slide": 81.635,
+      "Dragon Claw": 80.884,
+      "Protect": 70.665,
+      "Stomping Tantrum": 46.718,
+      "Swords Dance": 5.256,
+      "Scale Shot": 4.095
+    },
+    "tera_types": {
+      "Nothing": 100.0
+    },
+    "teammates": {
+      "Sneasler": 46.767,
+      "Kingambit": 45.485,
+      "Basculegion": 38.819,
+      "Charizard-Mega-Y": 33.45,
+      "Floette-Mega": 32.344,
+      "Incineroar": 30.96,
+      "Rotom-Wash": 20.174,
+      "Aerodactyl": 19.972,
+      "Sinistcha": 15.032,
+      "Whimsicott": 13.424
+    }
   }
 }

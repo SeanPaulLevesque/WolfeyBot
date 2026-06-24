@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.21.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.22.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -131,22 +131,22 @@ Bench: Arcanine-Hisui, Aegislash, Basculegion, Dragonite
 |---|---|---|---|---|
 | 5.1 | Incineroar | Sneasler | Sacred Sword → Incineroar `11.59` | Hurricane → Sneasler `49.95` |
 | 5.2 | Incineroar | Whimsicott | Sacred Sword → Incineroar `17.38` | Hurricane → Whimsicott `17.66` |
-| 5.3 | Incineroar | Garchomp | Sacred Sword → Incineroar `11.59` | Ice Beam → Garchomp `33.68` |
+| 5.3 | Incineroar | Garchomp | Sacred Sword → Incineroar `11.59` | Ice Beam → Garchomp `44.90` |
 | 5.4 | Incineroar | Farigiraf | Sacred Sword → Incineroar `34.76` | Weather Ball → Farigiraf `11.30` |
 | 5.5 | Incineroar | Kingambit | Sacred Sword → Incineroar `17.38` | Weather Ball → Kingambit `5.35` |
 | 5.6 | Incineroar | Aerodactyl | Switch → Basculegion `14.80` | Weather Ball → Aerodactyl `7.85` |
 | 5.7 | Farigiraf | Sneasler | Psycho Cut → Sneasler `66.84` | Weather Ball → Farigiraf `11.30` |
-| 5.8 | Farigiraf | Garchomp | Sacred Sword → Farigiraf `5.96` | Ice Beam → Garchomp `67.35` |
-| 5.9 | Whimsicott | Garchomp | Psycho Cut → Whimsicott `3.70` | Ice Beam → Garchomp `50.51` |
+| 5.8 | Farigiraf | Garchomp | Sacred Sword → Farigiraf `5.96` | Ice Beam → Garchomp `89.80` |
+| 5.9 | Whimsicott | Garchomp | Psycho Cut → Whimsicott `3.70` | Ice Beam → Garchomp `67.35` |
 | 5.10 | Whimsicott | Kingambit | Sacred Sword → Kingambit `6.10` | Hurricane → Whimsicott `17.66` |
-| 5.11 | Sneasler | Garchomp | Psycho Cut → Sneasler `25.06` | Ice Beam → Garchomp `33.68` |
+| 5.11 | Sneasler | Garchomp | Psycho Cut → Sneasler `25.06` | Ice Beam → Garchomp `44.90` |
 | 5.12 | Sneasler | Kingambit | Psycho Cut → Sneasler `33.42` | Weather Ball → Kingambit `5.35` |
-| 5.13 | Aerodactyl | Garchomp | Switch → Basculegion `15.06` | Ice Beam → Garchomp `33.68` |
-| 5.14 | Lopunny | Garchomp | Sacred Sword → Lopunny `12.33` | Ice Beam → Garchomp `22.45` |
-| 5.15 | Weavile | Garchomp | Sacred Sword → Weavile `6.37` | Ice Beam → Garchomp `22.45` |
-| 5.16 | Talonflame | Garchomp | Switch → Basculegion `15.12` | Weather Ball → Talonflame `55.76` |
+| 5.13 | Aerodactyl | Garchomp | Switch → Basculegion `15.06` | Ice Beam → Garchomp `50.51` |
+| 5.14 | Lopunny | Garchomp | Sacred Sword → Lopunny `12.33` | Ice Beam → Garchomp `33.68` |
+| 5.15 | Weavile | Garchomp | Sacred Sword → Weavile `6.37` | Ice Beam → Garchomp `33.68` |
+| 5.16 | Talonflame | Garchomp | Switch → Basculegion `15.12` | Weather Ball → Talonflame `83.64` |
 | 5.17 | Charizard | Incineroar | Sacred Sword → Incineroar `11.59` | Weather Ball → Charizard `50.53` |
-| 5.18 | Rotom-Wash | Garchomp | Leaf Blade → Rotom-Wash `23.91` | Ice Beam → Garchomp `33.68` |
+| 5.18 | Rotom-Wash | Garchomp | Leaf Blade → Rotom-Wash `23.91` | Ice Beam → Garchomp `44.90` |
 | 5.19 | Glimmora | Incineroar | Sacred Sword → Incineroar `11.59` | Weather Ball → Glimmora `56.40` |
 | 5.20 | Pelipper | Dragonite | Psycho Cut → Pelipper `4.47` | Ice Beam → Dragonite `6.36` |
 
@@ -243,22 +243,22 @@ Bench: Gallade, Aegislash, Basculegion, Dragonite
 |---|---|---|---|---|
 | 9.1 | Incineroar | Sneasler | Head Smash → Incineroar `12.07` | Hurricane → Sneasler `49.95` |
 | 9.2 | Incineroar | Whimsicott | Head Smash → Incineroar `18.10` | Hurricane → Whimsicott `17.66` |
-| 9.3 | Incineroar | Garchomp | Protect → ? `7.50` | Ice Beam → Garchomp `16.84` |
+| 9.3 | Incineroar | Garchomp | Head Smash → Incineroar `12.07` | Ice Beam → Garchomp `44.90` |
 | 9.4 | Incineroar | Farigiraf | Head Smash → Incineroar `36.21` | Weather Ball → Farigiraf `11.30` |
 | 9.5 | Incineroar | Kingambit | Head Smash → Incineroar `18.10` | Weather Ball → Kingambit `5.35` |
 | 9.6 | Incineroar | Aerodactyl | Head Smash → Incineroar `18.10` | Weather Ball → Aerodactyl `15.69` |
 | 9.7 | Farigiraf | Sneasler | Head Smash → Farigiraf `3.08` | Hurricane → Sneasler `99.91` |
-| 9.8 | Farigiraf | Garchomp | Protect → ? `7.50` | Ice Beam → Garchomp `67.35` |
-| 9.9 | Whimsicott | Garchomp | Protect → ? `7.50` | Ice Beam → Garchomp `50.51` |
+| 9.8 | Farigiraf | Garchomp | Head Smash → Farigiraf `6.16` | Ice Beam → Garchomp `89.80` |
+| 9.9 | Whimsicott | Garchomp | Head Smash → Whimsicott `4.79` | Ice Beam → Garchomp `67.35` |
 | 9.10 | Whimsicott | Kingambit | Switch → Dragonite `3.26` | Hurricane → Whimsicott `17.66` |
-| 9.11 | Sneasler | Garchomp | Switch → Gallade `13.00` | Hurricane → Sneasler `18.73` |
+| 9.11 | Sneasler | Garchomp | Switch → Gallade `3.25` | Hurricane → Sneasler `24.98` |
 | 9.12 | Sneasler | Kingambit | Switch → Gallade `13.00` | Hurricane → Sneasler `24.98` |
-| 9.13 | Aerodactyl | Garchomp | Switch → Basculegion `11.19` | Ice Beam → Garchomp `33.68` |
-| 9.14 | Lopunny | Garchomp | Switch → Basculegion `7.79` | Hurricane → Lopunny `11.60` |
-| 9.15 | Weavile | Garchomp | Switch → Gallade `10.37` | Ice Beam → Garchomp `11.23` |
-| 9.16 | Talonflame | Garchomp | Head Smash → Talonflame `17.86` | Ice Beam → Garchomp `33.68` |
+| 9.13 | Aerodactyl | Garchomp | Head Smash → Aerodactyl `9.66` | Ice Beam → Garchomp `50.51` |
+| 9.14 | Lopunny | Garchomp | Switch → Basculegion `7.79` | Hurricane → Lopunny `17.40` |
+| 9.15 | Weavile | Garchomp | Head Smash → Weavile `3.42` | Ice Beam → Garchomp `33.68` |
+| 9.16 | Talonflame | Garchomp | Head Smash → Talonflame `89.29` | Ice Beam → Garchomp `50.51` |
 | 9.17 | Charizard | Incineroar | Head Smash → Incineroar `12.07` | Weather Ball → Charizard `50.53` |
-| 9.18 | Rotom-Wash | Garchomp | Protect → ? `7.50` | Ice Beam → Garchomp `33.68` |
+| 9.18 | Rotom-Wash | Garchomp | Protect → ? `7.50` | Ice Beam → Garchomp `44.90` |
 | 9.19 | Glimmora | Incineroar | Head Smash → Incineroar `12.07` | Weather Ball → Glimmora `56.40` |
 | 9.20 | Pelipper | Dragonite | Head Smash → Pelipper `15.91` | Ice Beam → Dragonite `6.36` |
 
@@ -327,22 +327,22 @@ Bench: Gallade, Arcanine-Hisui, Basculegion, Dragonite
 |---|---|---|---|---|
 | 12.1 | Incineroar | Sneasler | Switch → Gallade `3.16` | Hurricane → Sneasler `24.98` |
 | 12.2 | Incineroar | Whimsicott | Iron Head → Whimsicott `1.82` | Weather Ball → Incineroar `11.60` |
-| 12.3 | Incineroar | Garchomp | Switch → Basculegion `2.49` | Ice Beam → Garchomp `16.84` |
+| 12.3 | Incineroar | Garchomp | Switch → Basculegion `2.49` | Ice Beam → Garchomp `22.45` |
 | 12.4 | Incineroar | Farigiraf | Iron Head → Farigiraf `1.44` | Weather Ball → Incineroar `15.46` |
 | 12.5 | Incineroar | Kingambit | Sacred Sword → Kingambit `0.77` | Weather Ball → Incineroar `7.73` |
 | 12.6 | Incineroar | Aerodactyl | Switch → Basculegion `3.97` | Weather Ball → Aerodactyl `7.85` |
 | 12.7 | Farigiraf | Sneasler | Switch → Gallade `3.16` | Hurricane → Sneasler `49.95` |
-| 12.8 | Farigiraf | Garchomp | Iron Head → Farigiraf `2.88` | Ice Beam → Garchomp `67.35` |
-| 12.9 | Whimsicott | Garchomp | Iron Head → Whimsicott `3.65` | Ice Beam → Garchomp `50.51` |
+| 12.8 | Farigiraf | Garchomp | Iron Head → Farigiraf `2.88` | Ice Beam → Garchomp `89.80` |
+| 12.9 | Whimsicott | Garchomp | Iron Head → Whimsicott `3.65` | Ice Beam → Garchomp `67.35` |
 | 12.10 | Whimsicott | Kingambit | Iron Head → Whimsicott `4.86` | Hurricane → Whimsicott `9.72` |
-| 12.11 | Sneasler | Garchomp | Switch → Gallade `3.16` | Hurricane → Sneasler `18.73` |
+| 12.11 | Sneasler | Garchomp | Switch → Gallade `3.16` | Hurricane → Sneasler `24.98` |
 | 12.12 | Sneasler | Kingambit | Switch → Gallade `3.16` | Hurricane → Sneasler `24.98` |
-| 12.13 | Aerodactyl | Garchomp | Switch → Basculegion `3.97` | Ice Beam → Garchomp `33.68` |
-| 12.14 | Lopunny | Garchomp | Switch → Basculegion `1.91` | Hurricane → Lopunny `11.60` |
-| 12.15 | Weavile | Garchomp | Sacred Sword → Weavile `1.97` | Ice Beam → Garchomp `22.45` |
-| 12.16 | Talonflame | Garchomp | Switch → Basculegion `3.91` | Weather Ball → Talonflame `55.76` |
+| 12.13 | Aerodactyl | Garchomp | Switch → Basculegion `3.97` | Ice Beam → Garchomp `50.51` |
+| 12.14 | Lopunny | Garchomp | Switch → Basculegion `1.91` | Hurricane → Lopunny `17.40` |
+| 12.15 | Weavile | Garchomp | Sacred Sword → Weavile `1.97` | Ice Beam → Garchomp `33.68` |
+| 12.16 | Talonflame | Garchomp | Switch → Basculegion `3.91` | Weather Ball → Talonflame `83.64` |
 | 12.17 | Charizard | Incineroar | Sacred Sword → Incineroar `0.63` | Weather Ball → Charizard `50.53` |
-| 12.18 | Rotom-Wash | Garchomp | Poltergeist → Rotom-Wash `1.89` | Ice Beam → Garchomp `33.68` |
+| 12.18 | Rotom-Wash | Garchomp | Poltergeist → Rotom-Wash `1.89` | Ice Beam → Garchomp `44.90` |
 | 12.19 | Glimmora | Incineroar | Switch → Basculegion `2.92` | Weather Ball → Glimmora `28.20` |
 | 12.20 | Pelipper | Dragonite | Poltergeist → Pelipper `2.80` | Ice Beam → Dragonite `6.36` |
 
@@ -383,22 +383,22 @@ Bench: Gallade, Arcanine-Hisui, Aegislash, Dragonite
 |---|---|---|---|---|
 | 14.1 | Incineroar | Sneasler | Wave Crash → Incineroar `23.53` | Hurricane → Sneasler `49.95` |
 | 14.2 | Incineroar | Whimsicott | Wave Crash → Incineroar `35.29` | Hurricane → Whimsicott `17.66` |
-| 14.3 | Incineroar | Garchomp | Wave Crash → Incineroar `23.53` | Ice Beam → Garchomp `33.68` |
+| 14.3 | Incineroar | Garchomp | Wave Crash → Incineroar `23.53` | Ice Beam → Garchomp `44.90` |
 | 14.4 | Incineroar | Farigiraf | Wave Crash → Farigiraf `87.51` | Weather Ball → Incineroar `15.46` |
 | 14.5 | Incineroar | Kingambit | Wave Crash → Incineroar `35.29` | Weather Ball → Kingambit `5.35` |
 | 14.6 | Incineroar | Aerodactyl | Wave Crash → Incineroar `35.29` | Weather Ball → Aerodactyl `15.69` |
 | 14.7 | Farigiraf | Sneasler | Wave Crash → Farigiraf `58.34` | Hurricane → Sneasler `99.91` |
-| 14.8 | Farigiraf | Garchomp | Wave Crash → Farigiraf `116.68` | Ice Beam → Garchomp `67.35` |
-| 14.9 | Whimsicott | Garchomp | Wave Crash → Garchomp `32.54` | Hurricane → Whimsicott `13.25` |
+| 14.8 | Farigiraf | Garchomp | Wave Crash → Farigiraf `116.68` | Ice Beam → Garchomp `89.80` |
+| 14.9 | Whimsicott | Garchomp | Wave Crash → Garchomp `32.54` | Hurricane → Whimsicott `17.66` |
 | 14.10 | Whimsicott | Kingambit | Wave Crash → Kingambit `32.84` | Hurricane → Whimsicott `17.66` |
-| 14.11 | Sneasler | Garchomp | Wave Crash → Sneasler `17.64` | Ice Beam → Garchomp `33.68` |
+| 14.11 | Sneasler | Garchomp | Wave Crash → Sneasler `17.64` | Ice Beam → Garchomp `44.90` |
 | 14.12 | Sneasler | Kingambit | Wave Crash → Kingambit `10.95` | Hurricane → Sneasler `49.95` |
-| 14.13 | Aerodactyl | Garchomp | Wave Crash → Aerodactyl `19.49` | Ice Beam → Garchomp `33.68` |
-| 14.14 | Lopunny | Garchomp | Wave Crash → Lopunny `13.33` | Ice Beam → Garchomp `22.45` |
-| 14.15 | Weavile | Garchomp | Switch → Gallade `10.05` | Ice Beam → Garchomp `11.23` |
-| 14.16 | Talonflame | Garchomp | Wave Crash → Talonflame `92.10` | Ice Beam → Garchomp `33.68` |
+| 14.13 | Aerodactyl | Garchomp | Wave Crash → Aerodactyl `19.49` | Ice Beam → Garchomp `50.51` |
+| 14.14 | Lopunny | Garchomp | Wave Crash → Lopunny `13.33` | Ice Beam → Garchomp `33.68` |
+| 14.15 | Weavile | Garchomp | Switch → Gallade `10.05` | Ice Beam → Garchomp `16.84` |
+| 14.16 | Talonflame | Garchomp | Wave Crash → Talonflame `92.10` | Ice Beam → Garchomp `50.51` |
 | 14.17 | Charizard | Incineroar | Wave Crash → Incineroar `23.53` | Weather Ball → Charizard `50.53` |
-| 14.18 | Rotom-Wash | Garchomp | Wave Crash → Rotom-Wash `2.98` | Ice Beam → Garchomp `33.68` |
+| 14.18 | Rotom-Wash | Garchomp | Wave Crash → Rotom-Wash `2.98` | Ice Beam → Garchomp `44.90` |
 | 14.19 | Glimmora | Incineroar | Wave Crash → Incineroar `23.53` | Weather Ball → Glimmora `56.40` |
 | 14.20 | Pelipper | Dragonite | Wave Crash → Pelipper `4.42` | Ice Beam → Dragonite `6.36` |
 
@@ -411,21 +411,21 @@ Bench: Gallade, Arcanine-Hisui, Aegislash, Basculegion
 |---|---|---|---|---|
 | 15.1 | Incineroar | Sneasler | Air Slash → Sneasler `11.56` | Weather Ball → Incineroar `7.73` |
 | 15.2 | Incineroar | Whimsicott | Air Slash → Whimsicott `4.10` | Weather Ball → Incineroar `11.60` |
-| 15.3 | Incineroar | Garchomp | Switch → Basculegion `1.97` | Ice Beam → Garchomp `16.84` |
+| 15.3 | Incineroar | Garchomp | Switch → Basculegion `1.97` | Ice Beam → Garchomp `22.45` |
 | 15.4 | Incineroar | Farigiraf | Dragon Pulse → Farigiraf `3.40` | Weather Ball → Incineroar `15.46` |
 | 15.5 | Incineroar | Kingambit | Dragon Pulse → Kingambit `0.98` | Weather Ball → Incineroar `7.73` |
 | 15.6 | Incineroar | Aerodactyl | Switch → Basculegion `4.09` | Weather Ball → Aerodactyl `7.85` |
 | 15.7 | Farigiraf | Sneasler | Air Slash → Sneasler `23.12` | Weather Ball → Farigiraf `11.30` |
-| 15.8 | Farigiraf | Garchomp | Dragon Pulse → Farigiraf `4.54` | Ice Beam → Garchomp `67.35` |
-| 15.9 | Whimsicott | Garchomp | Air Slash → Whimsicott `6.15` | Ice Beam → Garchomp `50.51` |
+| 15.8 | Farigiraf | Garchomp | Dragon Pulse → Farigiraf `4.54` | Ice Beam → Garchomp `89.80` |
+| 15.9 | Whimsicott | Garchomp | Air Slash → Whimsicott `6.15` | Ice Beam → Garchomp `67.35` |
 | 15.10 | Whimsicott | Kingambit | Air Slash → Whimsicott `8.19` | Hurricane → Whimsicott `9.72` |
-| 15.11 | Sneasler | Garchomp | Air Slash → Sneasler `8.67` | Ice Beam → Garchomp `33.68` |
+| 15.11 | Sneasler | Garchomp | Air Slash → Sneasler `8.67` | Ice Beam → Garchomp `44.90` |
 | 15.12 | Sneasler | Kingambit | Switch → Gallade `2.80` | Hurricane → Sneasler `24.98` |
-| 15.13 | Aerodactyl | Garchomp | Switch → Basculegion `3.78` | Ice Beam → Garchomp `33.68` |
-| 15.14 | Lopunny | Garchomp | Air Slash → Lopunny `8.12` | Ice Beam → Garchomp `22.45` |
-| 15.15 | Weavile | Garchomp | Switch → Gallade `3.70` | Ice Beam → Garchomp `11.23` |
-| 15.16 | Talonflame | Garchomp | Dragon Pulse → Garchomp `4.81` | Weather Ball → Talonflame `55.76` |
+| 15.13 | Aerodactyl | Garchomp | Switch → Basculegion `3.78` | Ice Beam → Garchomp `50.51` |
+| 15.14 | Lopunny | Garchomp | Air Slash → Lopunny `8.12` | Ice Beam → Garchomp `33.68` |
+| 15.15 | Weavile | Garchomp | Switch → Gallade `3.70` | Ice Beam → Garchomp `16.84` |
+| 15.16 | Talonflame | Garchomp | Dragon Pulse → Garchomp `4.81` | Weather Ball → Talonflame `83.64` |
 | 15.17 | Charizard | Incineroar | Dragon Pulse → Incineroar `1.32` | Weather Ball → Charizard `50.53` |
-| 15.18 | Rotom-Wash | Garchomp | Dragon Pulse → Rotom-Wash `2.79` | Ice Beam → Garchomp `33.68` |
+| 15.18 | Rotom-Wash | Garchomp | Dragon Pulse → Rotom-Wash `2.79` | Ice Beam → Garchomp `44.90` |
 | 15.19 | Glimmora | Incineroar | Switch → Basculegion `2.92` | Weather Ball → Glimmora `28.20` |
 | 15.20 | Pelipper | Dragonite | Dragon Pulse → Pelipper `7.72` | Ice Beam → Dragonite `6.36` |

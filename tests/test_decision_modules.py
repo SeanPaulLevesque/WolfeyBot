@@ -2448,18 +2448,22 @@ class TestEffectiveItem:
     # ── _assumed_item ─────────────────────────────────────────────────────────
 
     def test_assumed_item_above_threshold(self):
-        """A top item at/above the 25% floor is assumed.
-
-        Whimsicott's Focus Sash (74.9%) is a runaway; Garchomp's Choice Scarf
-        (27.9%) is a mere plurality but still clears 25% — committing to it makes
-        us play around a likely-scarfed Garchomp rather than into it."""
-        assert _assumed_item("Whimsicott") == "Focus Sash"
-        assert _assumed_item("Garchomp") == "Choice Scarf"
+        """A top item at/above the 25% floor is assumed — both a runaway and a
+        bare plurality that still clears 25%.  Synthetic distributions; this
+        guards the threshold mechanic, not any species' live usage data."""
+        with patch("decision.modules._item_distribution",
+                   lambda sp: [("Focus Sash", 74.9), ("Sitrus Berry", 10.0)]):
+            assert _assumed_item("AnyMon") == "Focus Sash"     # runaway
+        with patch("decision.modules._item_distribution",
+                   lambda sp: [("Choice Scarf", 27.9), ("Sitrus Berry", 16.5)]):
+            assert _assumed_item("AnyMon") == "Choice Scarf"   # plurality clears 25%
 
     def test_assumed_item_below_threshold_returns_none(self):
-        """Drampa's top item (Silk Scarf, 19.5%) is under the 25% floor → None:
-        the distribution is too flat to commit to one item."""
-        assert _assumed_item("Drampa") is None
+        """A top item under the 25% floor → None: the distribution is too flat to
+        commit to one item.  Synthetic; mechanic, not live data."""
+        with patch("decision.modules._item_distribution",
+                   lambda sp: [("Silk Scarf", 19.5), ("Life Orb", 15.0)]):
+            assert _assumed_item("AnyMon") is None
 
     def test_assumed_item_no_data_returns_none(self):
         with patch("decision.modules._item_distribution", return_value=[]):
@@ -2495,24 +2499,32 @@ class TestEffectiveItem:
 
     def test_assumed_item_ruled_out_falls_to_next_unconditionally(self):
         """Ruling out the top item drops to the next-most-likely item even when
-        it is below the 25% bar: Garchomp's Choice Scarf (27.9%) ruled out →
-        Sitrus Berry (16.5%), because observation narrowed the field."""
-        assert _assumed_item("Garchomp", {"Choice Scarf"}) == "Sitrus Berry"
+        it is below the 25% bar (observation narrowed the field).  The item
+        distribution is SYNTHETIC — this guards the fallback mechanic, not any
+        species' live usage data, so it is immune to usage-stat edits."""
+        dist = [("Choice Scarf", 27.9), ("Sitrus Berry", 16.5), ("Soft Sand", 13.3)]
+        with patch("decision.modules._item_distribution", lambda sp: dist):
+            assert _assumed_item("AnyMon") == "Choice Scarf"                  # top, pure prior
+            assert _assumed_item("AnyMon", {"Choice Scarf"}) == "Sitrus Berry"  # ruled out → next
 
     def test_assumed_item_ruling_out_non_top_keeps_threshold(self):
         """Ruling out an item that wasn't the top pick doesn't bypass the bar:
-        Drampa's top item (Silk Scarf 19.5%) is still below 25% with Choice
-        Scarf ruled out, and nothing higher was skipped → None."""
-        assert _assumed_item("Drampa", {"Choice Scarf"}) is None
+        the sub-25% top item is reached without skipping anything higher → None.
+        Synthetic; mechanic, not live data."""
+        dist = [("Silk Scarf", 19.5), ("Life Orb", 15.0), ("Choice Scarf", 10.0)]
+        with patch("decision.modules._item_distribution", lambda sp: dist):
+            assert _assumed_item("AnyMon", {"Choice Scarf"}) is None
 
     # ── _effective_item with observed evidence ────────────────────────────────
 
     def test_effective_item_evidence_ruled_out_falls_through(self):
-        """An unrevealed Garchomp whose Choice Scarf is ruled out by evidence
-        resolves to the next-most-likely item."""
+        """Evidence ruling out the top prior resolves to the next-most-likely
+        item.  Synthetic distribution — guards the mechanic, not live data."""
+        dist = [("Choice Scarf", 27.9), ("Sitrus Berry", 16.5)]
         mon = make_mon("Garchomp", item=None, side="p2")
         ev = ItemEvidence(ruled_out={"Choice Scarf"})
-        assert _effective_item(mon, ev) == "Sitrus Berry"
+        with patch("decision.modules._item_distribution", lambda sp: dist):
+            assert _effective_item(mon, ev) == "Sitrus Berry"
 
     def test_effective_item_evidence_confirmed_wins_over_prior(self):
         """A confirmed item (e.g. Life Orb recoil seen earlier) is used even
@@ -2537,34 +2549,47 @@ class TestEffectiveItem:
     # ── observed turn order refutes a Choice Scarf assumption ─────────────────
 
     def test_outspeed_rules_out_choice_scarf(self):
-        """An unrevealed Garchomp is assumed scarfed (27.9% plurality); but if our
-        slow Kingambit moved before it last turn in the same priority bracket —
-        and even Garchomp's slowest scarfed spread would outspeed Kingambit — it
-        cannot be scarfed.  build_turn_context's observer rules Scarf out, and the
-        item belief falls through to the next-most-likely item."""
+        """Speed observer retracts a Choice Scarf prior: if our slow Kingambit
+        moved BEFORE the opponent in the same priority bracket — and even the
+        opponent's slowest scarfed spread would outspeed Kingambit — it cannot be
+        scarfed, so build_turn_context rules Scarf out and the belief falls to the
+        next item.  The opponent's item PRIOR is forced SYNTHETICALLY (Scarf top)
+        so this guards the retraction mechanic, not the opponent's live item data;
+        only its (stable) base-speed stats are used."""
+        from decision import modules as _mod
+        real = _mod._item_distribution
+        dist = [("Choice Scarf", 27.9), ("Sitrus Berry", 16.5)]
+        patched = lambda sp: dist if sp == "Garchomp" else real(sp)
         s = self._single_slot_state("Kingambit", "Garchomp")
         garchomp = s.opp_actives[0]
-        assert _opp_item(s, garchomp) == "Choice Scarf"      # prior, pre-observation
-        s.events_log = {1: [
-            {"o": 0, "sd": "us",  "a": "Kingambit", "mv": "Iron Head"},
-            {"o": 1, "sd": "opp", "a": "Garchomp",  "mv": "Dragon Claw"},
-        ]}
-        build_turn_context(s)
-        assert "Choice Scarf" in s.opp_item_evidence["p2: Garchomp"].ruled_out
-        assert _opp_item(s, garchomp) == "Sitrus Berry"      # fell to next item
+        with patch("decision.modules._item_distribution", patched):
+            assert _opp_item(s, garchomp) == "Choice Scarf"      # synthetic prior
+            s.events_log = {1: [
+                {"o": 0, "sd": "us",  "a": "Kingambit", "mv": "Iron Head"},
+                {"o": 1, "sd": "opp", "a": "Garchomp",  "mv": "Dragon Claw"},
+            ]}
+            build_turn_context(s)
+            assert "Choice Scarf" in s.opp_item_evidence["p2: Garchomp"].ruled_out
+            assert _opp_item(s, garchomp) == "Sitrus Berry"      # fell to next item
 
     def test_no_scarf_ruleout_when_we_move_second(self):
-        """If our mon moved *after* the opponent, the order says nothing against
-        a scarf — leave the assumption intact."""
+        """Converse guard: if our mon moved AFTER the opponent, the order is
+        consistent with a scarf, so it must NOT be ruled out.  Synthetic prior —
+        guards the mechanic, not live item data."""
+        from decision import modules as _mod
+        real = _mod._item_distribution
+        dist = [("Choice Scarf", 27.9), ("Sitrus Berry", 16.5)]
+        patched = lambda sp: dist if sp == "Garchomp" else real(sp)
         s = self._single_slot_state("Kingambit", "Garchomp")
-        s.events_log = {1: [
-            {"o": 0, "sd": "opp", "a": "Garchomp",  "mv": "Dragon Claw"},
-            {"o": 1, "sd": "us",  "a": "Kingambit", "mv": "Iron Head"},
-        ]}
-        build_turn_context(s)
-        ev = s.opp_item_evidence.get("p2: Garchomp")
-        assert ev is None or "Choice Scarf" not in ev.ruled_out
-        assert _opp_item(s, s.opp_actives[0]) == "Choice Scarf"
+        with patch("decision.modules._item_distribution", patched):
+            s.events_log = {1: [
+                {"o": 0, "sd": "opp", "a": "Garchomp",  "mv": "Dragon Claw"},
+                {"o": 1, "sd": "us",  "a": "Kingambit", "mv": "Iron Head"},
+            ]}
+            build_turn_context(s)
+            ev = s.opp_item_evidence.get("p2: Garchomp")
+            assert ev is None or "Choice Scarf" not in ev.ruled_out
+            assert _opp_item(s, s.opp_actives[0]) == "Choice Scarf"
 
     # ── integration: forme + item inference feed the OHKO facts ─────────────
 
