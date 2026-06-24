@@ -77,8 +77,6 @@ Sorted by net (KOs - faints). KDR = KOs/faints (∞ = no faints). *WR (brought)/
 | Basculegion | 35% | 12% | 41% | 33% | 22 | 18 | +4 | 1.22 |
 | Raichu | 43% | 30% | 39% | 34% | 25 | 23 | +2 | 1.09 |
 | Kingambit | 92% | 35% | 47% | 47% | 51 | 52 | -1 | 0.98 |
-| Clefable | 0% | 0% | 0% | — | 0 | 1 | -1 | 0.00 |
-| Annihilape | 0% | 0% | 0% | — | 0 | 1 | -1 | 0.00 |
 | Arcanine-Hisui | 76% | 28% | 45% | 56% | 46 | 49 | -3 | 0.94 |
 
 ## Leads

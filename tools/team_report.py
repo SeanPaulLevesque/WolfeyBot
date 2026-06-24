@@ -101,6 +101,11 @@ def roster_stats(games):
         t0 = turns[0] if turns else {}
         brought = {base_forme(m["s"]) for m in t0.get("team", []) if m}
         leads = {base_forme(m["s"]) for m in t0.get("my", []) if m}
+        # Our mons (brought roster + anything seen in our actives) — used to keep
+        # faint attribution from crediting an opponent that took a lethal hit on
+        # its own side (self-recoil / confusion / an ally-targeting move).
+        our_bases = brought | {base_forme(m["s"])
+                               for t in turns for m in t.get("my", []) if m}
         for sp in brought:
             stats[sp]["bring"] += 1
             stats[sp]["games_brought"] += 1
@@ -133,7 +138,7 @@ def roster_stats(games):
                         stats[base_forme(e.get("a"))]["kos"] += 1
                 elif e.get("sd") == "opp" and lethal:
                     sp = base_forme(e.get("tg"))
-                    if sp not in fainted_seen:
+                    if sp in our_bases and sp not in fainted_seen:
                         stats[sp]["faints"] += 1
                         fainted_seen.add(sp)
     return dict(stats)

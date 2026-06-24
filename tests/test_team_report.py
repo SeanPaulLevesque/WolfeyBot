@@ -94,6 +94,18 @@ class TestRosterStats:
         assert s["Sneasler"]["faints"] == 1         # observed at 0 HP once
         assert s["Garchomp"]["faints"] == 0
 
+    def test_faint_not_credited_to_non_roster_target(self):
+        # An opp lethal hit whose target is on the OPPONENT's side (self-recoil /
+        # confusion / ally-target) must not be counted as one of our faints.
+        g = {"outcome": "loss", "turns": [{
+            "my": [{"s": "Garchomp", "hp": 1.0}],
+            "team": [{"s": "Garchomp"}],
+            "ev": [{"sd": "opp", "a": "Annihilape", "mv": "Rage Fist",
+                    "tg": "Clefable", "d": 1.0, "h0": 0.8}],   # opp hits its own side
+        }]}
+        s = roster_stats([g])
+        assert "Clefable" not in s and "Annihilape" not in s
+
     def test_wins_when_led(self):
         # Garchomp leads both games (win + loss) -> 1 win-when-led of 2 led.
         s = roster_stats([_GAME_WIN, _GAME_LOSS])
