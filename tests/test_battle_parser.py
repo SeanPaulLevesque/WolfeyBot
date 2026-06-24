@@ -98,6 +98,33 @@ class TestSwitchMessage:
         assert parser.state.my_actives[0].species == "Garganacl"
 
 
+class TestAllySwitch:
+    """`|swap|` (Ally Switch) must exchange the two active slots; otherwise our
+    slot tracking desyncs from the field for the rest of the game (the bug that
+    left an opponent's Aerodactyl tracked in the wrong slot after a Cofagrigus
+    Ally Switch, so its hits went unassessed)."""
+
+    def test_swap_exchanges_opponent_actives(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Cofagrigus|Cofagrigus, L50|301/301"))
+        run(parser.feed("|switch|p2b: Aerodactyl|Aerodactyl, L50|178/178"))
+        assert [m.species for m in parser.state.opp_actives] == ["Cofagrigus", "Aerodactyl"]
+        # Cofagrigus uses Ally Switch -> the two slots swap.
+        run(parser.feed("|swap|p2a: Cofagrigus|1"))
+        assert [m.species for m in parser.state.opp_actives] == ["Aerodactyl", "Cofagrigus"]
+
+    def test_swap_carries_per_slot_last_moves(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Cofagrigus|Cofagrigus, L50|301/301"))
+        run(parser.feed("|switch|p2b: Aerodactyl|Aerodactyl, L50|178/178"))
+        parser.state.opp_last_moves = ["Ally Switch", "Rock Slide"]
+        run(parser.feed("|swap|p2a: Cofagrigus|1"))
+        # the per-slot last-move array tracks the mons through the swap
+        assert parser.state.opp_last_moves == ["Rock Slide", "Ally Switch"]
+
+
 # ── Damage / heal ─────────────────────────────────────────────────────────────
 
 class TestDamageHeal:

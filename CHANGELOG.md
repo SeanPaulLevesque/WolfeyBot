@@ -85,6 +85,23 @@ threshold — so the sets are complete and self-update with the usage stats.
 - Turn-1 snapshot byte-identical; full suite green (incl.
   test_no_mega_entries_in_species_sets — derived sets are base-name keyed).
 
+### Handle `|swap|` (Ally Switch) — fix opponent active-slot desync
+
+The parser had **no `|swap|` handler**, so Ally Switch (which exchanges a side's
+two active slots) was silently ignored: `opp_actives` kept the stale slot order
+for the rest of the game. Surfaced by a defensive-accuracy "unassessed move"
+(opp Aerodactyl's Dual Wingbeat) that traced to the parser tracking Aerodactyl
+in the wrong slot — showing a stale Raichu-Mega-Y where Aerodactyl actually was
+— after a Cofagrigus Ally Switch. Every downstream slot read (targeting,
+incoming-threat assessment, the recorded pin) then tracked the wrong Pokémon,
+and the bot was making live decisions against a wrong board.
+
+- `BattleParser._on_swap` exchanges the side's two active slots (and the
+  parallel per-slot arrays — last-moves, and disabled/encored for our side).
+  Idents are stored slot-letter-stripped, so a slot is a list position; the swap
+  is a positional exchange. Registered `"swap"` in `_HANDLERS`.
+- Regression tests in `TestAllySwitch`.
+
 ### Unify own-side item reads behind `_our_item`
 
 Folds in the 0.21.x follow-ups (no version bump until now): a single

@@ -280,6 +280,25 @@ class BattleParser:
             # (ruled_out / confirmed / consumed) on the evidence record persist.
             self.state.evidence_for(mon.ident).stint_moves = set()
 
+    async def _on_swap(self, args: list[str]):
+        # |swap|IDENT|POSITION — a same-side active-slot swap (Ally Switch).  In
+        # doubles this exchanges the side's two active slots.  Idents are stored
+        # slot-letter-stripped, so a slot IS a list position — swapping the
+        # entries (and the parallel per-slot arrays) re-aligns our model with the
+        # real field.  Without this, opp_actives order goes stale after an Ally
+        # Switch and every downstream slot read (targeting, incoming-threat
+        # assessment) tracks the wrong Pokémon for the rest of the game.
+        if not args:
+            return
+        if _side_from_ident(args[0]) == self.state.my_side:
+            arrays = (self.state.my_actives, self.state.my_last_moves,
+                      self.state.my_disabled_moves, self.state.my_encored_moves)
+        else:
+            arrays = (self.state.opp_actives, self.state.opp_last_moves)
+        for arr in arrays:
+            if len(arr) >= 2:
+                arr[0], arr[1] = arr[1], arr[0]
+
     async def _on_move(self, args: list[str]):
         # |move|SOURCE|MOVENAME|TARGET
         # Track revealed opponent moves; also remember our last move per slot.
@@ -890,6 +909,7 @@ _HANDLERS = {
     "switch":         BattleParser._on_switch,
     "drag":           BattleParser._on_switch,      # same format
     "replace":        BattleParser._on_switch,      # zen mode etc
+    "swap":           BattleParser._on_swap,        # Ally Switch — slot exchange
     "move":           BattleParser._on_move,
     "-crit":          BattleParser._on_crit,
     "-immune":        BattleParser._on_immune,
