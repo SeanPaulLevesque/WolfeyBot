@@ -168,27 +168,27 @@ def _our_stats(state: "BattleState", slot: int) -> Optional[dict[str, int]]:
 
 def _our_ability_for_damage(
     tm: "TeamMember",
-    mon: "Pokemon",
+    species: str,
     designated_mega: Optional[str] = None,
 ) -> str:
-    """Return the defensive ability to use for incoming-damage calculations.
+    """Our mon's ACTIVE ability for damage calcs — both offense and defense.
 
-    In VGC, mega evolution occurs at the start of the turn before any moves,
-    so an active mon's defensive ability is its *mega* ability even on the very
-    first turn — regardless of whether the battle client has registered the
-    evolution yet.  This applies to both pre-mega and already-mega forms.
+    **Single source of truth**: every our-side ability read that feeds a damage
+    calc goes through this, so a mega ability applies symmetrically to our
+    *outgoing* and *incoming* damage (e.g. Metagross-Mega's Tough Claws boosts
+    the moves it throws, not just the hits it takes).  Prefer this over raw
+    ``tm.ability``, which is the *base* ability and silently drops the mega's.
 
-    Only the Pokémon named in *designated_mega* (``state.designated_mega``)
-    will mega-evolve this battle — a second mega-stone holder on the same team
-    stays in base form.  Already-evolved forms (``mon.species == tm.mega_name``)
-    are always treated as mega regardless of *designated_mega*.
-
-    ``TeamMember`` stores no dedicated ``mega_ability`` field; the mega ability
-    is resolved via ``_assumed_ability(tm.mega_name)``.  Falls back to
-    ``tm.ability`` (base ability) when the mon has no mega form, or when the
-    mega species has no data in the sets file.
+    In VGC, mega evolution occurs at the start of the turn before any moves, so a
+    designated- or already-mega mon uses its *mega* ability on the very first
+    turn — regardless of whether the client has registered the evolution yet.
+    Only ``designated_mega`` (``state.designated_mega``) evolves this battle (a
+    second stone holder stays base); an already-evolved form (``species ==
+    tm.mega_name``) is always mega.  The mega ability is resolved via
+    ``_assumed_ability(tm.mega_name)``; falls back to ``tm.ability`` (base) when
+    there is no mega form or the mega species has no sets data.
     """
-    is_mega   = mon.species == tm.mega_name
+    is_mega   = species == tm.mega_name
     will_mega = (
         not is_mega and tm.mega_stats is not None
         and designated_mega == tm.name
@@ -493,7 +493,7 @@ class DamageOutputModule(ScoringModule):
             cur_hp = (opp.hp if (not opp.hp_is_percentage and opp.hp > 0) else None)
             results = outgoing_damage(
                 our_species=mon.species, our_stats=stats, our_moves=[move_name],
-                opp_species=_defense_species(opp), our_ability=tm.ability, our_item=_our_item(mon),
+                opp_species=_defense_species(opp), our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega), our_item=_our_item(mon),
                 opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
                 weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                 opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
@@ -1107,7 +1107,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 opp_at_full = (opp.hp >= opp.max_hp) or (opp.hp_is_percentage and opp.hp >= 100)
                 results = outgoing_damage(
                     our_species=mon.species, our_stats=stats, our_moves=[move],
-                    opp_species=_defense_species(opp), our_ability=tm.ability, our_item=_our_item(mon),
+                    opp_species=_defense_species(opp), our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega), our_item=_our_item(mon),
                     opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
                     weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                     opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
@@ -1156,7 +1156,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 our_stats=stats,
                 opp_ability=_effective_ability(opp) or "",
                 opp_item=_opp_item(state, opp),
-                our_ability=_our_ability_for_damage(tm, mon, state.designated_mega),
+                our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega),
                 our_item=our_item,
                 weather=_assumed_weather(state),
                 our_defender_is_full_hp=at_full,
@@ -1265,7 +1265,8 @@ class SwitchModule(ScoringModule):
         ]
         cur_offense = self._best_offense(
             state, mon.species, stats,
-            tm.ability if tm else None, _our_item(mon), cur_moves,
+            _our_ability_for_damage(tm, mon.species, state.designated_mega) if tm else None,
+            _our_item(mon), cur_moves,
         )
 
         # Is the current mon OHKO-threatened by a threat that actually connects?
@@ -1359,7 +1360,8 @@ class SwitchModule(ScoringModule):
             threats = incoming_damage(
                 opp_species=_offense_species(opp), our_species=species,
                 our_stats=bench_tm.stats, opp_ability=_effective_ability(opp) or "",
-                opp_item=_opp_item(state, opp), our_ability=bench_tm.ability or "",
+                opp_item=_opp_item(state, opp),
+                our_ability=_our_ability_for_damage(bench_tm, species, state.designated_mega),
                 our_item=bench_item, weather=_assumed_weather(state),
                 our_defender_is_full_hp=True,
                 opp_hp_fraction=opp.hp_fraction,

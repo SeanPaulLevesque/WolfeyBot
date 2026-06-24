@@ -85,6 +85,28 @@ threshold — so the sets are complete and self-update with the usage stats.
 - Turn-1 snapshot byte-identical; full suite green (incl.
   test_no_mega_entries_in_species_sets — derived sets are base-name keyed).
 
+### Apply our mega ability to OUTGOING damage (offense), not just incoming
+
+Our offense damage calcs read the **base-paste** ability (`tm.ability`), so a
+mega attacker's mega ability never boosted its own moves — Metagross-Mega's
+Tough Claws (+30% contact) was applied to the hits it *took* (incoming used the
+mega-aware helper) but not the hits it *threw*. Surfaced by a cluster of
+Metagross Psychic Fangs **under**-predictions (Toxapex 60→92, Annihilape
+72→100, …) — the live calc used Clear Body.
+
+Systematic fix (not site-by-site): generalised `_our_ability_for_damage(tm,
+species, designated_mega)` into the **single source of truth** for our-side
+damage-calc abilities, and routed *every* such read through it — both offense
+loops, the incoming loop, the SwitchModule current-mon offense, and the bench
+calc. Eliminates raw `tm.ability` reads in damage contexts (mirrors the
+`_our_item` unification). The turn-order *speed* combatant is intentionally
+separate (it prefers the live revealed `mon.ability`).
+
+Turn-1 snapshots regenerated: baseline & meta-team@v1 shift (Aerodactyl-Mega
+Tough Claws now boosts Dual Wingbeat / Ice Fang — Ice Fang→Garchomp becomes the
+4×+Tough-Claws OHKO it actually is); meta-team@v2 / off-meta-team@v1 unchanged
+(no offensive mega ability). 1836 pass.
+
 ### Record opponent formes explicitly (durable fix for snapshot unreliability)
 
 Root-cause fix for the recurring "opponent snapshots are unreliable" issue
