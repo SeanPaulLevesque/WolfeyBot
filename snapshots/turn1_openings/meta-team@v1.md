@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.24.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.26.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -192,14 +192,14 @@ Bench: Aerodactyl, Basculegion-M, Venusaur, Garchomp
 | 7.5 | Incineroar | Kingambit | Low Kick → Kingambit `1.28` | Close Combat → Incineroar `7.54` |
 | 7.6 | Incineroar | Aerodactyl | Iron Head → Aerodactyl `3.27` | Close Combat → Incineroar `8.48` |
 | 7.7 | Farigiraf | Sneasler | Protect → ? `5.00` | Switch → Basculegion-M `7.32` |
-| 7.8 | Farigiraf | Garchomp | Kowtow Cleave → Farigiraf `8.25` | Close Combat → Garchomp `7.22` |
-| 7.9 | Whimsicott | Garchomp | Kowtow Cleave → Garchomp `2.57` | Dire Claw → Whimsicott `11.95` |
+| 7.8 | Farigiraf | Garchomp | Kowtow Cleave → Farigiraf `8.25` | Switch → Aerodactyl `4.06` |
+| 7.9 | Whimsicott | Garchomp | Iron Head → Whimsicott `6.15` | Switch → Venusaur `4.67` |
 | 7.10 | Whimsicott | Kingambit | Iron Head → Whimsicott `8.19` | Dire Claw → Whimsicott `9.86` |
 | 7.11 | Sneasler | Garchomp | Protect → ? `5.00` | Switch → Basculegion-M `7.34` |
 | 7.12 | Sneasler | Kingambit | Switch → Garchomp `5.35` | Close Combat → Kingambit `2.49` |
 | 7.13 | Aerodactyl | Garchomp | Iron Head → Aerodactyl `6.55` | Switch → Basculegion-M `8.20` |
-| 7.14 | Lopunny | Garchomp | Protect → ? `15.00` | Protect → ? `5.00` |
-| 7.15 | Weavile | Garchomp | Low Kick → Weavile `2.33` | Close Combat → Weavile `5.38` |
+| 7.14 | Lopunny | Garchomp | Protect → ? `5.00` | Protect → ? `5.00` |
+| 7.15 | Weavile | Garchomp | Protect → ? `2.00` | Protect → ? `5.00` |
 | 7.16 | Talonflame | Garchomp | Kowtow Cleave → Talonflame `3.59` | Switch → Basculegion-M `7.02` |
 | 7.17 | Charizard | Incineroar | Switch → Aerodactyl `5.95` | Protect → ? `5.00` |
 | 7.18 | Rotom-Wash | Garchomp | Kowtow Cleave → Rotom-Wash `2.15` | Switch → Venusaur `3.74` |
@@ -299,22 +299,22 @@ Bench: Aerodactyl, Kingambit, Venusaur, Garchomp
 |---|---|---|---|---|
 | 11.1 | Incineroar | Sneasler | Close Combat → Incineroar `2.83` | Psychic Fangs → Sneasler `34.67` |
 | 11.2 | Incineroar | Whimsicott | Dire Claw → Whimsicott `8.96` | Wave Crash → Incineroar `37.89` |
-| 11.3 | Incineroar | Garchomp | Close Combat → Garchomp `1.81` | Wave Crash → Incineroar `25.26` |
+| 11.3 | Incineroar | Garchomp | Switch → Aerodactyl `3.20` | Wave Crash → Incineroar `12.63` |
 | 11.4 | Incineroar | Farigiraf | Close Combat → Farigiraf `4.85` | Wave Crash → Incineroar `75.78` |
 | 11.5 | Incineroar | Kingambit | Close Combat → Kingambit `3.32` | Wave Crash → Incineroar `37.89` |
 | 11.6 | Incineroar | Aerodactyl | Close Combat → Aerodactyl `3.97` | Wave Crash → Incineroar `37.89` |
 | 11.7 | Farigiraf | Sneasler | Close Combat → Farigiraf `3.64` | Psychic Fangs → Sneasler `69.34` |
-| 11.8 | Farigiraf | Garchomp | Close Combat → Garchomp `7.22` | Wave Crash → Farigiraf `6.42` |
-| 11.9 | Whimsicott | Garchomp | Dire Claw → Whimsicott `11.95` | Wave Crash → Garchomp `3.56` |
+| 11.8 | Farigiraf | Garchomp | Switch → Kingambit `4.75` | Wave Crash → Farigiraf `6.42` |
+| 11.9 | Whimsicott | Garchomp | Switch → Venusaur `4.67` | Wave Crash → Garchomp `3.56` |
 | 11.10 | Whimsicott | Kingambit | Dire Claw → Whimsicott `17.93` | Switch → Venusaur `9.69` |
 | 11.11 | Sneasler | Garchomp | Switch → Aerodactyl `5.45` | Psychic Fangs → Sneasler `13.00` |
 | 11.12 | Sneasler | Kingambit | Close Combat → Kingambit `2.49` | Psychic Fangs → Sneasler `34.67` |
 | 11.13 | Aerodactyl | Garchomp | Switch → Kingambit `5.29` | Wave Crash → Aerodactyl `10.12` |
 | 11.14 | Lopunny | Garchomp | Protect → ? `5.00` | Protect → ? `2.00` |
-| 11.15 | Weavile | Garchomp | Close Combat → Weavile `6.72` | Wave Crash → Garchomp `2.37` |
+| 11.15 | Weavile | Garchomp | Protect → ? `5.00` | Protect → ? `2.00` |
 | 11.16 | Talonflame | Garchomp | Protect → ? `7.50` | Wave Crash → Talonflame `47.93` |
 | 11.17 | Charizard | Incineroar | Protect → ? `5.00` | Protect → ? `5.00` |
-| 11.18 | Rotom-Wash | Garchomp | Close Combat → Rotom-Wash `4.54` | Wave Crash → Garchomp `2.37` |
+| 11.18 | Rotom-Wash | Garchomp | Switch → Venusaur `3.74` | Wave Crash → Garchomp `2.37` |
 | 11.19 | Glimmora | Incineroar | Close Combat → Incineroar `3.77` | Wave Crash → Glimmora `30.83` |
 | 11.20 | Pelipper | Dragonite | Switch → Kingambit `3.74` | Wave Crash → Pelipper `3.46` |
 
@@ -332,17 +332,17 @@ Bench: Aerodactyl, Kingambit, Basculegion-M, Garchomp
 | 12.5 | Incineroar | Kingambit | Close Combat → Incineroar `3.77` | Earth Power → Kingambit `3.89` |
 | 12.6 | Incineroar | Aerodactyl | Close Combat → Incineroar `4.24` | Giga Drain → Aerodactyl `3.66` |
 | 12.7 | Farigiraf | Sneasler | Switch → Basculegion-M `7.32` | Earth Power → Sneasler `3.43` |
-| 12.8 | Farigiraf | Garchomp | Close Combat → Garchomp `7.22` | Sludge Bomb → Farigiraf `4.37` |
-| 12.9 | Whimsicott | Garchomp | Dire Claw → Whimsicott `11.95` | Sludge Bomb → Whimsicott `4.99` |
+| 12.8 | Farigiraf | Garchomp | Switch → Kingambit `4.75` | Sludge Bomb → Farigiraf `4.37` |
+| 12.9 | Whimsicott | Garchomp | Switch → Aerodactyl `3.20` | Sludge Bomb → Whimsicott `12.47` |
 | 12.10 | Whimsicott | Kingambit | Dire Claw → Whimsicott `17.93` | Sludge Bomb → Whimsicott `9.15` |
 | 12.11 | Sneasler | Garchomp | Switch → Basculegion-M `7.34` | Protect → ? `2.00` |
 | 12.12 | Sneasler | Kingambit | Close Combat → Kingambit `2.49` | Earth Power → Sneasler `3.43` |
 | 12.13 | Aerodactyl | Garchomp | Switch → Basculegion-M `8.20` | Giga Drain → Aerodactyl `2.74` |
 | 12.14 | Lopunny | Garchomp | Protect → ? `5.00` | Protect → ? `2.00` |
-| 12.15 | Weavile | Garchomp | Close Combat → Weavile `6.72` | Switch → Kingambit `1.60` |
+| 12.15 | Weavile | Garchomp | Protect → ? `5.00` | Protect → ? `2.00` |
 | 12.16 | Talonflame | Garchomp | Switch → Basculegion-M `7.02` | Sludge Bomb → Talonflame `3.38` |
 | 12.17 | Charizard | Incineroar | Protect → ? `5.00` | Switch → Aerodactyl `6.73` |
-| 12.18 | Rotom-Wash | Garchomp | Close Combat → Garchomp `3.61` | Giga Drain → Rotom-Wash `3.05` |
+| 12.18 | Rotom-Wash | Garchomp | Switch → Basculegion-M `3.32` | Giga Drain → Rotom-Wash `3.05` |
 | 12.19 | Glimmora | Incineroar | Close Combat → Incineroar `3.77` | Earth Power → Glimmora `27.59` |
 | 12.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `6.60` | Switch → Kingambit `3.20` |
 
@@ -360,14 +360,14 @@ Bench: Aerodactyl, Kingambit, Basculegion-M, Venusaur
 | 13.5 | Incineroar | Kingambit | Close Combat → Incineroar `2.83` | Stomping Tantrum → Kingambit `5.57` |
 | 13.6 | Incineroar | Aerodactyl | Close Combat → Incineroar `2.83` | Rock Tomb → Aerodactyl `9.42` |
 | 13.7 | Farigiraf | Sneasler | Switch → Basculegion-M `7.32` | Stomping Tantrum → Sneasler `56.96` |
-| 13.8 | Farigiraf | Garchomp | Close Combat → Farigiraf `4.85` | Dragon Claw → Garchomp `15.16` |
-| 13.9 | Whimsicott | Garchomp | Dire Claw → Whimsicott `8.96` | Dragon Claw → Garchomp `11.37` |
+| 13.8 | Farigiraf | Garchomp | Switch → Kingambit `4.75` | Dragon Claw → Garchomp `15.16` |
+| 13.9 | Whimsicott | Garchomp | Switch → Venusaur `4.67` | Poison Jab → Whimsicott `21.07` |
 | 13.10 | Whimsicott | Kingambit | Dire Claw → Whimsicott `11.95` | Poison Jab → Whimsicott `11.59` |
 | 13.11 | Sneasler | Garchomp | Switch → Basculegion-M `7.34` | Stomping Tantrum → Sneasler `28.48` |
 | 13.12 | Sneasler | Kingambit | Close Combat → Kingambit `1.66` | Stomping Tantrum → Sneasler `56.96` |
 | 13.13 | Aerodactyl | Garchomp | Switch → Basculegion-M `8.20` | Dragon Claw → Garchomp `11.37` |
 | 13.14 | Lopunny | Garchomp | Protect → ? `5.00` | Switch → Basculegion-M `3.25` |
-| 13.15 | Weavile | Garchomp | Close Combat → Weavile `5.04` | Dragon Claw → Garchomp `7.58` |
+| 13.15 | Weavile | Garchomp | Protect → ? `5.00` | Switch → Kingambit `5.43` |
 | 13.16 | Talonflame | Garchomp | Protect → ? `7.50` | Rock Tomb → Talonflame `82.69` |
 | 13.17 | Charizard | Incineroar | Close Combat → Incineroar `2.83` | Rock Tomb → Charizard `50.95` |
 | 13.18 | Rotom-Wash | Garchomp | Switch → Venusaur `3.74` | Dragon Claw → Garchomp `7.58` |

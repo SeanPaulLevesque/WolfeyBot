@@ -1,5 +1,72 @@
 # WolfeyBot Changelog
 
+## 0.26.0 — 2026-06-25
+
+### Module decomposition — one concern per module (no embedded "unless")
+
+Refactored the kill/threat scoring so every module is a single unconditional
+rule; conditions that were embedded as "do X *unless* Y", or re-checked across
+modules, are now their own modules reading shared `TurnContext` facts. Turn-1
+snapshots reviewed and approved (the diffs are the intended behaviour below).
+
+- **ThreatElimination → pure ×5** ("Score A Guaranteed Kill"). The "die before
+  acting" ×0.2 cancel is now a standalone **`DoomedModule` (#14)** that applies
+  ×0.2 to **all** of a doomed slot's attacks (not just the kill) — Protect and
+  switch untouched. A doomed mon now escapes/shields instead of swinging into a
+  likely death.
+- **ProtectValue → pure ×2.5** (threatened shield). Its other rows split out:
+  the 1v1/2v1 "Protect only delays" cancel is **`EndgameStallModule` (#13)**, and
+  the partner-clears ×3.0 is now a **phase-2 adjuster `PartnerClearsAdjuster`
+  (J5)** — because whether a threat is cleared depends on the *partner's chosen
+  action*, a genuinely cross-slot question. It now fires only when the partner's
+  actual attack guaranteed-OHKOs the threatener (was: mere capability).
+- **DoublingAdjuster (J1)** no longer re-checks doom; it reads only the OHKO fact.
+
+### Opponent priority moves — modelled, lethality-gated
+
+The engine now recognises an opponent acting first via a priority move (Sucker
+Punch, Bullet Punch, Aqua Jet, Extreme Speed, …), in addition to the Gale Wings
+special case — but **only when that priority move is itself lethal** to the
+target (`ctx.priority_ohko` / `priority_certain`, computed in `build_turn_context`).
+A non-lethal priority move (an Aqua Jet that can't KO us) is ignored, so we don't
+play cautious around it. Our own higher-priority move still out-brackets theirs
+(`_strike_first_with`), so offense is unaffected. Prankster status and Grassy
+Glide are intentionally not modelled (we only model damage; Grassy Glide is off-meta).
+
+### SetterUrgency — TR↔TW cross-guard removed
+
+Dropped the "no opposing Tailwind" / "no Trick Room" clauses: they only mattered
+on a mixed TR+TW board, which the metagame doesn't run. The if/elif (TR first)
+already fires exactly one boost.
+
+## 0.25.0 — 2026-06-25
+
+### Incoming damage is now % of our CURRENT HP (HP-convention fix)
+
+Outgoing damage already overrides the HP denominator with the opponent's
+**current** HP (`opp_current_hp`/`opp_hp_percent`), so offensive OHKO detection
+correctly recognises a chipped target.  Incoming damage did not: it always used
+our **max** HP, so the incoming KO facts meant *"can the opponent OHKO us from
+full?"* — not *"can it kill us at the HP we actually have right now?"*  A
+sub-max-HP lethal hit on an already-damaged mon (e.g. a 30%-of-max hit on a
+17%-HP Garchomp) was never flagged.
+
+Consequence of the asymmetry: `ctx.incoming_ohko` / `incoming_certain` —
+and therefore `is_threatened` / `is_doomed`, ProtectValue's OHKO-threat boost,
+and SwitchModule's escape-OHKO ×4 bonus — all under-fired for damaged mons.
+This is the mechanism behind the observed "won't Protect/switch a low-HP mon out
+of a lethal hit" misplays.
+
+- `incoming_damage` gains `our_current_hp` / `our_hp_percent` (mirroring the
+  outgoing override), scaling the defender HP denominator so incoming
+  `is_ohko` / `hp_fraction_*` are relative to current HP.  `our_defender_is_full_hp`
+  still gates Sash/Sturdy independently.
+- `build_turn_context`'s incoming-fact loop and `SwitchModule._switch_in_survives`
+  pass the live HP **fraction** (`mon.hp_fraction × 100`), which naturally no-ops
+  at full HP — so full-HP scenarios (all turn-1 snapshots) are byte-identical.
+- Tests: `test_chipped_defender_registers_sub_max_lethal_hit`. Turn-1 snapshot
+  unchanged.
+
 ## 0.24.0 — 2026-06-24
 
 ### Model opponent redirection (Rage Powder / Follow Me)

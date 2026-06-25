@@ -979,6 +979,8 @@ def incoming_damage(
         our_item: Optional[str] = None,
         weather: Optional[str] = None,
         our_defender_is_full_hp: bool = True,
+        our_current_hp: Optional[int] = None,
+        our_hp_percent: Optional[float] = None,
         top_n_moves: int = 6,
         opp_boosts: Optional[dict[str, int]] = None,
         our_boosts: Optional[dict[str, int]] = None,
@@ -1015,6 +1017,19 @@ def incoming_damage(
     opp_stats = _most_common_stats(opp_species)
     if opp_stats is None:
         return []
+
+    # Override OUR HP denominator with our observed current HP so that incoming
+    # OHKO detection and hp_fraction_* reflect how much HP we actually have right
+    # now — mirroring the opp_current_hp override in outgoing_damage.  Without
+    # this, a sub-max-HP lethal hit on an already-damaged mon is never flagged as
+    # an OHKO (damage < max HP), so is_doomed/is_threatened/escape-switch under-fire.
+    # Note: our_defender_is_full_hp still gates Sash/Sturdy independently of this.
+    if our_current_hp is not None and our_current_hp > 0:
+        our_stats = dict(our_stats)   # don't mutate the caller's dict
+        our_stats["hp"] = our_current_hp
+    elif our_hp_percent is not None and 0 < our_hp_percent < 100:
+        our_stats = dict(our_stats)
+        our_stats["hp"] = max(1, round(our_stats["hp"] * our_hp_percent / 100.0))
 
     moves = [m for m, _ in move_distribution(opp_species)[:top_n_moves]]
     if not moves:

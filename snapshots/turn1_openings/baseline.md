@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.24.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.26.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -164,14 +164,14 @@ Bench: Aerodactyl, Basculegion, Venusaur, Garchomp
 | 6.5 | Incineroar | Kingambit | Close Combat → Incineroar `3.77` | Low Kick → Kingambit `2.56` |
 | 6.6 | Incineroar | Aerodactyl | Close Combat → Incineroar `4.24` | Iron Head → Aerodactyl `6.55` |
 | 6.7 | Farigiraf | Sneasler | Switch → Basculegion `7.32` | Protect → ? `5.00` |
-| 6.8 | Farigiraf | Garchomp | Close Combat → Garchomp `7.22` | Kowtow Cleave → Farigiraf `8.25` |
-| 6.9 | Whimsicott | Garchomp | Dire Claw → Whimsicott `11.95` | Kowtow Cleave → Garchomp `2.57` |
+| 6.8 | Farigiraf | Garchomp | Switch → Aerodactyl `4.06` | Kowtow Cleave → Farigiraf `8.25` |
+| 6.9 | Whimsicott | Garchomp | Switch → Venusaur `4.67` | Iron Head → Whimsicott `6.15` |
 | 6.10 | Whimsicott | Kingambit | Dire Claw → Whimsicott `17.93` | Iron Head → Whimsicott `4.51` |
 | 6.11 | Sneasler | Garchomp | Switch → Basculegion `7.34` | Protect → ? `5.00` |
 | 6.12 | Sneasler | Kingambit | Close Combat → Kingambit `2.49` | Switch → Garchomp `5.35` |
 | 6.13 | Aerodactyl | Garchomp | Switch → Basculegion `8.20` | Iron Head → Aerodactyl `6.55` |
-| 6.14 | Lopunny | Garchomp | Protect → ? `5.00` | Protect → ? `15.00` |
-| 6.15 | Weavile | Garchomp | Close Combat → Weavile `6.72` | Low Kick → Weavile `1.87` |
+| 6.14 | Lopunny | Garchomp | Protect → ? `5.00` | Protect → ? `5.00` |
+| 6.15 | Weavile | Garchomp | Protect → ? `5.00` | Protect → ? `2.00` |
 | 6.16 | Talonflame | Garchomp | Switch → Basculegion `7.02` | Kowtow Cleave → Talonflame `3.59` |
 | 6.17 | Charizard | Incineroar | Protect → ? `5.00` | Switch → Aerodactyl `5.95` |
 | 6.18 | Rotom-Wash | Garchomp | Switch → Venusaur `3.74` | Kowtow Cleave → Rotom-Wash `2.15` |

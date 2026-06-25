@@ -21,7 +21,10 @@ from decision.engine import (  # noqa: F401
 from decision.modules import (  # noqa: F401
     DamageOutputModule,
     ThreatEliminationModule,
+    DoomedModule,
     ProtectValueModule,
+    PartnerClearsAdjuster,
+    EndgameStallModule,
     TurnOrderModule,
     SetterUrgencyModule,
     SetterDenialModule,

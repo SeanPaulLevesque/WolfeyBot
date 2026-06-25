@@ -25,6 +25,8 @@ from decision import (
     FieldConditionModule,
     OppProtectRecencyModule,
     ProtectValueModule,
+    PartnerClearsAdjuster,
+    EndgameStallModule,
     ConsecutiveProtectModule,
     DoublingAdjuster,
     CoordinationAdjuster,
@@ -33,6 +35,7 @@ from decision import (
     SwitchModule,
     DamageOutputModule,
     ThreatEliminationModule,
+    DoomedModule,
     TurnOrderModule,
     SetterUrgencyModule,
     SetterDenialModule,
@@ -524,13 +527,13 @@ class TestFieldConditionModule:
 
 class TestProtectValueModule:
     """
-    Tests for the merged ProtectValueModule (four multiplicative rows):
-      ×2.5 when threatened; ×3.0 when partner clears a threat;
-      ×0.4 in 1v1 endgame; ×0.4 in 2v1 numerical advantage.
+    Tests for ProtectValueModule — now a single row: ×2.5 when threatened.
 
-    Key behavioral change vs old two-module design: in a 2v1 where the partner
-    clears the threat, old code suppressed ×3.0 entirely (net 2.5×0.4=1.0);
-    merged rows give 2.5×3.0×0.4=3.0.
+    Its former siblings are their own modules: the partner-clears ×3.0 boost is
+    :class:`PartnerClearsModule` (see ``TestPartnerClearsModule``) and the
+    1v1 / 2v1 "Protect only delays" cancels are :class:`EndgameStallModule` (see
+    ``TestEndgameStallModule``).  This module applies neither, so in a 1v1/2v1 or
+    a partner-clears board it returns just the uncancelled ×2.5.
     """
     module = ProtectValueModule()
 
@@ -640,41 +643,13 @@ class TestProtectValueModule:
 
         assert protect.weight == pytest.approx(1.0)
 
-    # ── Row 2: ×3.0 when partner clears a threat ─────────────────────────────
+    # ── Partner-clears ×3.0 moved to PartnerClearsModule (see TestPartnerClearsModule)
+    # ── 1v1 / 2v1 endgame cancel moved to EndgameStallModule ──────────────────
 
-    def test_partner_clears_threat_stacks_on_top_of_x25(self):
-        """OHKO incoming + partner clears a threat → Protect ×2.5×3.0 = 7.5."""
-        state   = self._state_2v2()
-        protect = make_action("Protect", "Protect")
-
-        mock_tm = make_mock_member()
-        with patch("decision.modules.find_member", return_value=mock_tm), \
-             patch("decision.modules.incoming_damage", return_value=[self._ohko_threat()]), \
-             patch("decision.modules._opp_neutralized_before_acting", return_value=False), \
-             patch("decision.modules._partner_can_ohko", return_value=True):
-            self.module.score(state, slot=0, actions=[protect])
-
-        expected = ProtectValueModule.THREATENED_FACTOR * ProtectValueModule.PARTNER_KO_FACTOR
-        assert protect.weight == pytest.approx(expected)
-
-    def test_no_partner_ko_boost_when_partner_cannot_ohko(self):
-        """OHKO incoming but no partner can clear a threat → only ×2.5."""
-        state   = self._state_2v2()
-        protect = make_action("Protect", "Protect")
-
-        mock_tm = make_mock_member()
-        with patch("decision.modules.find_member", return_value=mock_tm), \
-             patch("decision.modules.incoming_damage", return_value=[self._ohko_threat()]), \
-             patch("decision.modules._opp_neutralized_before_acting", return_value=False), \
-             patch("decision.modules._partner_can_ohko", return_value=False):
-            self.module.score(state, slot=0, actions=[protect])
-
-        assert protect.weight == pytest.approx(ProtectValueModule.THREATENED_FACTOR)
-
-    # ── Rows 3/4: ×0.4 cancelling rows ───────────────────────────────────────
-
-    def test_1v1_endgame_cancels_x25(self):
-        """In a 1v1, ×2.5×0.4=1.0 — Protect only delays."""
+    def test_no_endgame_cancel_in_this_module(self):
+        """The 1v1/2v1 "only delays" cancel is no longer ProtectValue's job — in
+        a 1v1 it now returns the uncancelled ×2.5 (EndgameStallModule applies the
+        ×0.4 separately; see TestEndgameStallModule)."""
         state   = self._state_1v1()
         protect = make_action("Protect", "Protect")
 
@@ -684,39 +659,7 @@ class TestProtectValueModule:
              patch("decision.modules.incoming_damage", return_value=[ohko_threat]):
             self.module.score(state, slot=0, actions=[protect])
 
-        assert protect.weight == pytest.approx(1.0)
-
-    def test_2v1_cancels_x25(self):
-        """In a 2v1, ×2.5×0.4=1.0 — Protecting can't improve the outcome."""
-        state   = self._state_2v1()
-        protect = make_action("Protect", "Protect")
-
-        ohko_threat = MagicMock(ohko_with_max_roll=True, is_ohko=True, hp_fraction_max=1.2)
-        mock_tm = make_mock_member()
-        with patch("decision.modules.find_member", return_value=mock_tm), \
-             patch("decision.modules.incoming_damage", return_value=[ohko_threat]):
-            self.module.score(state, slot=0, actions=[protect])
-
-        assert protect.weight == pytest.approx(1.0)
-
-    def test_2v1_with_partner_clearing_threat_gives_3(self):
-        """2v1 + partner clears threat: new behavior is 2.5×3.0×0.4=3.0.
-        (Old design suppressed ×3.0 in 2v1, giving only 2.5×0.4=1.0.)"""
-        state   = self._state_2v1()
-        protect = make_action("Protect", "Protect")
-
-        ohko_threat = MagicMock(ohko_with_max_roll=True, is_ohko=True, hp_fraction_max=1.2)
-        mock_tm = make_mock_member()
-        with patch("decision.modules.find_member", return_value=mock_tm), \
-             patch("decision.modules.incoming_damage", return_value=[ohko_threat]), \
-             patch("decision.modules._opp_neutralized_before_acting", return_value=False), \
-             patch("decision.modules._partner_can_ohko", return_value=True):
-            self.module.score(state, slot=0, actions=[protect])
-
-        expected = (ProtectValueModule.THREATENED_FACTOR
-                    * ProtectValueModule.PARTNER_KO_FACTOR
-                    * ProtectValueModule.ADVANTAGE_2V1_FACTOR)
-        assert protect.weight == pytest.approx(expected)  # 2.5 × 3.0 × 0.4 = 3.0
+        assert protect.weight == pytest.approx(ProtectValueModule.THREATENED_FACTOR)
 
     # ── Reason strings ────────────────────────────────────────────────────────
 
@@ -733,19 +676,188 @@ class TestProtectValueModule:
 
         assert any(r.startswith("incoming_ohko:") for r in protect.reasons)
 
-    def test_reason_protect_prefix_on_partner_clear(self):
-        """Row 2 reason must start with 'protect:' (used by _protect_is_justified)."""
-        state   = self._state_2v2()
-        protect = make_action("Protect", "Protect")
 
+# ══════════════════════════════════════════════════════════════════════════════
+# PartnerClearsAdjuster  (phase-2: partner-clears ×3.0, moved out of phase 1)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestPartnerClearsAdjuster:
+    """Phase-2 joint rule: when one slot Protects against a connecting OHKO and
+    the PARTNER's chosen attack guaranteed-OHKOs that threatener, boost the
+    Protect ×3.0.  Reads the actual pair, so it fires only when the partner
+    really clears the threat (not merely could)."""
+    adj = PartnerClearsAdjuster()
+
+    def _state(self) -> "BattleState":
+        return make_state(
+            my_actives=[make_mon("Garganacl"), make_mon("Sylveon")],
+            opp_actives=[make_mon("Garchomp", side="p2"),
+                         make_mon("Incineroar", side="p2")],
+            my_team=[make_mon("Garganacl"), make_mon("Sylveon")],
+            opp_last_moves=["", ""],
+        )
+
+    def test_partner_attack_clears_threatener_boosts_protect(self):
+        """slot 0 Protects vs opp 0; slot 1's Wave Crash OHKOs opp 0 → ×3.0 on slot 0."""
+        state   = self._state()
+        protect = make_action("Protect", "Protect", weight=2.5)                       # slot 0
+        attack  = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)  # slot 1 → opp 0
+        ctx = TurnContext(incoming_ohko={0: [0]}, ohko={(1, "Wave Crash", 0)})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            fa, fb, reason = self.adj.factor(state, 0, protect, 1, attack)
+        assert fa == pytest.approx(PartnerClearsAdjuster.PARTNER_KO_FACTOR)
+        assert fb == 1.0
+        assert reason and reason.startswith("protect:")
+
+    def test_symmetric_slot_b_protects(self):
+        """Mirror: slot 1 Protects vs opp 0; slot 0's attack OHKOs opp 0 → ×3.0 on slot 1."""
+        state   = self._state()
+        attack  = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)  # slot 0 → opp 0
+        protect = make_action("Protect", "Protect", weight=2.5)                       # slot 1
+        ctx = TurnContext(incoming_ohko={1: [0]}, ohko={(0, "Wave Crash", 0)})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            fa, fb, _ = self.adj.factor(state, 0, attack, 1, protect)
+        assert fa == 1.0
+        assert fb == pytest.approx(PartnerClearsAdjuster.PARTNER_KO_FACTOR)
+
+    def test_no_boost_when_partner_attacks_wrong_target(self):
+        """The partner OHKOs opp 1, but slot 0's threatener is opp 0 → no boost."""
+        state   = self._state()
+        protect = make_action("Protect", "Protect", weight=2.5)
+        attack  = make_action("Wave Crash", "Wave Crash", target_slot=1, weight=5.0)  # OHKOs opp 1
+        ctx = TurnContext(incoming_ohko={0: [0]}, ohko={(1, "Wave Crash", 1)})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            assert self.adj.factor(state, 0, protect, 1, attack) == (1.0, 1.0, None)
+
+    def test_no_boost_when_partner_attack_not_ohko(self):
+        """The partner hits the threatener but it's not a *guaranteed* OHKO → no boost."""
+        state   = self._state()
+        protect = make_action("Protect", "Protect", weight=2.5)
+        attack  = make_action("Dragon Claw", "Dragon Claw", target_slot=0, weight=5.0)
+        ctx = TurnContext(incoming_ohko={0: [0]}, ohko=set())   # nothing guaranteed
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            assert self.adj.factor(state, 0, protect, 1, attack) == (1.0, 1.0, None)
+
+    def test_no_boost_when_protector_not_threatened(self):
+        """slot 0 Protects but isn't threatened → no boost even though the partner OHKOs opp 0."""
+        state   = self._state()
+        protect = make_action("Protect", "Protect", weight=1.0)
+        attack  = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
+        ctx = TurnContext(incoming_ohko={}, ohko={(1, "Wave Crash", 0)})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            assert self.adj.factor(state, 0, protect, 1, attack) == (1.0, 1.0, None)
+
+    def test_double_protect_no_boost(self):
+        """Neither slot attacks → nothing is cleared → no boost."""
+        state = self._state()
+        p0 = make_action("Protect", "Protect", weight=2.5)
+        p1 = make_action("Protect", "Protect", weight=2.5)
+        ctx = TurnContext(incoming_ohko={0: [0], 1: [0]},
+                          ohko={(0, "Wave Crash", 0), (1, "Wave Crash", 0)})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            assert self.adj.factor(state, 0, p0, 1, p1) == (1.0, 1.0, None)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# EndgameStallModule  (the 1v1 / 2v1 cancel pulled out of ProtectValue)
+# ══════════════════════════════════════════════════════════════════════════════
+
+class TestEndgameStallModule:
+    """Fires only when threatened; ×0.4 on Protect in a 1v1 endgame or a 2v1
+    numerical advantage.  Reason strings match the old in-ProtectValue text so
+    phase-2 coordination is unaffected."""
+    module = EndgameStallModule()
+
+    def _state_1v1(self) -> "BattleState":
+        our_mon = make_mon("Garganacl")
+        opp_mon = make_mon("Garchomp", side="p2")
+        return make_state(my_actives=[our_mon], opp_actives=[opp_mon],
+                          my_team=[our_mon], available_switches=[])
+
+    def _state_2v1(self) -> "BattleState":
+        our_mon = make_mon("Garganacl")
+        partner = make_mon("Sylveon")
+        opp_mon = make_mon("Garchomp", side="p2")
+        return make_state(my_actives=[our_mon, partner], opp_actives=[opp_mon],
+                          my_team=[our_mon, partner], available_switches=[])
+
+    def _state_2v2(self) -> "BattleState":
+        our_mon = make_mon("Garganacl")
+        partner = make_mon("Sylveon")
+        opp0    = make_mon("Garchomp",   side="p2")
+        opp1    = make_mon("Incineroar", side="p2")
+        return make_state(my_actives=[our_mon, partner], opp_actives=[opp0, opp1],
+                          my_team=[our_mon, partner], available_switches=[make_mon("Bench")])
+
+    def _ohko(self):
+        return MagicMock(ohko_with_max_roll=True, is_ohko=True, hp_fraction_max=1.2)
+
+    def test_1v1_endgame_cancels_protect(self):
+        """1v1 + threatened → Protect ×0.4 (with ProtectValue's ×2.5 this nets 1.0)."""
+        state   = self._state_1v1()
+        protect = make_action("Protect", "Protect")
         mock_tm = make_mock_member()
         with patch("decision.modules.find_member", return_value=mock_tm), \
-             patch("decision.modules.incoming_damage", return_value=[self._ohko_threat()]), \
-             patch("decision.modules._opp_neutralized_before_acting", return_value=False), \
-             patch("decision.modules._partner_can_ohko", return_value=True):
+             patch("decision.modules.incoming_damage", return_value=[self._ohko()]), \
+             patch("decision.modules._opp_neutralized_before_acting", return_value=False):
             self.module.score(state, slot=0, actions=[protect])
+        assert protect.weight == pytest.approx(EndgameStallModule.ENDGAME_1V1_FACTOR)
 
-        assert any(r.startswith("protect:") for r in protect.reasons)
+    def test_2v1_advantage_cancels_protect(self):
+        """2v1 + threatened → Protect ×0.4."""
+        state   = self._state_2v1()
+        protect = make_action("Protect", "Protect")
+        mock_tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=mock_tm), \
+             patch("decision.modules.incoming_damage", return_value=[self._ohko()]), \
+             patch("decision.modules._opp_neutralized_before_acting", return_value=False):
+            self.module.score(state, slot=0, actions=[protect])
+        assert protect.weight == pytest.approx(EndgameStallModule.ADVANTAGE_2V1_FACTOR)
+
+    def test_no_effect_when_not_threatened(self):
+        """No incoming OHKO → not threatened → Protect untouched even in a 1v1."""
+        state   = self._state_1v1()
+        protect = make_action("Protect", "Protect")
+        mock_tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=mock_tm), \
+             patch("decision.modules.incoming_damage", return_value=[]):
+            self.module.score(state, slot=0, actions=[protect])
+        assert protect.weight == pytest.approx(1.0)
+
+    def test_no_effect_in_2v2(self):
+        """Full 2v2 board is neither a 1v1 nor a 2v1 advantage → no cancel."""
+        state   = self._state_2v2()
+        protect = make_action("Protect", "Protect")
+        mock_tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=mock_tm), \
+             patch("decision.modules.incoming_damage", return_value=[self._ohko()]), \
+             patch("decision.modules._opp_neutralized_before_acting", return_value=False):
+            self.module.score(state, slot=0, actions=[protect])
+        assert protect.weight == pytest.approx(1.0)
+
+    def test_attacks_unaffected(self):
+        """Only Protect-family moves are touched."""
+        state  = self._state_1v1()
+        attack = make_action("Dragon Claw", "Dragon Claw")
+        mock_tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=mock_tm), \
+             patch("decision.modules.incoming_damage", return_value=[self._ohko()]), \
+             patch("decision.modules._opp_neutralized_before_acting", return_value=False):
+            self.module.score(state, slot=0, actions=[attack])
+        assert attack.weight == pytest.approx(1.0)
+
+    def test_combined_with_protect_nets_one_in_1v1(self):
+        """Integration: ProtectValue ×2.5 then EndgameStall ×0.4 → net 1.0 — the
+        old in-module cancel, now spanning two modules."""
+        state   = self._state_1v1()
+        protect = make_action("Protect", "Protect")
+        mock_tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=mock_tm), \
+             patch("decision.modules.incoming_damage", return_value=[self._ohko()]), \
+             patch("decision.modules._opp_neutralized_before_acting", return_value=False):
+            ProtectValueModule().score(state, slot=0, actions=[protect])
+            self.module.score(state, slot=0, actions=[protect])
+        assert protect.weight == pytest.approx(1.0)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1317,8 +1429,12 @@ class TestSetterUrgency:
         assert earth.weight == pytest.approx(SetterUrgencyModule.TW_URGENCY)
         assert any("re-set risk" in r for r in earth.reasons)
 
-    def test_tw_setter_suppressed_while_tr_active(self):
-        """TR is active → TW setter boost is suppressed even if TW is not yet up."""
+    def test_tw_boost_fires_while_tr_active_cross_guard_removed(self):
+        """Cross-guard removed (the meta runs no mixed TR+TW teams): with TR
+        already up, the TR setter's urgency is moot (TR not stoppable), so a
+        present TW setter now boosts attacks ×1.5 — an active TR no longer
+        suppresses it.  The if/elif still fires exactly one boost (TR is skipped
+        here because it's already active, so Tailwind takes it)."""
         state = make_state(
             opp_actives=[make_mon("Farigiraf"), make_mon("Noivern")],
             trick_room=True,
@@ -1327,11 +1443,13 @@ class TestSetterUrgency:
         )
         actions = self._actions()
         self.urgency.score(state, 0, actions)
-        for a in actions:
-            assert a.weight == pytest.approx(1.0), f"{a.label} should be unaffected"
+        earth = next(a for a in actions if a.move_name == "Earth Power")
+        assert earth.weight == pytest.approx(SetterUrgencyModule.TW_URGENCY)
 
-    def test_tr_setter_suppressed_while_tw_active(self):
-        """Opp Tailwind is active → TR setter boost is suppressed even if TR is not yet up."""
+    def test_tr_boost_fires_while_tw_active_cross_guard_removed(self):
+        """Cross-guard removed: opposing Tailwind being up no longer suppresses a
+        present TR setter's urgency.  TR is first in the if/elif, so the TR
+        setter boosts attacks ×2.0 even with opp Tailwind active."""
         state = make_state(
             opp_actives=[make_mon("Farigiraf"), make_mon("Noivern")],
             trick_room=False,
@@ -1340,8 +1458,8 @@ class TestSetterUrgency:
         )
         actions = self._actions()
         self.urgency.score(state, 0, actions)
-        for a in actions:
-            assert a.weight == pytest.approx(1.0), f"{a.label} should be unaffected"
+        earth = next(a for a in actions if a.move_name == "Earth Power")
+        assert earth.weight == pytest.approx(SetterUrgencyModule.TR_URGENCY)
 
 
 class TestSetterDenial:
@@ -1874,9 +1992,11 @@ class TestThreatEliminationModuleIntegration:
         assert action.weight == pytest.approx(ThreatEliminationModule.GUARANTEED_OHKO)
         assert action.target_slot == 0   # unchanged — fixed at build time
 
-    def test_no_kill_credit_when_doomed(self):
-        """'Will I die before I act?' cancels the kill credit: ×5 is applied and
-        the ×0.2 doom row multiplies it back to net ×1.0."""
+    def test_kill_credit_unconditional_even_when_doomed(self):
+        """ThreatElimination is now unconditional: a guaranteed OHKO gets ×5
+        regardless of doom.  The undeliverable-kill ×0.2 lives in DoomedModule
+        (see TestDoomedModule), so this scorer alone gives ×5 even with a faster
+        lethal threat present."""
         our_mon = make_mon("Garganacl")
         opp_mon = make_mon("Garchomp", side="p2")
         state = make_state(
@@ -1891,7 +2011,72 @@ class TestThreatEliminationModuleIntegration:
              patch("decision.modules.outgoing_damage", return_value=[ohko_result]), \
              patch("decision.modules._ko_before_acting", return_value=True):
             self.module.score(state, slot=0, actions=[action])
-        assert action.weight == pytest.approx(1.0)   # gated off — undeliverable kill
+        assert action.weight == pytest.approx(ThreatEliminationModule.GUARANTEED_OHKO)
+
+
+class TestDoomedModule:
+    """A doomed slot (KO'd before it acts) → ×0.2 on its attacks; Protect and
+    switches untouched.  Pulled out of ThreatElimination."""
+    module = DoomedModule()
+
+    def _state(self) -> "BattleState":
+        our_mon = make_mon("Garganacl")
+        opp_mon = make_mon("Garchomp", side="p2")
+        return make_state(
+            my_actives=[our_mon], opp_actives=[opp_mon], my_team=[our_mon],
+            moves_per_slot=[[{"move": "Wave Crash"}]],
+            available_switches=[make_mon("Bench")],
+        )
+
+    def _ohko(self):
+        return make_damage_result(damage_min=110, damage_max=130,
+                                  damage_avg=120.0, defender_hp=100)
+
+    def test_doomed_penalises_attack(self):
+        state  = self._state()
+        attack = make_action("Wave Crash", "Wave Crash", target_slot=0)
+        mock_tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=mock_tm), \
+             patch("decision.modules.outgoing_damage", return_value=[self._ohko()]), \
+             patch("decision.modules._ko_before_acting", return_value=True):
+            self.module.score(state, slot=0, actions=[attack])
+        assert attack.weight == pytest.approx(DoomedModule.DOOMED_FACTOR)
+
+    def test_not_doomed_is_noop(self):
+        state  = self._state()
+        attack = make_action("Wave Crash", "Wave Crash", target_slot=0)
+        mock_tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=mock_tm), \
+             patch("decision.modules.outgoing_damage", return_value=[self._ohko()]), \
+             patch("decision.modules._ko_before_acting", return_value=False):
+            self.module.score(state, slot=0, actions=[attack])
+        assert attack.weight == pytest.approx(1.0)
+
+    def test_protect_and_switch_untouched(self):
+        """A doomed mon should Protect / switch — those aren't penalised."""
+        state   = self._state()
+        protect = make_action("Protect", "Protect")
+        switch  = make_action("Switch Bench", switch_target="Bench")
+        mock_tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=mock_tm), \
+             patch("decision.modules.outgoing_damage", return_value=[self._ohko()]), \
+             patch("decision.modules._ko_before_acting", return_value=True):
+            self.module.score(state, slot=0, actions=[protect, switch])
+        assert protect.weight == pytest.approx(1.0)
+        assert switch.weight == pytest.approx(1.0)
+
+    def test_combined_with_kill_credit_nets_one(self):
+        """Integration: ThreatElimination ×5 then Doomed ×0.2 → net 1.0 — the
+        old in-ThreatElimination cancel, now spanning two modules."""
+        state  = self._state()
+        action = make_action("Wave Crash", "Wave Crash", target_slot=0)
+        mock_tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=mock_tm), \
+             patch("decision.modules.outgoing_damage", return_value=[self._ohko()]), \
+             patch("decision.modules._ko_before_acting", return_value=True):
+            ThreatEliminationModule().score(state, slot=0, actions=[action])
+            self.module.score(state, slot=0, actions=[action])
+        assert action.weight == pytest.approx(1.0)
 
 
 class TestTurnContext:
@@ -2719,6 +2904,29 @@ class TestOpponentBoostFacts:
             helper("Sneasler", "Kingambit", opp_boosts={"atk": 2}))
         assert 0 in boosted.incoming_ohko[0]
         assert 0 in boosted.incoming_certain[0]
+
+    def test_chipped_defender_registers_sub_max_lethal_hit(self):
+        """Incoming KO facts are % of the defender's CURRENT HP, not max.
+
+        Unboosted Kingambit's Iron Head (97-115) does NOT OHKO a full-HP
+        Sneasler (171 HP), so the fact loop leaves slot 0 clear.  But once
+        Sneasler is chipped to ~40% (≈68 HP), that same hit is lethal — it must
+        now surface in incoming_ohko AND incoming_certain.  Before the
+        current-HP fix the denominator was always max HP, so this lethal hit on
+        a damaged mon went unflagged (suppressing Protect/escape-switch)."""
+        helper = TestEffectiveItem._single_slot_state
+
+        full = helper("Sneasler", "Kingambit")
+        full_ctx = build_turn_context(full)
+        assert 0 not in full_ctx.incoming_ohko[0]
+        assert 0 not in full_ctx.incoming_certain[0]
+
+        chipped = helper("Sneasler", "Kingambit")
+        chipped.my_actives[0].hp = 120        # 120/300 = 40% → ≈68 of 171 HP
+        chipped.my_actives[0].max_hp = 300
+        chipped_ctx = build_turn_context(chipped)
+        assert 0 in chipped_ctx.incoming_ohko[0]
+        assert 0 in chipped_ctx.incoming_certain[0]
 
     def test_defense_boost_removes_our_kill_credit(self):
         """Mega Aerodactyl's Dual Wingbeat guarantees the KO on Whimsicott

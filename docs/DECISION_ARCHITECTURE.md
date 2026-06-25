@@ -1,6 +1,6 @@
 # WolfeyBot — How It Thinks
 
-WolfeyBot plays Gen 9 VGC doubles (Champions / Reg MA). This page explains how it
+WolfeyBot plays Gen 9 VGC doubles (Champions / Reg M-B). This page explains how it
 makes decisions, from the team-preview screen to choosing a move each turn. It is
 the plain-language companion to the code in `team_preview.py` (preview) and
 `decision/` (in-battle).
@@ -134,10 +134,31 @@ joint rules applied to the chosen *pair*. `coordinate` maximises
 effect the result is just each slot's independent best. `d` = a move's average
 damage as a fraction of the target's HP.
 
+**Row id** (leftmost column) = `module.row`: the module's position in the phase-1
+pipeline (`make_engine`, in `decision/modules.py`), then the row within that
+module. So **3.2** is ProtectValue's second row, and a module that owns several
+rows shares one module number (e.g. ProtectValue is **3.1–3.4**). Because rows are
+grouped by theme, not strict execution order, the module numbers are **not**
+strictly ascending. Phase-1 modules:
+**1** DamageOutput · **2** ThreatElimination · **3** ProtectValue · **4** TurnOrder ·
+**5** SetterUrgency · **6** SetterDenial · **7** OppProtectRecency ·
+**8** ConsecutiveProtect · **9** FakeOut · **10** FieldCondition · **11** Redirection ·
+**12** Switch · **13** EndgameStall · **14** Doomed. Phase-2 joint adjusters:
+**J1** Doubling · **J2** Coordination · **J3** FakeOut (free) · **J4** SwitchCollision ·
+**J5** PartnerClears.
+
+Several rows sit beside their thematic siblings rather than in pipeline order:
+**13** EndgameStall (1v1/2v1 cancel) and **14** Doomed (the "KO'd before we act"
+attack penalty) were split out of ProtectValue and ThreatElimination, so rows
+**13.x** / **14.1** sit near the **3.x** / **2.x** rows.  **J5** PartnerClears is
+the old "Threat Clear" boost — moved to phase 2 because whether a threat is
+cleared depends on the *partner's* chosen action.
+
 <style>.decision-table td, .decision-table th { text-align: center; }</style>
 <table class="decision-table">
 <thead>
 <tr>
+  <th rowspan="2" style="text-align:center">#</th>
   <th rowspan="2" style="text-align:center"></th>
   <th colspan="3" style="text-align:center">Target Slot 1</th>
   <th colspan="3" style="text-align:center">Target Slot 2</th>
@@ -152,32 +173,33 @@ damage as a fraction of the target's HP.
 </tr>
 </thead>
 <tbody>
-<tr><td>starting weight</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td></td></tr>
-<tr><td>damage</td><td colspan="6">×(1&nbsp;+&nbsp;d×2.0)</td><td>—</td><td>—</td><td>—</td><td>d = average damage ÷ target's HP</td></tr>
-<tr><td>guaranteed kill</td><td colspan="6">×5</td><td>—</td><td>—</td><td>—</td><td>lowest damage roll ≥ the target's HP; withheld if we are KO'd before we act</td></tr>
-<tr><td>die before acting</td><td colspan="6">×0.2</td><td>—</td><td>—</td><td>—</td><td>cancels the ×5 above (×5 × ×0.2 = ×1.0) when a faster/priority foe min-roll-OHKOs us and isn't removed first; no effect on a non-kill attack</td></tr>
-<tr><td>incoming kill</td><td colspan="6">—</td><td>×2.5</td><td>—</td><td>—</td><td>an opponent's max roll OHKOs this mon and a threat can't be neutralized</td></tr>
-<tr><td>incoming kill — 1v1 endgame</td><td colspan="6">—</td><td>×0.4</td><td>—</td><td>—</td><td>cancels the boost (2.5 × 0.4 = 1.0): last mon vs last mon, Protect only delays</td></tr>
-<tr><td>incoming kill — 2v1 lead</td><td colspan="6">—</td><td>×0.4</td><td>—</td><td>—</td><td>cancels the boost when we outnumber (mutually exclusive with the 1v1 row)</td></tr>
-<tr><td>turn order</td><td colspan="6">pos 1 ×2.0 · pos 2 ×1.5 · pos 3 ×1.0 · pos 4 ×0.75</td><td>—</td><td>—</td><td>—</td><td>position = our rank in the 4-mon turn order</td></tr>
-<tr><td>Trick Room urgency</td><td colspan="6">×2.0</td><td>—</td><td>—</td><td>—</td><td>a TR setter is up, TR not active (or last turn), no opp Tailwind — every attack</td></tr>
-<tr><td>Trick Room denial (setter Slot 1)</td><td colspan="3">×2.0</td><td colspan="3">—</td><td>—</td><td>—</td><td>—</td><td>extra ×2 on an attack that OHKOs the Slot-1 TR setter we outspeed (no Prankster)</td></tr>
-<tr><td>Trick Room denial (setter Slot 2)</td><td colspan="3">—</td><td colspan="3">×2.0</td><td>—</td><td>—</td><td>—</td><td>extra ×2 on an attack that OHKOs the Slot-2 TR setter we outspeed (no Prankster)</td></tr>
-<tr><td>Tailwind urgency</td><td colspan="6">×1.5</td><td>—</td><td>—</td><td>—</td><td>a TW setter is up, TW not active (or last turn), no TR, and TR urgency did not fire</td></tr>
-<tr><td>Tailwind denial (setter Slot 1)</td><td colspan="3">×1.5</td><td colspan="3">—</td><td>—</td><td>—</td><td>—</td><td>extra ×1.5 on an attack that OHKOs the Slot-1 TW setter we outspeed (no Prankster/Gale Wings)</td></tr>
-<tr><td>Tailwind denial (setter Slot 2)</td><td colspan="3">—</td><td colspan="3">×1.5</td><td>—</td><td>—</td><td>—</td><td>extra ×1.5 on an attack that OHKOs the Slot-2 TW setter we outspeed (no Prankster/Gale Wings)</td></tr>
-<tr><td>target Protected last turn (Slot 1)</td><td colspan="3">×1.3</td><td colspan="3">—</td><td>—</td><td>—</td><td>—</td><td>the Slot-1 target used Protect last turn, so it can't Protect again</td></tr>
-<tr><td>target Protected last turn (Slot 2)</td><td colspan="3">—</td><td colspan="3">×1.3</td><td>—</td><td>—</td><td>—</td><td>the Slot-2 target used Protect last turn, so it can't Protect again</td></tr>
-<tr><td>I used Protect last turn</td><td colspan="6">—</td><td>×0.2</td><td>—</td><td>—</td><td>consecutive Protect</td></tr>
-<tr><td>Protect (partner clears a threat)</td><td colspan="6">—</td><td>×3.0</td><td>—</td><td>—</td><td>an opp can OHKO us + a connecting threat + a partner guarantees an OHKO on one of the threats; stacks with the ×0.4 rows above (net 3.0 in a 2v1, 1.0 in a 1v1)</td></tr>
-<tr><td>Fake Out threatened</td><td colspan="6">×0.5</td><td>×3.0</td><td>—</td><td>—</td><td>a fresh Fake Out user is on the field</td></tr>
-<tr><td>Field Condition stall</td><td colspan="6">—</td><td>×3.0</td><td>—</td><td>—</td><td>opp Trick Room / Tailwind has 1 or 3 turns left</td></tr>
-<tr><td>switch value</td><td colspan="6">—</td><td>—</td><td colspan="2">TEMPO × (1+g) × escape × safety</td><td>1-ply board value; TEMPO 0.6; g = offense gain; ×4.0 if escaping a connecting OHKO into a surviving switch-in; ×0.3 if the switch-in is itself OHKO'd</td></tr>
-<tr><td colspan="11"><strong>Phase 2 — joint adjusters (applied to the chosen pair)</strong></td></tr>
-<tr><td>doubling up</td><td colspan="6">×0.40–0.70</td><td>—</td><td>—</td><td>—</td><td>both slots attack the same target; ×0.05 on the non-killer when one slot already confirms the OHKO, so the pair that spreads onto the survivor wins</td></tr>
-<tr><td>attack alongside partner</td><td colspan="6">—</td><td>×0.5</td><td>—</td><td>—</td><td>a gratuitous lone Protect (no real OHKO/stall reason, e.g. only a Fake Out nudge) beside an attacking partner — favour the double-attack</td></tr>
-<tr><td>Fake Out absorbed (free partner)</td><td colspan="6">×2.0</td><td>×0.33</td><td>—</td><td>—</td><td>when either slot attacks, the partner's Fake-Out multiplier above is divided back out (attack un-halved, Protect un-boosted) — a pair pays the Fake-Out adjustment once, never twice</td></tr>
-<tr><td>switch collision</td><td colspan="6">—</td><td>—</td><td colspan="2">×0</td><td>both slots switch to the same bench mon → that pair is vetoed</td></tr>
+<tr><td>—</td><td>Starting Weight</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>All options equally likely to start</td></tr>
+<tr><td>1.1</td><td>Predicted Damage Dealt</td><td colspan="6">×(1&nbsp;+&nbsp;d×2.0)</td><td>—</td><td>—</td><td>—</td><td></td></tr>
+<tr><td>2.1</td><td>Score A Guaranteed Kill</td><td colspan="6">×5</td><td>—</td><td>—</td><td>—</td><td>lowest damage roll ≥ the target's HP (unconditional — the doom cancel is its own module, #14)</td></tr>
+<tr><td>14.1</td><td>Die Before Acting</td><td colspan="6">×0.2</td><td>—</td><td>—</td><td>—</td><td>a faster threat (or a lethal priority move) KOs us before we act → every attack is undeliverable; Protect/switch untouched</td></tr>
+<tr><td>3.1</td><td>Incoming Kill</td><td colspan="6">—</td><td>×2.5</td><td>—</td><td>—</td><td>an opponent's max roll kills this mon at its current HP</td></tr>
+<tr><td>13.1</td><td>1v1 Endgame</td><td colspan="6">—</td><td>×0.4</td><td>—</td><td>—</td><td>Protect stalling in 1v1 is net neutral</td></tr>
+<tr><td>13.2</td><td>2v1 Endgame</td><td colspan="6">—</td><td>×0.4</td><td>—</td><td>—</td><td>Protect stalling in 2v1 is net negative</td></tr>
+<tr><td>4.1</td><td>Turn Order</td><td colspan="6">pos 1 ×2.0 · pos 2 ×1.5 · pos 3 ×1.0 · pos 4 ×0.75</td><td>—</td><td>—</td><td>—</td><td>position = our rank in the 4-mon turn order</td></tr>
+<tr><td>5.1</td><td>Trick Room urgency</td><td colspan="6">×2.0</td><td>—</td><td>—</td><td>—</td><td>a TR setter is up, TR not active (or last turn)</td></tr>
+<tr><td>6.1</td><td>Trick Room denial (setter Slot 1)</td><td colspan="3">×2.0</td><td colspan="3">—</td><td>—</td><td>—</td><td>—</td><td>OHKOs the Slot-1 TR setter</td></tr>
+<tr><td>6.2</td><td>Trick Room denial (setter Slot 2)</td><td colspan="3">—</td><td colspan="3">×2.0</td><td>—</td><td>—</td><td>—</td><td>OHKOs the Slot-2 TR setter</td></tr>
+<tr><td>5.2</td><td>Tailwind urgency</td><td colspan="6">×1.5</td><td>—</td><td>—</td><td>—</td><td>a TW setter is up, TW not active (or last turn)</td></tr>
+<tr><td>6.3</td><td>Tailwind denial (setter Slot 1)</td><td colspan="3">×1.5</td><td colspan="3">—</td><td>—</td><td>—</td><td>—</td><td>OHKOs the Slot-1 TW setter</td></tr>
+<tr><td>6.4</td><td>Tailwind denial (setter Slot 2)</td><td colspan="3">—</td><td colspan="3">×1.5</td><td>—</td><td>—</td><td>—</td><td>OHKOs the Slot-2 TW setter</td></tr>
+<tr><td>7.1</td><td>target Protected last turn (Slot 1)</td><td colspan="3">×1.3</td><td colspan="3">—</td><td>—</td><td>—</td><td>—</td><td>the Slot-1 target used Protect last turn, so it can't Protect again</td></tr>
+<tr><td>7.2</td><td>target Protected last turn (Slot 2)</td><td colspan="3">—</td><td colspan="3">×1.3</td><td>—</td><td>—</td><td>—</td><td>the Slot-2 target used Protect last turn, so it can't Protect again</td></tr>
+<tr><td>8.1</td><td>I used Protect last turn</td><td colspan="6">—</td><td>×0.2</td><td>—</td><td>—</td><td>consecutive Protect</td></tr>
+<tr><td>9.1</td><td>Fake Out threatened</td><td colspan="6">×0.5</td><td>×3.0</td><td>—</td><td>—</td><td>a fresh Fake Out user is on the field</td></tr>
+<tr><td>10.1</td><td>Field Condition stall</td><td colspan="6">—</td><td>×3.0</td><td>—</td><td>—</td><td>opp Trick Room / Tailwind has 1 or 3 turns left</td></tr>
+<tr><td>11.1</td><td>redirection hedge</td><td colspan="6">×d&nbsp;(to redirector)</td><td>—</td><td>—</td><td>—</td><td>Rage Powder / Follow Me user active; hedge our attack on the possibility of redirection</td></tr>
+<tr><td>12.1</td><td>switch value</td><td colspan="6">—</td><td>—</td><td colspan="2">TEMPO × (1+g) × escape × safety</td><td>1-ply board value; TEMPO 0.6; g = offense gain; ×4.0 if escaping a connecting OHKO into a surviving switch-in; ×0.3 if the switch-in is itself OHKO'd</td></tr>
+<tr><td colspan="12"><strong>Phase 2 — joint adjusters (applied to the chosen pair)</strong></td></tr>
+<tr><td>J1</td><td>doubling up</td><td colspan="6">×0.40–0.70</td><td>—</td><td>—</td><td>—</td><td>both slots attack the same target; ×0.05 on the non-killer when one slot already confirms the OHKO, so the pair that spreads onto the survivor wins</td></tr>
+<tr><td>J2</td><td>attack alongside partner</td><td colspan="6">—</td><td>×0.5</td><td>—</td><td>—</td><td>a gratuitous lone Protect (no real OHKO/stall reason, e.g. only a Fake Out nudge) beside an attacking partner — favour the double-attack</td></tr>
+<tr><td>J3</td><td>Fake Out absorbed (free partner)</td><td colspan="6">×2.0</td><td>×0.33</td><td>—</td><td>—</td><td>when either slot attacks, the partner's Fake-Out multiplier above is divided back out (attack un-halved, Protect un-boosted) — a pair pays the Fake-Out adjustment once, never twice</td></tr>
+<tr><td>J4</td><td>switch collision</td><td colspan="6">—</td><td>—</td><td colspan="2">×0</td><td>both slots switch to the same bench mon → that pair is vetoed</td></tr>
+<tr><td>J5</td><td>Partner Clears</td><td colspan="6">—</td><td>×3.0</td><td>—</td><td>—</td><td>one slot Protects against a connecting OHKO and the partner's chosen attack guaranteed-OHKOs that threatener → Protect so we survive while the partner removes it (was phase-1 "Threat Clear"; it's a cross-slot question, so it's phase 2)</td></tr>
 </tbody>
 </table>
 

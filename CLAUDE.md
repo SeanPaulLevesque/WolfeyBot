@@ -7,7 +7,7 @@ WolfeyBot is a Gen 9 VGC doubles bot that plays on Pokémon Showdown in the
 2026-06-17 (`BATTLE_FORMAT` in `main.py` is `gen9championsvgc2026regmb`); the
 data/usage layer is still Reg M-A-derived pending M-B usage stats (~July). It
 connects via WebSocket, parses the battle protocol, and chooses moves using a
-two-phase scoring engine (12 per-slot modules + 4 joint adjusters; see the
+two-phase scoring engine (14 per-slot modules + 5 joint adjusters; see the
 pipeline section below).
 
 ---
@@ -43,7 +43,7 @@ to make green by editing expectations. This is a hard rule:
 | `main.py` | WebSocket client — connects to Showdown, drives the game loop |
 | `battle.py` / `battle_state.py` | `BattleState` and `Pokemon` dataclasses; battle protocol parser |
 | `decision/engine.py` | `Action`, `ScoringModule`, `DecisionEngine`, `_build_actions` |
-| `decision/modules.py` | All 13 concrete modules + `make_engine()` factory |
+| `decision/modules.py` | All 14 per-slot modules + 5 joint adjusters + `make_engine()` factory |
 | `team.py` | `find_member(species)` + active-team selector (`set_active_team`, `get_team`, `list_teams`, `validate_team`, `resolve_team_spec`) |
 | `teams/` | Named ladder teams for A/B testing: `teams/<name>/v<n>.txt` pastes + `teams.json` manifest (name → label, account, current version). See `teams/README.md` |
 | `snapshots/` | Decision-snapshot regression subsystem: `baseline_team.txt` (frozen baseline roster, the no-`--team` fallback) + `<scenario>/<team>.md` generated tables |
@@ -88,16 +88,19 @@ scored **in isolation** (blind to the partner) over its own candidates.
 | # | Module | What it does |
 |---|---|---|
 | 1 | DamageOutput | `×(1 + dmg_fraction × 2.0)` scored against the candidate's **own** fixed target (spread/status: best live foe) |
-| 2 | ThreatElimination | "Can I guarantee a kill?" → ×5.0 when `ctx.guarantees_ohko(slot, move, its target)`. "Will I die before I act?" → if `ctx.is_doomed(slot)`, the same kill candidate gets ×0.2 (cancels the ×5; net ×1.0). No target override (target is fixed) |
-| 3 | ProtectValue | Four multiplicative rows on Protect-family moves when `ctx.is_threatened(slot)`: ×2.5 always; ×3.0 if a partner can guaranteed-OHKO any threat; ×0.4 in 1v1 endgame; ×0.4 in 2v1 (mutually exclusive with 1v1). Net in 2v1 with partner clearing: 2.5×3.0×0.4=3.0 |
+| 2 | ThreatElimination | "Can I guarantee a kill?" → ×5.0 when `ctx.guarantees_ohko(slot, move, its target)`. **Unconditional** now — the "will I die before I act?" ×0.2 cancel is a separate `DoomedModule` (#14). No target override (target is fixed) |
+| 3 | ProtectValue | **Single row** on Protect-family moves when `ctx.is_threatened(slot)`: ×2.5. The partner-clears ×3.0 is now a phase-2 adjuster (`PartnerClearsAdjuster`, J5); the 1v1/2v1 "Protect only delays" ×0.4 cancels are a separate `EndgameStallModule` (#13) — one concern per module |
 | 4 | TurnOrder | By rank in the 4-mon turn order (pos 1 = we act before all 3 other actives): pos 1 ×2.0; pos 2 ×1.5; pos 3 ×1.0; pos 4 ×0.75 — attacks only |
-| 5 | SetterUrgency | One urgency boost per turn, TR first (if/elif): TR setter present & TR not active (or last turn) & no opp TW → all attacks ×2.0; **else** TW setter present & TW not active (or last turn) & no TR → all attacks ×1.5. Target-agnostic — bias toward attacking, not stalling |
+| 5 | SetterUrgency | One urgency boost per turn, TR first (if/elif): TR setter present & TR not active (or last turn) → all attacks ×2.0; **else** TW setter present & TW not active (or last turn) → all attacks ×1.5. Target-agnostic — bias toward attacking, not stalling. (No TR↔TW cross-guard: the meta runs no mixed TR+TW teams.) |
 | 6 | SetterDenial | A candidate aimed at a setter it guaranteed-OHKOs (`ctx.ohko`), that we outspeed, whose setup move has no +1 priority (Prankster/Gale Wings) → TR setter ×2.0, TW setter ×1.5. At most one denial per action (TR claim wins); active effects can't be denied |
 | 7 | OppProtectRecency | ×1.3 if the candidate's target used Protect last turn |
 | 8 | ConsecutiveProtect | ×0.2 if we used Protect last turn — no exceptions |
 | 9 | FakeOut | `ctx.fake_out_fired(slot)` (fresh Fake Out user on field): Protect ×2.0, all attacks ×0.5 — for **every** slot |
 | 10 | FieldCondition | turns_left=1 or 3 → Protect ×3.0 (stall every other turn) |
-| 11 | Switch | Board-value (1-ply): `TEMPO×(1+g)×escape×safety` — TEMPO=0.6, g=offense gain, escape=×4.0 if escaping a connecting OHKO into a survivor, safety=×0.3 if switch-in OHKO'd (no same-mon veto — that's phase 2) |
+| 11 | Redirection | Hedge single-target attacks vs an active Rage Powder / Follow Me user: ×(damage to the redirector, capped 1.0); immune→×0, OHKO-on-redirector→×1.0. Exempts spread/status/switch, a Stalwart/Propeller-Tail attacker, and (Rage Powder) a Grass / Overcoat / Safety-Goggles attacker |
+| 12 | Switch | Board-value (1-ply): `TEMPO×(1+g)×escape×safety` — TEMPO=0.6, g=offense gain, escape=×4.0 if escaping a connecting OHKO into a survivor, safety=×0.3 if switch-in OHKO'd (no same-mon veto — that's phase 2) |
+| 13 | EndgameStall | Protect ×0.4 when `ctx.is_threatened(slot)` and the board is a 1v1 endgame or 2v1 advantage (Protect only delays). Split out of ProtectValue |
+| 14 | Doomed | When `ctx.is_doomed(slot)` (a faster foe — or a **lethal** priority move — KOs us before we act): ×0.2 on **all** our attacks (undeliverable); Protect/switch untouched. Split out of ThreatElimination |
 
 ### Phase 2 — joint coordination (`DecisionEngine.coordinate`)
 Phase 1 yields a ranked candidate list per slot. `coordinate` then picks the
@@ -115,6 +118,7 @@ turn as: phase-1 score all → `coordinate` → record/mega/emit.
 | Coordination | A **gratuitous** lone Protect (no `incoming_ohko`/`protect:`/`field_condition` reason) beside an attacking partner: ×0.5 on the Protect → favour double-attack; justified Protects and double-Protects untouched |
 | FakeOut (free) | When **either** slot attacks, divide the partner's Fake-Out multiplier back out (attack un-halved, Protect un-boosted; known from `ctx.fake_out` + the action type) — a pair pays the Fake-Out adjustment once, never twice; symmetric since 0.7.2 |
 | SwitchCollision | Both slots switch to the **same** bench mon → ×0 |
+| PartnerClears | One slot Protects against a connecting OHKO **and** the partner's chosen attack guaranteed-OHKOs that threatener → ×3.0 on the Protect (survive while the partner removes it). Was a phase-1 ProtectValue row; moved to phase 2 because "is the threat cleared?" depends on the partner's actual action |
 
 There is no scoring-order blind spot: slot 0 is never committed before slot 1 is
 seen. The old greedy + `recoordinate` re-pass (0.6.8–0.6.10) is gone — its
