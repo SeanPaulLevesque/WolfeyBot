@@ -100,7 +100,7 @@ scored **in isolation** (blind to the partner) over its own candidates.
 | 11 | Redirection | Hedge single-target attacks vs an active Rage Powder / Follow Me user: ×(damage to the redirector, capped 1.0); immune→×0, OHKO-on-redirector→×1.0. Exempts spread/status/switch, a Stalwart/Propeller-Tail attacker, and (Rage Powder) a Grass / Overcoat / Safety-Goggles attacker |
 | 12 | Switch | Board-value (1-ply): `TEMPO×(1+g)×escape×safety` — TEMPO=0.6, g=offense gain, escape=×4.0 if escaping a connecting OHKO into a survivor, safety=×0.3 if switch-in OHKO'd (no same-mon veto — that's phase 2) |
 | 13 | EndgameStall | Protect ×0.4 when `ctx.is_threatened(slot)` and the board is a 1v1 endgame or 2v1 advantage (Protect only delays). Split out of ProtectValue |
-| 14 | Doomed | When `ctx.is_doomed(slot)` (a faster foe — or a **lethal** priority move — KOs us before we act): ×0.2 on **all** our attacks (undeliverable); Protect/switch untouched. Split out of ThreatElimination |
+| 14 | Doomed | **Per-candidate** (`_move_undeliverable`): ×0.2 on each attack a certain killer would land before — so a priority move that out-speeds the threat is spared (revenge-KO) while slower moves are cut; Protect/switch untouched. Split out of ThreatElimination |
 
 ### Phase 2 — joint coordination (`DecisionEngine.coordinate`)
 Phase 1 yields a ranked candidate list per slot. `coordinate` then picks the

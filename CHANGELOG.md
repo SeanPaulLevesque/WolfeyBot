@@ -1,5 +1,33 @@
 # WolfeyBot Changelog
 
+## 0.27.0 — 2026-06-26
+
+### Doomed is now per-candidate — priority moves can revenge-KO
+
+`DoomedModule` was a per-slot all-attacks ×0.2: if a faster foe would OHKO us,
+*every* attack got cut — including a priority move that would actually strike
+first. Over a 136-game v6 sample our priority moves (Arcanine-Hisui Extreme
+Speed, Basculegion Aqua Jet) were chosen **zero** times: the per-slot doom (and
+the per-foe `neutralized` flag) sank the priority move along with everything
+else, so the higher-damage non-priority move always won even when it was the
+slow, undeliverable one.
+
+- New `_move_undeliverable(slot, move)`: an attack is undeliverable iff a
+  certain killer acts before *that move* (per its priority bracket) and isn't
+  removed first (by the move's own priority KO, or by a faster ally).
+  `DoomedModule` applies ×0.2 **per candidate**, so a doomed mon's priority
+  revenge-KO keeps full weight while its slower moves are cut — it picks the
+  priority KO (or escapes/shields when it has no priority answer).
+- `DoublingAdjuster` (J1) now counts a slot's kill as confirmed only if that
+  move is deliverable (same check), so a doomed slow "kill" no longer redirects
+  the partner off the survivor.
+- The per-slot `ctx.doomed` / `_ko_before_acting` remain as a summary fact.
+
+Turn-1 snapshots: 10 off-meta-team@v1 cells shift, all vs opponent Kingambit —
+its super-effective Sucker Punch (+1) OHKOs Ghost-type Basculegion, so
+Basculegion's Wave Crash is undeliverable and it now switches/Protects instead
+of swinging into the priority KO. Reviewed and approved.
+
 ## 0.26.0 — 2026-06-25
 
 ### Module decomposition — one concern per module (no embedded "unless")

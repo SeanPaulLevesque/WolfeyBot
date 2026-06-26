@@ -36,6 +36,7 @@ from decision import (
     DamageOutputModule,
     ThreatEliminationModule,
     DoomedModule,
+    _move_undeliverable,
     TurnOrderModule,
     SetterUrgencyModule,
     SetterDenialModule,
@@ -2015,68 +2016,87 @@ class TestThreatEliminationModuleIntegration:
 
 
 class TestDoomedModule:
-    """A doomed slot (KO'd before it acts) → ×0.2 on its attacks; Protect and
-    switches untouched.  Pulled out of ThreatElimination."""
+    """Per-candidate: ×0.2 an attack the slot won't survive to deliver
+    (`_move_undeliverable`); a deliverable move (e.g. a priority revenge-KO) and
+    Protect/switch are untouched.  (Deliverability logic itself: TestMoveUndeliverable.)"""
     module = DoomedModule()
 
     def _state(self) -> "BattleState":
-        our_mon = make_mon("Garganacl")
-        opp_mon = make_mon("Garchomp", side="p2")
         return make_state(
-            my_actives=[our_mon], opp_actives=[opp_mon], my_team=[our_mon],
-            moves_per_slot=[[{"move": "Wave Crash"}]],
+            my_actives=[make_mon("Basculegion")],
+            opp_actives=[make_mon("Garchomp", side="p2")],
             available_switches=[make_mon("Bench")],
         )
 
-    def _ohko(self):
-        return make_damage_result(damage_min=110, damage_max=130,
-                                  damage_avg=120.0, defender_hp=100)
+    def _ctx_with_killer(self):
+        # slot 0 has a certain killer (opp 0) → the module's guard lets it run.
+        return TurnContext(incoming_certain={0: [0]})
 
-    def test_doomed_penalises_attack(self):
-        state  = self._state()
+    def test_undeliverable_attack_penalised(self):
         attack = make_action("Wave Crash", "Wave Crash", target_slot=0)
-        mock_tm = make_mock_member()
-        with patch("decision.modules.find_member", return_value=mock_tm), \
-             patch("decision.modules.outgoing_damage", return_value=[self._ohko()]), \
-             patch("decision.modules._ko_before_acting", return_value=True):
-            self.module.score(state, slot=0, actions=[attack])
+        with patch("decision.modules._ensure_turn_ctx", return_value=self._ctx_with_killer()), \
+             patch("decision.modules._move_undeliverable", return_value=True):
+            self.module.score(self._state(), slot=0, actions=[attack])
         assert attack.weight == pytest.approx(DoomedModule.DOOMED_FACTOR)
 
-    def test_not_doomed_is_noop(self):
-        state  = self._state()
+    def test_deliverable_attack_untouched(self):
+        """A move that out-speeds the threat (priority revenge-KO) keeps full weight."""
+        attack = make_action("Aqua Jet", "Aqua Jet", target_slot=0)
+        with patch("decision.modules._ensure_turn_ctx", return_value=self._ctx_with_killer()), \
+             patch("decision.modules._move_undeliverable", return_value=False):
+            self.module.score(self._state(), slot=0, actions=[attack])
+        assert attack.weight == pytest.approx(1.0)
+
+    def test_no_certain_killer_is_noop(self):
         attack = make_action("Wave Crash", "Wave Crash", target_slot=0)
-        mock_tm = make_mock_member()
-        with patch("decision.modules.find_member", return_value=mock_tm), \
-             patch("decision.modules.outgoing_damage", return_value=[self._ohko()]), \
-             patch("decision.modules._ko_before_acting", return_value=False):
-            self.module.score(state, slot=0, actions=[attack])
+        with patch("decision.modules._ensure_turn_ctx", return_value=TurnContext()):
+            self.module.score(self._state(), slot=0, actions=[attack])
         assert attack.weight == pytest.approx(1.0)
 
     def test_protect_and_switch_untouched(self):
         """A doomed mon should Protect / switch — those aren't penalised."""
-        state   = self._state()
         protect = make_action("Protect", "Protect")
         switch  = make_action("Switch Bench", switch_target="Bench")
-        mock_tm = make_mock_member()
-        with patch("decision.modules.find_member", return_value=mock_tm), \
-             patch("decision.modules.outgoing_damage", return_value=[self._ohko()]), \
-             patch("decision.modules._ko_before_acting", return_value=True):
-            self.module.score(state, slot=0, actions=[protect, switch])
+        with patch("decision.modules._ensure_turn_ctx", return_value=self._ctx_with_killer()), \
+             patch("decision.modules._move_undeliverable", return_value=True):
+            self.module.score(self._state(), slot=0, actions=[protect, switch])
         assert protect.weight == pytest.approx(1.0)
         assert switch.weight == pytest.approx(1.0)
 
-    def test_combined_with_kill_credit_nets_one(self):
-        """Integration: ThreatElimination ×5 then Doomed ×0.2 → net 1.0 — the
-        old in-ThreatElimination cancel, now spanning two modules."""
-        state  = self._state()
-        action = make_action("Wave Crash", "Wave Crash", target_slot=0)
-        mock_tm = make_mock_member()
-        with patch("decision.modules.find_member", return_value=mock_tm), \
-             patch("decision.modules.outgoing_damage", return_value=[self._ohko()]), \
-             patch("decision.modules._ko_before_acting", return_value=True):
-            ThreatEliminationModule().score(state, slot=0, actions=[action])
-            self.module.score(state, slot=0, actions=[action])
-        assert action.weight == pytest.approx(1.0)
+
+class TestMoveUndeliverable:
+    """The per-candidate deliverability check that powers DoomedModule + the
+    doubling overkill test.  A slow move into a faster certain-killer is
+    undeliverable; a priority move that out-speeds it is deliverable (the core
+    of priority revenge-KO selection); and a faster ally clearing the killer
+    makes even a slow move deliverable."""
+
+    def _state(self):
+        return make_state(
+            my_actives=[make_mon("Basculegion"), make_mon("Garganacl")],
+            opp_actives=[make_mon("Garchomp", side="p2"),
+                         make_mon("Incineroar", side="p2")],
+        )
+
+    def test_priority_deliverable_normal_not(self):
+        """slot 0's only killer is opp 0; our Aqua Jet out-speeds it, Wave Crash doesn't."""
+        ctx = TurnContext(incoming_certain={0: [0]}, ohko=set())
+        def strike(_state, _slot, move, _opp, _ctx):
+            return move == "Aqua Jet"
+        with patch("decision.modules._strike_first_with", side_effect=strike):
+            assert _move_undeliverable(self._state(), 0, "Wave Crash", ctx) is True
+            assert _move_undeliverable(self._state(), 0, "Aqua Jet", ctx) is False
+
+    def test_ally_clears_killer_makes_deliverable(self):
+        """Our move doesn't out-speed the killer, but the slot-1 ally KOs it first."""
+        ctx = TurnContext(incoming_certain={0: [0]}, ohko={(1, "Iron Head", 0)})
+        def strike(_state, slot, _move, _opp, _ctx):
+            return slot == 1   # only the ally strikes first
+        with patch("decision.modules._strike_first_with", side_effect=strike):
+            assert _move_undeliverable(self._state(), 0, "Wave Crash", ctx) is False
+
+    def test_no_killer_is_deliverable(self):
+        assert _move_undeliverable(self._state(), 0, "Wave Crash", TurnContext()) is False
 
 
 class TestTurnContext:

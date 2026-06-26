@@ -593,19 +593,19 @@ class ThreatEliminationModule(ScoringModule):
 
 
 class DoomedModule(ScoringModule):
-    """We will be KO'd before we act → our attacks won't land.
+    """An attack we won't survive to deliver is worth ×0.2 — evaluated
+    **per candidate** (:func:`_move_undeliverable`), not per slot.
 
-    When a faster/priority threat min-roll-OHKOs us before our turn and isn't
-    removed first (``ctx.is_doomed(slot)``), every attack we line up is
-    undeliverable → ×0.2 on each.  Protect and switches are left alone: they
-    still resolve (Protect blocks the hit; a switch happens at turn start), and
-    are exactly what a doomed mon should reach for.
+    When a faster threat min-roll-OHKOs us before our turn, an attack only lands
+    if it acts first.  So a *priority* move that out-speeds the threat keeps its
+    full weight (and its ×5 kill credit) while the slot's slower moves are
+    cut to ×0.2 — which is what makes a doomed mon pick its priority revenge-KO
+    instead of a higher-damage move that never lands, or escape/shield when it
+    has no priority answer.  Protect and switches are never touched (they still
+    resolve).
 
     Pulled out of :class:`ThreatEliminationModule` (was the ×0.2 "cancel" on the
-    ×5 kill credit).  Standalone, it scores the full offensive consequence of
-    being doomed — not just a guaranteed kill — so on a doomed kill it still
-    nets the old result (5.0 × 0.2 = 1.0) while also deprioritising the slot's
-    other (equally undeliverable) attacks.
+    ×5 kill credit); on a doomed *normal* kill it still nets the old 5.0×0.2=1.0.
     """
 
     name = "doomed"
@@ -613,16 +613,18 @@ class DoomedModule(ScoringModule):
     DOOMED_FACTOR = 0.2
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
-        if not _ensure_turn_ctx(state).is_doomed(slot):
-            return
+        ctx = _ensure_turn_ctx(state)
+        if not ctx.incoming_certain.get(slot):
+            return   # no certain killer this turn → nothing is undeliverable
         for action in actions:
             if not action.is_move or action.is_switch or action.move_name in _PROTECT_MOVES:
                 continue
-            action.weight *= self.DOOMED_FACTOR
-            action.reasons.append(
-                f"{self.name}: KO'd before acting — attack undeliverable"
-                f" -> x{self.DOOMED_FACTOR}"
-            )
+            if _move_undeliverable(state, slot, action.move_name, ctx):
+                action.weight *= self.DOOMED_FACTOR
+                action.reasons.append(
+                    f"{self.name}: KO'd before this move lands — undeliverable"
+                    f" -> x{self.DOOMED_FACTOR}"
+                )
 
 
 class ProtectValueModule(ScoringModule):
@@ -958,6 +960,33 @@ def _ko_before_acting(
         # If a faster ally removes this opponent first, it never lands its hit.
         if ctx.neutralized.get(opp_slot, False):
             continue
+        return True
+    return False
+
+
+def _move_undeliverable(
+    state: "BattleState", slot: int, move: str, ctx: "TurnContext",
+) -> bool:
+    """True if *move* from *slot* won't land this turn — a certain killer of
+    *slot* acts before this move and isn't removed first.
+
+    The **per-candidate** counterpart to :func:`_ko_before_acting` (which is a
+    per-slot summary): a priority move that out-speeds the killer is deliverable
+    while the slot's slower moves are not.  This is what lets a doomed mon pick
+    its priority revenge-KO over an undeliverable high-damage move.  A killer is
+    discounted when (a) THIS move strikes it first (the move is itself the
+    revenge KO), or (b) a faster *ally* (a different slot) removes it first.
+    """
+    for opp_slot in ctx.incoming_certain.get(slot, []):
+        opp = (state.opp_actives[opp_slot]
+               if opp_slot < len(state.opp_actives) else None)
+        if opp is None or opp.fainted:
+            continue
+        if _strike_first_with(state, slot, move, opp_slot, ctx):
+            continue   # this move acts before the killer → it can't stop this move
+        if any(s2 != slot and _strike_first_with(state, s2, m2, opp_slot, ctx)
+               for (s2, m2, oo) in ctx.ohko if oo == opp_slot):
+            continue   # a faster ally removes the killer before it acts
         return True
     return False
 
@@ -1575,8 +1604,10 @@ class DoublingAdjuster(JointAdjuster):
         base = self._FACTORS[(target_protected, not other_threatening)]
 
         ctx = _ensure_turn_ctx(state)
-        a0_kills = ctx.guarantees_ohko(slot_a, a0.move_name, target)
-        a1_kills = ctx.guarantees_ohko(slot_b, a1.move_name, target)
+        a0_kills = (ctx.guarantees_ohko(slot_a, a0.move_name, target)
+                    and not _move_undeliverable(state, slot_a, a0.move_name, ctx))
+        a1_kills = (ctx.guarantees_ohko(slot_b, a1.move_name, target)
+                    and not _move_undeliverable(state, slot_b, a1.move_name, ctx))
         if a0_kills or a1_kills:
             # One slot already confirms the kill → the *other's* attack here is
             # wasted (overkill).  Penalise the non-killer so the pair that spreads

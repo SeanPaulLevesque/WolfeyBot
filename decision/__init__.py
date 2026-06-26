@@ -38,6 +38,7 @@ from decision.modules import (  # noqa: F401
     FakeOutModule,
     FieldConditionModule,
     _fake_out_threatened,
+    _move_undeliverable,
     _our_combatant,
     _opp_combatant,
     _our_stats,

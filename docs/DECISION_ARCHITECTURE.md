@@ -176,7 +176,7 @@ cleared depends on the *partner's* chosen action.
 <tr><td>—</td><td>Starting Weight</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>All options equally likely to start</td></tr>
 <tr><td>1.1</td><td>Predicted Damage Dealt</td><td colspan="6">×(1&nbsp;+&nbsp;d×2.0)</td><td>—</td><td>—</td><td>—</td><td></td></tr>
 <tr><td>2.1</td><td>Score A Guaranteed Kill</td><td colspan="6">×5</td><td>—</td><td>—</td><td>—</td><td>lowest damage roll ≥ the target's HP (unconditional — the doom cancel is its own module, #14)</td></tr>
-<tr><td>14.1</td><td>Die Before Acting</td><td colspan="6">×0.2</td><td>—</td><td>—</td><td>—</td><td>a faster threat (or a lethal priority move) KOs us before we act → every attack is undeliverable; Protect/switch untouched</td></tr>
+<tr><td>14.1</td><td>Die Before Acting</td><td colspan="6">×0.2</td><td>—</td><td>—</td><td>—</td><td>per-candidate: a certain killer would land before <em>this move</em> (so a priority move that out-speeds the threat is spared — revenge-KO); Protect/switch untouched</td></tr>
 <tr><td>3.1</td><td>Incoming Kill</td><td colspan="6">—</td><td>×2.5</td><td>—</td><td>—</td><td>an opponent's max roll kills this mon at its current HP</td></tr>
 <tr><td>13.1</td><td>1v1 Endgame</td><td colspan="6">—</td><td>×0.4</td><td>—</td><td>—</td><td>Protect stalling in 1v1 is net neutral</td></tr>
 <tr><td>13.2</td><td>2v1 Endgame</td><td colspan="6">—</td><td>×0.4</td><td>—</td><td>—</td><td>Protect stalling in 2v1 is net negative</td></tr>
