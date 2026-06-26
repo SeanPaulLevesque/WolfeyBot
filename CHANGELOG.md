@@ -1,5 +1,67 @@
 # WolfeyBot Changelog
 
+## 0.29.0 — 2026-06-26
+
+### Urgency / Setup Denial — merged into registry-driven modules, flat ×2
+
+`SetterUrgencyModule` and `SetterDenialModule` are now `UrgencyModule` (#5) and
+`SetupDenialModule` (#6), both iterating one shared `_SETUP_TYPES` registry
+(Trick Room, Tailwind, + future screens/etc.). Adding a new urgent/deniable
+opponent setup is a single new registry row — no module edits — and the setter
+species come from usage data (`population_move_users`), so they self-update for
+new regulations and never flag a mon that doesn't actually run the move.
+
+- **All setup urgency and denial factors are now a flat ×2** (`SETUP_URGENCY` /
+  `SETUP_DENIAL`), replacing the old TR ×2.0 / TW ×1.5 split — for simplicity.
+- Behavior change: Tailwind urgency/denial went ×1.5→×2.0 (TR unchanged). Turn-1
+  snapshots: 371 cells shift, all on boards with a Tailwind setter present —
+  mostly weight rescales (same move chosen) plus a few intended switch/Protect →
+  attack flips. Reviewed and approved; snapshots regenerated.
+- Urgency still fires one boost per turn (registry order, TR first); Setup Denial
+  is still per-target on a guaranteed-OHKO of a setter we outspeed.
+
+### PriorityBlock module (#16) — don't throw priority into a priority wall
+
+Counterpart to PriorityKill (#15). Armor Tail (Farigiraf) and Queenly Majesty
+(Tsareena) block incoming priority moves against the holder **and its ally**, so
+our Aqua Jet / Extreme Speed / etc. simply fail to connect against either of the
+opponent's actives while such an ability is up.
+
+- New `PriorityBlockModule` (phase-1 #16, after PriorityKill): ×0 on a candidate
+  whose move is in a positive priority bracket (`priority_bracket > 0`) when any
+  live opponent's `_effective_ability` is in `_PRIORITY_BLOCK_ABILITIES`
+  (`Armor Tail`, `Queenly Majesty`). Protect (self-target, +4), switches, and
+  non-priority moves are untouched.
+- Composes with #15: a priority move that would otherwise KO is still nullified
+  (`3.0 × 0 = 0`) — it can't land, so it shouldn't win the slot.
+- Reads `_effective_ability` (revealed > top-usage assumed), so an unrevealed
+  Farigiraf is assumed to carry Armor Tail — the cautious default (wasting a
+  priority move into a priority wall is the failure we're avoiding).
+- Registered in `make_engine` after `DoomedModule`/`PriorityKillModule`;
+  exported from `decision/__init__`; covered by `TestPriorityBlockModule`.
+
+Turn-1 snapshots unchanged: no baseline/snapshot lead currently puts a priority
+move at the top of its slot against a Farigiraf / Tsareena lead, so nothing
+flips. The module acts mid-game (priority users vs a revealed priority wall).
+
+### Aurora Veil / screens on defense — incoming damage now respects our screens
+
+Gap 1 of the Aurora Veil backlog item. Outgoing damage already discounted hits
+into a screened *opponent*; the incoming side was unwired, so with our own
+Aurora Veil / Reflect / Light Screen up the threat facts (`is_threatened` /
+`doomed` / Protect value) over-estimated incoming damage and we played too
+cautiously.
+
+- `incoming_damage` gained an `our_screens` param, passed as `defender_screens`
+  into its `full_damage_calc` call (the `screen_modifier` ×2/3, crit-bypass
+  logic is shared, so this covers all three screens at once).
+- `build_turn_context` threads `state.my_screens` at both incoming call sites —
+  the active mon and the bench switch-in candidate (screens are side-wide, so a
+  switch-in is protected too).
+- Covered by `TestIncomingScreens`. Snapshot baseline unchanged (turn-1 boards
+  have no screens up). Setting-value / opponent-screen urgency-denial (gaps 2-3)
+  remain backlogged.
+
 ## 0.28.0 — 2026-06-26
 
 ### PriorityKill module (#15) — prefer a priority KO over a slower one

@@ -9,6 +9,7 @@ from unittest.mock import patch
 from damage import (
     calc_damage,
     full_damage_calc,
+    incoming_damage,
     type_effectiveness,
     effective_move_type,
     stab_multiplier,
@@ -99,6 +100,27 @@ class TestToughClaws:
         assert is_contact("Grass Knot")
         assert "contact" in move_flags("Dragon Claw")
         assert "slicing" in move_flags("Dragon Claw")
+
+
+class TestIncomingScreens:
+    """Our active screens reduce INCOMING damage to 2/3 in doubles — the
+    defensive mirror of the outgoing ``opp_screens`` path (gap 1 of the Aurora
+    Veil backlog item, wired 0.29.0). Aurora Veil covers both categories."""
+
+    _OUR = {"hp": 190, "atk": 130, "def": 110, "spa": 110, "spd": 110, "spe": 100}
+
+    def test_aurora_veil_reduces_incoming(self):
+        no = incoming_damage("Garchomp", "Garchomp", self._OUR)
+        av = incoming_damage("Garchomp", "Garchomp", self._OUR,
+                             our_screens={"auroraveil"})
+        assert no and av
+        assert av[0].damage_avg == pytest.approx(no[0].damage_avg * (2.0 / 3.0),
+                                                 rel=0.02)
+
+    def test_no_screens_unchanged(self):
+        no = incoming_damage("Garchomp", "Garchomp", self._OUR)
+        empty = incoming_damage("Garchomp", "Garchomp", self._OUR, our_screens=set())
+        assert no[0].damage_avg == pytest.approx(empty[0].damage_avg, rel=1e-6)
 
 
 class TestFlagAbilities:

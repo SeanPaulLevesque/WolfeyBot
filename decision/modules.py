@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field, replace
-from typing import Optional, TYPE_CHECKING
+from typing import Callable, Optional, TYPE_CHECKING
 
 from data import (
     move_category as get_move_category,
@@ -395,6 +395,11 @@ _WEATHER_SETTING_ABILITIES = {
     "Sand Stream": "sand", "Snow Warning": "snow",
 }
 
+# Abilities that block incoming priority moves against the holder *and its ally*.
+# Champions-legal carriers: Armor Tail (Farigiraf), Queenly Majesty (Tsareena).
+# (Dazzling is the same mechanic but has no Champions-legal user.)
+_PRIORITY_BLOCK_ABILITIES = frozenset({"Armor Tail", "Queenly Majesty"})
+
 
 def _assumed_weather(state: "BattleState") -> Optional[str]:
     """Effective weather for the turn's facts.
@@ -457,7 +462,7 @@ class DamageOutputModule(ScoringModule):
        0% (immune / dead)     ->  x0.5   (floor)
 
     Status moves are left at the x1.0 baseline (they deal no damage by design,
-    not by failure) so ProtectValue / SetterUrgency / FakeOut can score them.
+    not by failure) so ProtectValue / Urgency / FakeOut can score them.
     """
 
     name = "damage_output"
@@ -513,7 +518,7 @@ class DamageOutputModule(ScoringModule):
                 continue
             # Status moves keep the x1.0 baseline — they deal no damage by
             # design, not by failure — so the modules that value them
-            # (ProtectValue / SetterUrgency / FakeOut) score from there.
+            # (ProtectValue / Urgency / FakeOut) score from there.
             if get_move_category(action.move_name) == "Status":
                 continue
             ts = action.target_slot
@@ -663,6 +668,47 @@ class PriorityKillModule(ScoringModule):
                         f" -> x{self.PRIORITY_KILL_FACTOR}"
                     )
                     break   # first guaranteed-OHKO target
+
+
+class PriorityBlockModule(ScoringModule):
+    """Our priority attacks are nullified by an opposing priority-block ability → ×0.
+
+    Armor Tail (Farigiraf) and Queenly Majesty (Tsareena) prevent opposing
+    Pokémon from using priority moves against the holder **or its ally**, so a
+    single such ability anywhere on the opponent's field blocks our priority
+    attacks against the whole opposing side.  We zero them out so the engine
+    falls back to a connecting (non-priority) move or a switch.
+
+    Multiplicative ×0, so it composes with PriorityKill (#15): a priority move
+    that would otherwise KO is still nullified (3.0 × 0 = 0) — it can't connect.
+    Protect (self-target, +4), switches, and non-priority moves are untouched,
+    since these abilities only block priority *aimed at their side*.
+
+    Reads ``_effective_ability`` (revealed > top-usage assumed), so an unrevealed
+    Farigiraf is assumed to carry Armor Tail — the cautious default, since
+    throwing a priority move into a priority wall is exactly the waste we avoid.
+    """
+
+    name = "priority_block"
+
+    BLOCK_FACTOR = 0.0
+
+    def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
+        if not any(
+            o is not None and not o.fainted
+            and _effective_ability(o) in _PRIORITY_BLOCK_ABILITIES
+            for o in state.opp_actives
+        ):
+            return
+        for action in actions:
+            if not action.is_move or action.is_switch or action.move_name in _PROTECT_MOVES:
+                continue
+            if priority_bracket(action.move_name) <= 0:
+                continue   # only priority attacks
+            action.weight *= self.BLOCK_FACTOR
+            action.reasons.append(
+                f"{self.name}: opposing priority-block ability -> x{self.BLOCK_FACTOR:g}"
+            )
 
 
 class ProtectValueModule(ScoringModule):
@@ -1278,6 +1324,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega),
                 our_item=our_item,
                 weather=_assumed_weather(state),
+                our_screens=getattr(state, "my_screens", None),
                 our_defender_is_full_hp=at_full,
                 our_hp_percent=(None if at_full else mon.hp_fraction * 100.0),
                 opp_boosts=opp.boosts,
@@ -1512,6 +1559,7 @@ class SwitchModule(ScoringModule):
                 opp_item=_opp_item(state, opp),
                 our_ability=_our_ability_for_damage(bench_tm, species, state.designated_mega),
                 our_item=bench_item, weather=_assumed_weather(state),
+                our_screens=getattr(state, "my_screens", None),
                 our_defender_is_full_hp=at_full,
                 our_hp_percent=hp_pct,
                 opp_hp_fraction=opp.hp_fraction,
@@ -1924,87 +1972,125 @@ def _tw_setter_has_priority(opp: "Pokemon") -> bool:
     return False
 
 
-class SetterUrgencyModule(ScoringModule):
+# ── Shared setup registry ─────────────────────────────────────────────────────
+# Both UrgencyModule (#5) and SetupDenialModule (#6) iterate this one list, so a
+# new urgent / deniable opponent setup (screens, etc.) is a single new row here —
+# no module edits.  Registry order is priority: the urgency module fires the
+# first applicable row, and denial breaks target ties in this order.
+
+# Both factors are a flat ×2 across every setup type, for simplicity — urgency
+# (wide, while the setup is still stoppable) and denial (per-target, on an attack
+# that OHKOs the setter) each apply the same boost regardless of which setup it is.
+SETUP_URGENCY = 2.0
+SETUP_DENIAL  = 2.0
+
+
+@dataclass(frozen=True)
+class SetupType:
+    """One opponent speed-control / field setup the engine reacts to.
+
+    Both modules apply a flat ``SETUP_URGENCY`` / ``SETUP_DENIAL`` ×2, so a row
+    only needs to say *what the setup is and how to detect it*:
+
+    * ``priority_exempt`` — the setter's setup move carries +1 priority
+      (Prankster / Gale Wings), so we can't land first → not deniable.
+    """
+    key: str                                        # reason prefix, e.g. "trick_room"
+    abbr: str                                       # short reason tag, e.g. "TR"
+    label: str                                      # display name, e.g. "Trick Room"
+    species: frozenset                              # setter species (base-forme names)
+    move: str                                       # setter move (revealed-move match)
+    priority_exempt: Callable[["Pokemon"], bool]
+    is_active: Callable[["BattleState"], bool]      # effect already up?
+    turns_left: Callable[["BattleState"], int]      # remaining turns of the effect
+
+
+_SETUP_TYPES: list[SetupType] = [
+    SetupType(
+        key="trick_room", abbr="TR", label="Trick Room",
+        species=_TR_SETTER_SPECIES, move="Trick Room",
+        priority_exempt=lambda opp: _effective_ability(opp) == "Prankster",
+        is_active=lambda s: s.trick_room,
+        turns_left=lambda s: s.trick_room_turns_left,
+    ),
+    SetupType(
+        key="tailwind", abbr="TW", label="Tailwind",
+        species=_TAILWIND_SETTER_SPECIES, move="Tailwind",
+        priority_exempt=_tw_setter_has_priority,
+        is_active=lambda s: s.opp_tailwind,
+        turns_left=lambda s: s.opp_tailwind_turns_left,
+    ),
+    # Screens (Aurora Veil / Reflect / Light Screen) and any other urgent setup
+    # plug in here: add a row with its setter species set + detection and both
+    # modules pick it up at the same flat ×2.
+]
+
+
+class UrgencyModule(ScoringModule):
     """
     "A speed-control setter is on the field and its effect is still stoppable —
     attack, don't stall."
 
-    Exactly one urgency boost applies per turn, Trick Room first (the two are
-    mutually exclusive by structure, not by cross-checking):
+    Walks the shared ``_SETUP_TYPES`` registry and applies the **first**
+    applicable urgency as a wide ×``SETUP_URGENCY`` (×2) on every attack (registry
+    order is priority, so Trick Room outranks Tailwind).  A setup is *stoppable*
+    when its effect is not active, or is on its last turn (a re-set risk):
 
-      * **Trick Room** — a TR setter is up and TR not active (or on its last
-        turn, a re-set risk) → every attack ×2.0.
-      * **Tailwind** — otherwise: a TW setter is up and TW not active (or last
-        turn) → every attack ×1.5.
+      * **Trick Room** — TR setter up, TR stoppable → every attack ×2.
+      * **Tailwind** — TW setter up, TW stoppable → every attack ×2.
 
-    Target-agnostic: it rewards *attacking at all* over going passive while the
-    speed tier is about to flip (swinging into the Fake-Out partner is fine).
-    Protect and switches are untouched, so it biases the slot away from a
-    stall.  (Urgency was briefly folded into denial; that lost the only weight
-    keeping attacks ahead of a double-Protect on a Fake-Out + setter lead.)
+    One boost per turn; Protect and switches are untouched, so it biases the
+    slot away from a stall while the speed tier is about to flip.
+    Target-agnostic: it rewards *attacking at all* (swinging into a Fake-Out
+    partner is fine).  Scalable: a new urgent setup is one new ``_SETUP_TYPES``
+    row, not a new branch here.  (Urgency was briefly folded into denial; that
+    lost the only weight keeping attacks ahead of a double-Protect on a
+    Fake-Out + setter lead.)
     """
 
-    name = "setter_urgency"
-
-    TR_URGENCY = 2.0
-    TW_URGENCY = 1.5
+    name = "urgency"
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         active_opps = [o for o in state.opp_actives if o is not None and not o.fainted]
         if not active_opps:
             return
 
-        # No cross-guard between the two axes: a TR setter's urgency no longer
-        # waits on "no opposing Tailwind" (and vice-versa).  The if/elif below
-        # already fires exactly one boost (TR first), and a board with *both*
-        # speed-control axes live at once needs a mixed TR+TW opponent, which the
-        # metagame doesn't run — so the extra clause was dead complexity.
-        tr_relevant = not state.trick_room or state.trick_room_turns_left == 1
-        tw_relevant = not state.opp_tailwind or state.opp_tailwind_turns_left == 1
-
-        if any(_is_tr_setter(o) for o in active_opps) and tr_relevant:
-            factor = self.TR_URGENCY
-            label  = ("trick_room: TR setter on field (TR last turn, re-set risk)"
-                      if state.trick_room
-                      else "trick_room: TR setter on field (TR not active)")
-        elif (any(_is_tw_setter(o) for o in active_opps)
-                and tw_relevant):
-            factor = self.TW_URGENCY
-            label  = ("tailwind: TW setter on field (TW last turn, re-set risk)"
-                      if state.opp_tailwind
-                      else "tailwind: TW setter on field (TW not active)")
-        else:
-            return
-
-        for action in actions:
-            if action.is_switch or action.move_name in _PROTECT_MOVES:
+        for st in _SETUP_TYPES:
+            if not any(_modeled_forme(o) in st.species for o in active_opps):
                 continue
-            action.weight *= factor
-            action.reasons.append(f"{label} -> x{factor}")
+            active = st.is_active(state)
+            if active and st.turns_left(state) != 1:
+                continue   # effect up with time left — not stoppable this turn
+            label = (f"{st.key}: {st.abbr} setter on field "
+                     f"({st.abbr} last turn, re-set risk)" if active
+                     else f"{st.key}: {st.abbr} setter on field ({st.abbr} not active)")
+            for action in actions:
+                if action.is_switch or action.move_name in _PROTECT_MOVES:
+                    continue
+                action.weight *= SETUP_URGENCY
+                action.reasons.append(f"{label} -> x{SETUP_URGENCY}")
+            return   # one urgency boost per turn (registry order = priority)
 
 
-class SetterDenialModule(ScoringModule):
+class SetupDenialModule(ScoringModule):
     """
     "Can I kill the setter before its effect lands?"
 
-    A candidate already aimed at a speed-control setter earns the denial boost
-    when the kill is confirmed (``ctx.guarantees_ohko``), we outspeed the
-    setter, and its setup move carries no +1 priority (Prankster / Gale Wings):
+    Walks the shared ``_SETUP_TYPES`` registry.  A candidate aimed at a setter
+    earns the per-target ×``SETUP_DENIAL`` (×2) when the effect isn't already up,
+    the kill is confirmed (``ctx.guarantees_ohko``), we outspeed the setter, and
+    its setup move carries no +1 priority (Prankster / Gale Wings) — the same
+    flat boost for any setup (Trick Room, Tailwind, …).
 
-      * Trick Room setter:  ×2.0
-      * Tailwind setter:    ×1.5
-
-    Effects already active can't be denied.  An action denies at most one
-    setter — Trick Room is tried first, so its claim wins when one target sets
-    both.  Choosing the setter as target is emergent: the move→setter candidate
-    accumulates DamageOutput + ThreatElimination + this boost and wins on its
-    own merit, no target overwrite needed.
+    Registry order breaks ties (Trick Room first), so its claim wins when one
+    target sets both; an action denies at most one setup.  Choosing the setter
+    as target is emergent: the move→setter candidate accumulates DamageOutput +
+    ThreatElimination + this boost and wins on its own merit, no target
+    overwrite needed.  Scalable: a new deniable setup is one new ``_SETUP_TYPES``
+    row.
     """
 
-    name = "setter_denial"
-
-    TR_DENIAL = 2.0
-    TW_DENIAL = 1.5
+    name = "setup_denial"
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         mon = state.my_actives[slot] if slot < len(state.my_actives) else None
@@ -2014,25 +2100,18 @@ class SetterDenialModule(ScoringModule):
         if ours_cbt is None:
             return
 
-        # Deniable setter slots per effect, in priority order (Trick Room first).
-        configs = [
-            ("trick_room", _TR_SETTER_SPECIES, "Trick Room",
-             lambda opp: _effective_ability(opp) == "Prankster",
-             self.TR_DENIAL, state.trick_room),
-            ("tailwind", _TAILWIND_SETTER_SPECIES, "Tailwind",
-             _tw_setter_has_priority, self.TW_DENIAL, state.opp_tailwind),
-        ]
-        deniable: list[tuple[str, float, set[int]]] = []
-        for (label, species, setter_move, has_priority, factor, active) in configs:
-            if active:
+        # Deniable setter slots per setup, registry order (Trick Room first).
+        deniable: list[tuple[str, set[int]]] = []
+        for st in _SETUP_TYPES:
+            if st.is_active(state):
                 continue   # effect already up — it can't be denied
             slots: set[int] = set()
             for opp_slot, opp in enumerate(state.opp_actives):
                 if opp is None or opp.fainted:
                     continue
-                if _modeled_forme(opp) not in species and setter_move not in opp.moves:
+                if _modeled_forme(opp) not in st.species and st.move not in opp.moves:
                     continue
-                if has_priority(opp):
+                if st.priority_exempt(opp):
                     continue
                 setter_cbt = _opp_combatant(state, opp_slot)
                 if (setter_cbt is None or will_outspeed(
@@ -2040,7 +2119,7 @@ class SetterDenialModule(ScoringModule):
                     continue
                 slots.add(opp_slot)
             if slots:
-                deniable.append((label, factor, slots))
+                deniable.append((st.label, slots))
         if not deniable:
             return
 
@@ -2051,15 +2130,15 @@ class SetterDenialModule(ScoringModule):
             ts = action.target_slot
             if ts is None:
                 continue
-            for (label, factor, slots) in deniable:
+            for (label, slots) in deniable:
                 if ts not in slots:
                     continue
                 if not ctx.guarantees_ohko(slot, action.move_name, ts):
                     continue   # setter survives — it still sets the effect
-                action.weight *= factor
+                action.weight *= SETUP_DENIAL
                 action.reasons.append(
                     f"{label}: deny {state.opp_actives[ts].species}"
-                    f" (guaranteed OHKO) -> x{factor}"
+                    f" (guaranteed OHKO) -> x{SETUP_DENIAL}"
                 )
                 break   # at most one denial per action — the TR claim wins
 
@@ -2241,12 +2320,14 @@ def make_engine() -> DecisionEngine:
     (blind to the partner) over its ``(move, target)`` candidates:
 
       DamageOutput -> ThreatElimination -> ProtectValue -> TurnOrder ->
-      SetterUrgency -> SetterDenial -> OppProtectRecency ->
+      Urgency -> Setup Denial -> OppProtectRecency ->
       ConsecutiveProtect -> FakeOut -> FieldCondition -> Redirection ->
-      Switch -> EndgameStall -> Doomed -> PriorityKill
+      Switch -> EndgameStall -> Doomed -> PriorityKill -> PriorityBlock
 
     (PriorityKill: a priority move that guarantees a kill -> x3.0, since it
-    removes the foe before it can act.  EndgameStall is a ProtectValue sibling — the 1v1/2v1 "Protect only delays"
+    removes the foe before it can act.  PriorityBlock: a priority attack -> x0
+    while an opponent has Armor Tail / Queenly Majesty (it can't connect).
+    EndgameStall is a ProtectValue sibling — the 1v1/2v1 "Protect only delays"
     cancel; Doomed is the ThreatElimination sibling — the "KO'd before we act"
     attack penalty.  Both placed last since phase-1 multipliers commute, so
     ordering them here avoids renumbering the others.  The "partner clears the
@@ -2264,8 +2345,8 @@ def make_engine() -> DecisionEngine:
     act?" gates the credit off, and otherwise "can I guarantee a kill?" applies
     ×5 (on the candidate already aimed at the OHKO'd target).  IncomingOHKOModule
     then asks "can they OHKO me?".  TurnOrderModule rewards faster attackers
-    before disruption bonuses.  SetterUrgency asks "is a stoppable speed-control
-    setter up?" (one boost, Trick Room first); SetterDenial asks "can I kill the
+    before disruption bonuses.  Urgency asks "is a stoppable speed-control
+    setter up?" (one boost, Trick Room first); Setup Denial asks "can I kill the
     setter first?" (per-candidate, Trick Room claim wins).  ConsecutiveProtect
     precedes Protect; FieldCondition follows Protect so its stall bonus stacks
     on existing weight.
@@ -2283,8 +2364,8 @@ def make_engine() -> DecisionEngine:
             ThreatEliminationModule(),    # 2: guarantee a kill? (×5) — gated off when doomed (ctx)
             ProtectValueModule(),         # 3: boost Protect on OHKO threat + partner-clears rows
             TurnOrderModule(),            # 4: scale attacks by turn-order position
-            SetterUrgencyModule(),        # 5: stoppable TR/TW setter up? attack, don't stall
-            SetterDenialModule(),         # 6: confirmed kill on a setter we outspeed?
+            UrgencyModule(),              # 5: stoppable setup (TR/TW/…) up? attack, don't stall
+            SetupDenialModule(),          # 6: confirmed kill on a setter we outspeed?
             OppProtectRecencyModule(),    # 7: reward attacking a mon that can't Protect again
             ConsecutiveProtectModule(),   # 8: penalise back-to-back Protect (×0.2)
             FakeOutModule(),              # 9: discount attacks / boost Protect vs fresh Fake Out users
@@ -2294,6 +2375,7 @@ def make_engine() -> DecisionEngine:
             EndgameStallModule(),         # 13: cancel Protect when it only delays (1v1/2v1)
             DoomedModule(),               # 14: doomed slot → ×0.2 on attacks (undeliverable)
             PriorityKillModule(),         # 15: priority move that guarantees a kill → ×3.0
+            PriorityBlockModule(),        # 16: opposing Armor Tail / Queenly Majesty → priority ×0
         ],
         joint=[
             DoublingAdjuster(),           # both attack same target: ×0.40–0.70, ×0.05 if overkill

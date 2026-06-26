@@ -981,6 +981,7 @@ def incoming_damage(
         our_defender_is_full_hp: bool = True,
         our_current_hp: Optional[int] = None,
         our_hp_percent: Optional[float] = None,
+        our_screens=None,
         top_n_moves: int = 6,
         opp_boosts: Optional[dict[str, int]] = None,
         our_boosts: Optional[dict[str, int]] = None,
@@ -1004,6 +1005,9 @@ def incoming_damage(
         our_ability:      Our Pokémon's ability (for defensive mods).
         our_item:         Our Pokémon's held item (for resistance berries etc.).
         weather:          Current weather string or None.
+        our_screens:      OUR side's active screens (e.g. {"auroraveil"}) — the
+                          incoming hit is halved/thirded just like outgoing into
+                          the opponent's screens. None/empty = no reduction.
         our_defender_is_full_hp: Whether our Pokémon is at full HP.
         top_n_moves:      How many of the opponent's top moves to evaluate.
         opp_boosts:       Opponent's current stat-stage boosts dict (e.g. {"atk": 2}).
@@ -1052,6 +1056,7 @@ def incoming_damage(
             attacker_item=opp_item,
             defender_item=our_item,
             weather=weather,
+            defender_screens=our_screens,
             attacker_boosts=opp_boosts,
             defender_boosts=our_boosts,
             defender_is_full_hp=our_defender_is_full_hp,

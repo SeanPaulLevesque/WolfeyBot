@@ -37,10 +37,13 @@ from decision import (
     ThreatEliminationModule,
     DoomedModule,
     PriorityKillModule,
+    PriorityBlockModule,
     _move_undeliverable,
     TurnOrderModule,
-    SetterUrgencyModule,
-    SetterDenialModule,
+    UrgencyModule,
+    SetupDenialModule,
+    SETUP_URGENCY,
+    SETUP_DENIAL,
     _assumed_ability,
     _effective_ability,
     _assumed_item,
@@ -1289,14 +1292,14 @@ class TestFormeNameNormalisation:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Setter urgency  (SetterUrgencyModule)
+# Urgency  (UrgencyModule)
 # ══════════════════════════════════════════════════════════════════════════════
 
-class TestSetterUrgency:
+class TestUrgency:
     """One module, one boost per turn: Trick Room ×2.0 first, else Tailwind
     ×1.5.  It boosts *every* attack on a preventable-setter board (any target),
     biasing the slot toward attacking over going passive."""
-    urgency = SetterUrgencyModule()
+    urgency = UrgencyModule()
 
     def _actions(self):
         return [
@@ -1326,8 +1329,8 @@ class TestSetterUrgency:
         switch  = next(a for a in actions if a.is_switch)
 
         assert protect.weight == pytest.approx(1.0)
-        assert earth.weight   == pytest.approx(SetterUrgencyModule.TR_URGENCY)
-        assert sludge.weight  == pytest.approx(SetterUrgencyModule.TR_URGENCY)
+        assert earth.weight   == pytest.approx(SETUP_URGENCY)
+        assert sludge.weight  == pytest.approx(SETUP_URGENCY)
         assert switch.weight  == pytest.approx(1.0)
 
     def test_tw_setter_boosts_attacks(self):
@@ -1341,12 +1344,12 @@ class TestSetterUrgency:
         switch  = next(a for a in actions if a.is_switch)
 
         assert protect.weight == pytest.approx(1.0)
-        assert earth.weight   == pytest.approx(SetterUrgencyModule.TW_URGENCY)
+        assert earth.weight   == pytest.approx(SETUP_URGENCY)
         assert switch.weight  == pytest.approx(1.0)
 
     def test_tr_takes_priority_over_tw(self):
         """Both a TR setter and a TW setter present → only the TR urgency applies
-        (the module's if/elif structure makes the two mutually exclusive)."""
+        (one boost per turn; registry order puts Trick Room first)."""
         state = make_state(
             opp_actives=[make_mon("Farigiraf"), make_mon("Noivern")]
         )
@@ -1355,7 +1358,7 @@ class TestSetterUrgency:
 
         earth = next(a for a in actions if a.move_name == "Earth Power")
         # TR urgency (2.0) only — not TR×TW (3.0).
-        assert earth.weight == pytest.approx(SetterUrgencyModule.TR_URGENCY)
+        assert earth.weight == pytest.approx(SETUP_URGENCY)
 
     def test_fainted_setter_does_not_boost(self):
         """A fainted setter is not active — no boost applied."""
@@ -1402,7 +1405,7 @@ class TestSetterUrgency:
         self.urgency.score(state, 0, actions)
 
         earth = next(a for a in actions if a.move_name == "Earth Power")
-        assert earth.weight == pytest.approx(SetterUrgencyModule.TR_URGENCY)
+        assert earth.weight == pytest.approx(SETUP_URGENCY)
         assert any("re-set risk" in r for r in earth.reasons)
 
     def test_tw_setter_no_boost_when_tw_active_with_turns_left(self):
@@ -1428,15 +1431,15 @@ class TestSetterUrgency:
         self.urgency.score(state, 0, actions)
 
         earth = next(a for a in actions if a.move_name == "Earth Power")
-        assert earth.weight == pytest.approx(SetterUrgencyModule.TW_URGENCY)
+        assert earth.weight == pytest.approx(SETUP_URGENCY)
         assert any("re-set risk" in r for r in earth.reasons)
 
     def test_tw_boost_fires_while_tr_active_cross_guard_removed(self):
         """Cross-guard removed (the meta runs no mixed TR+TW teams): with TR
         already up, the TR setter's urgency is moot (TR not stoppable), so a
         present TW setter now boosts attacks ×1.5 — an active TR no longer
-        suppresses it.  The if/elif still fires exactly one boost (TR is skipped
-        here because it's already active, so Tailwind takes it)."""
+        suppresses it.  The registry loop still fires exactly one boost (TR is
+        skipped here because it's already active, so Tailwind takes it)."""
         state = make_state(
             opp_actives=[make_mon("Farigiraf"), make_mon("Noivern")],
             trick_room=True,
@@ -1446,11 +1449,11 @@ class TestSetterUrgency:
         actions = self._actions()
         self.urgency.score(state, 0, actions)
         earth = next(a for a in actions if a.move_name == "Earth Power")
-        assert earth.weight == pytest.approx(SetterUrgencyModule.TW_URGENCY)
+        assert earth.weight == pytest.approx(SETUP_URGENCY)
 
     def test_tr_boost_fires_while_tw_active_cross_guard_removed(self):
         """Cross-guard removed: opposing Tailwind being up no longer suppresses a
-        present TR setter's urgency.  TR is first in the if/elif, so the TR
+        present TR setter's urgency.  TR is first in the registry, so the TR
         setter boosts attacks ×2.0 even with opp Tailwind active."""
         state = make_state(
             opp_actives=[make_mon("Farigiraf"), make_mon("Noivern")],
@@ -1461,11 +1464,11 @@ class TestSetterUrgency:
         actions = self._actions()
         self.urgency.score(state, 0, actions)
         earth = next(a for a in actions if a.move_name == "Earth Power")
-        assert earth.weight == pytest.approx(SetterUrgencyModule.TR_URGENCY)
+        assert earth.weight == pytest.approx(SETUP_URGENCY)
 
 
-class TestSetterDenial:
-    module = SetterDenialModule()
+class TestSetupDenial:
+    module = SetupDenialModule()
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -1510,7 +1513,7 @@ class TestSetterDenial:
             self.module.score(state, slot=0, actions=[action])
 
         assert action.weight == pytest.approx(
-            3.0 * SetterDenialModule.TR_DENIAL
+            3.0 * SETUP_DENIAL
         )
 
     def test_boosts_attack_already_targeting_tailwind_setter(self):
@@ -1534,7 +1537,7 @@ class TestSetterDenial:
             self.module.score(state, slot=0, actions=[action])
 
         assert action.weight == pytest.approx(
-            3.0 * SetterDenialModule.TW_DENIAL
+            3.0 * SETUP_DENIAL
         )
 
     def test_revealed_tailwind_move_triggers_boost(self):
@@ -1557,7 +1560,7 @@ class TestSetterDenial:
             self.module.score(state, slot=0, actions=[action])
 
         assert action.weight == pytest.approx(
-            2.0 * SetterDenialModule.TW_DENIAL
+            2.0 * SETUP_DENIAL
         )
 
     def test_tr_denial_claims_action_over_tw(self):
@@ -1585,7 +1588,7 @@ class TestSetterDenial:
             self.module.score(state, slot=0, actions=[action])
 
         assert action.target_slot == 0                                  # stayed on the TR setter
-        assert action.weight == pytest.approx(3.0 * SetterDenialModule.TR_DENIAL)
+        assert action.weight == pytest.approx(3.0 * SETUP_DENIAL)
 
     # ── No denial when OHKO is impossible ────────────────────────────────────
 
@@ -1741,7 +1744,7 @@ class TestSetterDenial:
             self.module.score(state, slot=0, actions=[action])
 
         assert action.weight == pytest.approx(
-            2.0 * SetterDenialModule.TW_DENIAL
+            2.0 * SETUP_DENIAL
         )
 
     # ── Effect-already-active no-ops ─────────────────────────────────────────
@@ -1945,7 +1948,7 @@ class TestDamageOutputModuleIntegration:
 
     def test_status_move_keeps_baseline(self):
         """A STATUS move deals 0 by design, not by failure, so DamageOutput
-        leaves it at the ×1.0 baseline (ProtectValue / SetterUrgency score it) —
+        leaves it at the ×1.0 baseline (ProtectValue / Urgency score it) —
         it must NOT get the damaging-move floor."""
         our_mon = make_mon("Garganacl")
         opp_mon = make_mon("Garchomp", side="p2")
@@ -2103,6 +2106,43 @@ class TestPriorityKillModule:
         with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
             self.module.score(self._state(), 0, [protect])
         assert protect.weight == pytest.approx(1.0)
+
+
+class TestPriorityBlockModule:
+    """An opposing Armor Tail / Queenly Majesty zeroes our priority attacks;
+    non-priority moves, Protect, and a board with no blocker are untouched."""
+    module = PriorityBlockModule()
+
+    def _state(self, opp_ability):
+        return make_state(
+            my_actives=[make_mon("Basculegion")],
+            opp_actives=[make_mon("Farigiraf", side="p2", ability=opp_ability)],
+        )
+
+    def test_armor_tail_zeroes_priority(self):
+        aqua = make_action("Aqua Jet", "Aqua Jet", target_slot=0)
+        self.module.score(self._state("Armor Tail"), 0, [aqua])
+        assert aqua.weight == 0.0
+
+    def test_queenly_majesty_zeroes_priority(self):
+        aqua = make_action("Aqua Jet", "Aqua Jet", target_slot=0)
+        self.module.score(self._state("Queenly Majesty"), 0, [aqua])
+        assert aqua.weight == 0.0
+
+    def test_non_priority_move_untouched(self):
+        wave = make_action("Wave Crash", "Wave Crash", target_slot=0)
+        self.module.score(self._state("Armor Tail"), 0, [wave])
+        assert wave.weight == pytest.approx(1.0)
+
+    def test_protect_untouched(self):
+        protect = make_action("Protect", "Protect")
+        self.module.score(self._state("Armor Tail"), 0, [protect])
+        assert protect.weight == pytest.approx(1.0)
+
+    def test_no_blocking_ability_untouched(self):
+        aqua = make_action("Aqua Jet", "Aqua Jet", target_slot=0)
+        self.module.score(self._state("Cud Chew"), 0, [aqua])
+        assert aqua.weight == pytest.approx(1.0)
 
 
 class TestMoveUndeliverable:

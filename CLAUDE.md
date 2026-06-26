@@ -7,7 +7,7 @@ WolfeyBot is a Gen 9 VGC doubles bot that plays on Pokémon Showdown in the
 2026-06-17 (`BATTLE_FORMAT` in `main.py` is `gen9championsvgc2026regmb`); the
 data/usage layer is still Reg M-A-derived pending M-B usage stats (~July). It
 connects via WebSocket, parses the battle protocol, and chooses moves using a
-two-phase scoring engine (15 per-slot modules + 5 joint adjusters; see the
+two-phase scoring engine (16 per-slot modules + 5 joint adjusters; see the
 pipeline section below).
 
 ---
@@ -43,7 +43,7 @@ to make green by editing expectations. This is a hard rule:
 | `main.py` | WebSocket client — connects to Showdown, drives the game loop |
 | `battle.py` / `battle_state.py` | `BattleState` and `Pokemon` dataclasses; battle protocol parser |
 | `decision/engine.py` | `Action`, `ScoringModule`, `DecisionEngine`, `_build_actions` |
-| `decision/modules.py` | All 15 per-slot modules + 5 joint adjusters + `make_engine()` factory |
+| `decision/modules.py` | All 16 per-slot modules + 5 joint adjusters + `make_engine()` factory |
 | `team.py` | `find_member(species)` + active-team selector (`set_active_team`, `get_team`, `list_teams`, `validate_team`, `resolve_team_spec`) |
 | `teams/` | Named ladder teams for A/B testing: `teams/<name>/v<n>.txt` pastes + `teams.json` manifest (name → label, account, current version). See `teams/README.md` |
 | `snapshots/` | Decision-snapshot regression subsystem: `baseline_team.txt` (frozen baseline roster, the no-`--team` fallback) + `<scenario>/<team>.md` generated tables |
@@ -91,8 +91,8 @@ scored **in isolation** (blind to the partner) over its own candidates.
 | 2 | ThreatElimination | "Can I guarantee a kill?" → ×5.0 when `ctx.guarantees_ohko(slot, move, its target)`. **Unconditional** now — the "will I die before I act?" ×0.2 cancel is a separate `DoomedModule` (#14). No target override (target is fixed) |
 | 3 | ProtectValue | **Single row** on Protect-family moves when `ctx.is_threatened(slot)`: ×2.5. The partner-clears ×3.0 is now a phase-2 adjuster (`PartnerClearsAdjuster`, J5); the 1v1/2v1 "Protect only delays" ×0.4 cancels are a separate `EndgameStallModule` (#13) — one concern per module |
 | 4 | TurnOrder | By rank in the 4-mon turn order (pos 1 = we act before all 3 other actives): pos 1 ×2.0; pos 2 ×1.5; pos 3 ×1.0; pos 4 ×0.75 — attacks only |
-| 5 | SetterUrgency | One urgency boost per turn, TR first (if/elif): TR setter present & TR not active (or last turn) → all attacks ×2.0; **else** TW setter present & TW not active (or last turn) → all attacks ×1.5. Target-agnostic — bias toward attacking, not stalling. (No TR↔TW cross-guard: the meta runs no mixed TR+TW teams.) |
-| 6 | SetterDenial | A candidate aimed at a setter it guaranteed-OHKOs (`ctx.ohko`), that we outspeed, whose setup move has no +1 priority (Prankster/Gale Wings) → TR setter ×2.0, TW setter ×1.5. At most one denial per action (TR claim wins); active effects can't be denied |
+| 5 | Urgency | One urgency boost per turn, first applicable setup in `_SETUP_TYPES` order (TR first): a setter present & its effect stoppable (not active, or last turn) → all attacks ×`SETUP_URGENCY` (flat ×2 for any setup). Target-agnostic — bias toward attacking, not stalling. Walks the shared `_SETUP_TYPES` registry, so a new urgent setup (screens, …) is one new row. (No TR↔TW cross-guard: the meta runs no mixed TR+TW teams.) |
+| 6 | Setup Denial | A candidate aimed at a setter it guaranteed-OHKOs (`ctx.ohko`), that we outspeed, whose setup move has no +1 priority (Prankster/Gale Wings) → ×`SETUP_DENIAL` (flat ×2 for any setup). At most one denial per action (TR claim wins); active effects can't be denied. Same shared `_SETUP_TYPES` registry as Urgency (#5) |
 | 7 | OppProtectRecency | ×1.3 if the candidate's target used Protect last turn |
 | 8 | ConsecutiveProtect | ×0.2 if we used Protect last turn — no exceptions |
 | 9 | FakeOut | `ctx.fake_out_fired(slot)` (fresh Fake Out user on field): Protect ×2.0, all attacks ×0.5 — for **every** slot |
@@ -102,6 +102,7 @@ scored **in isolation** (blind to the partner) over its own candidates.
 | 13 | EndgameStall | Protect ×0.4 when `ctx.is_threatened(slot)` and the board is a 1v1 endgame or 2v1 advantage (Protect only delays). Split out of ProtectValue |
 | 14 | Doomed | **Per-candidate** (`_move_undeliverable`): ×0.2 on each attack a certain killer would land before — so a priority move that out-speeds the threat is spared (revenge-KO) while slower moves are cut; Protect/switch untouched. Split out of ThreatElimination |
 | 15 | PriorityKill | ×3.0 on a **priority** move (`priority_bracket > 0`) that `ctx.guarantees_ohko`s its target — it removes the foe before it can act, so prefer the priority KO over a slower one. Gated on guaranteed OHKO, so weak non-KO priority moves get nothing |
+| 16 | PriorityBlock | ×0 on a **priority** attack while any live opponent has a priority-block ability (`_PRIORITY_BLOCK_ABILITIES` = Armor Tail / Queenly Majesty) — these block priority vs the holder *and its ally*, so it can't connect. Protect/switch/non-priority untouched; reads `_effective_ability` (assumes Armor Tail on an unrevealed Farigiraf). Composes with #15 (3.0×0=0) |
 
 ### Phase 2 — joint coordination (`DecisionEngine.coordinate`)
 Phase 1 yields a ranked candidate list per slot. `coordinate` then picks the

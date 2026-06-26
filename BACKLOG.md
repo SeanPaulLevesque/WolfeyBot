@@ -40,6 +40,29 @@ Regulation M-B follow-ups (data folded in 2026-06-17):
 feature modules:
 -I am thinking about a switch module that switches based on the move type a slot is weak against. For instance it would switch in aerodactyl when opp garchomp is threatening a ground type. Right now it looks at all available moves, but doesn't think about likely moves.
 Add more complete weather and field effects to the engine. ie damage from sandstorm, blizzard accuracy from snow, +fire damage from sun
+-Aurora Veil (and Reflect / Light Screen) — defensive + setup gaps. The damage
+ halving is already modelled ONE direction (VERIFIED 0.27.0): the parser tracks
+ screens (`_on_sidestart`/`_on_sideend` → `my_screens`/`opp_screens`, side
+ detection correct), and `outgoing_damage` applies the OPPONENT's screens (incl.
+ `auroraveil`, both physical+special ×2/3, crits bypass) via `screen_modifier` —
+ e.g. Iron Head → Grimmsnarl 91%→60% with Reflect up. So our outgoing damage
+ into a screened opponent is correct. Gaps:
+   (1) [DONE 0.29.0] OUR screens now reach the incoming-threat facts.
+       `incoming_damage` gained an `our_screens` param, passed as
+       `defender_screens` into its `full_damage_calc` call; `build_turn_context`
+       threads `state.my_screens` at both incoming call sites (active mon +
+       bench switch-in candidate — screens are side-wide). So with Aurora Veil /
+       Reflect / Light Screen up the doom / is_threatened / Protect facts now see
+       the ×2/3 reduction instead of over-estimating. Covered by
+       TestIncomingScreens. Snapshot baseline UNCHANGED (turn-1 boards have no
+       screens up, so 0 cells moved) — no regeneration review needed after all.
+   (2) No value for SETTING UP a screen, and no denial/urgency around the opponent
+       setting one (cf. the TR/TW `SetterUrgency`/`SetterDenial` modules) — the
+       engine neither rewards clicking Aurora Veil nor reacts to the opponent's.
+   (3) Aurora Veil needs Snow to set — not checked (minor; only matters if we
+       model setting it).
+ (1) touches the incoming-threat facts → a reviewed snapshot regeneration per the
+ testing rule.
 -[OPEN — Phase 3 of the scenario/snapshot system] Arbitrary mid-game scenarios.
  Infrastructure is DONE (0.9.x): scenarios/ (board-state templates) + snapshots/
  (generated tables per scenario × team) + tools/gen_snapshot.py, with an
@@ -120,6 +143,7 @@ The 0.8.5 batches wired every ability that keys off move flags, move type, categ
 -Merciless (auto-crit = x1.5 vs a POISONED target): needs DEFENDER status into the calc. Relevant — this is Toxapex, a common wall.
 -Stakeout (x2.0 if the target switches in this turn): needs opponent switch prediction — the hardest of the set.
 -Sniper (x1.5 on a crit): low value — random crits are excluded from the yes/no facts, so it would only ever fire on always-crit moves (Flower Trick etc.).
+-Scrappy (Normal/Fighting moves hit Ghost-types; also ignores Intimidate): a type-EFFECTIVENESS OVERRIDE, not an atk_modifier — when the attacker has Scrappy, a Ghost defender's ×0 to Normal/Fighting becomes ×1 (so e.g. Lopunny-Mega's Return/Close Combat connects on a Ghost). Needs the attacker's ability threaded into type_effectiveness (the ×0 immunity check), on BOTH sides: our outgoing damage AND incoming-threat facts (a Scrappy opponent's Normal/Fighting now threatens our Ghost-types — Basculegion, Aegislash, etc.). Champions-legal carriers via usage: Lopunny-Mega (and any revealed Scrappy). Touches incoming-threat facts → a reviewed snapshot regeneration per the testing rule. (Second half — ignores Intimidate — is separate: it would gate the -1 Atk we apply when a Scrappy mon switches in.)
 -Out of format, revisit only if the legal pool changes (no Champions-legal holder today): Slow Start (Regigigas), Orichalcum Pulse (Koraidon), Hadron Engine (Miraidon; also needs Electric Terrain), Flower Gift (Cherrim). Any of these would also need turns-active and/or terrain tracking that we deliberately skipped.
 
 model calibration:
@@ -187,9 +211,30 @@ model calibration:
       Roosting target looked ~3x worse than reality. Now scaled to % of max.
    3. Residual tail (a real but separate, smaller item): some over-predictions
       aren't boosts — e.g. Ice Fang -> Garchomp 90->32% (Yache Berry? we don't
-      assume defensive resist-berries), Dual Wingbeat -> Venusaur 100->18%
-      (bulky-mega / Tera / screen?). Candidate follow-up: model defensive items
-      (Yache/Occa/etc. resist berries) and Tera typing. NOT spread.
+      assume defensive resist-berries). Candidate follow-up: model defensive
+      resist berries (Yache/Occa/Chople/Roseli/etc.). NOT spread, NOT Tera
+      (Tera is ILLEGAL in Champions — do not model it; struck 0.27.0). Screens
+      are NOT the cause either: the offense path is verified working (parser
+      `-sidestart` -> `opp_screens` -> `outgoing_damage` -> `screen_modifier`
+      ×2/3; e.g. Iron Head -> Grimmsnarl 91%->60% with Reflect), so a screened
+      foe is already discounted on our outgoing side.
+
+   Re-confirmed on the 0.26.0 v6 run (137 games, 62 offense gaps; reports/):
+   - 48 OVER (actual ~0.5-0.7x predicted), all into bulky/support mons. Two
+     real unmodeled causes on top of the defensive-spread under-rating:
+       (a) DEFENSIVE RESIST BERRIES — Sneasler Close Combat -> Archaludon
+           93%->38% (x0.41) with NO recorded Def boost and Sneasler NOT
+           Intimidated at that turn = a flat halving of a SE Fighting hit =
+           a Chople Berry. This is the highest-leverage fixable lever.
+       (b) Archaludon's Stamina Def+1/hit IS captured (parser -> boosts ->
+           defender_boosts) but we score at turn start, so a 1-2 stage lag
+           remains. Intimidate is also wired (parser -unboost -> attacker_boosts).
+   - 14 UNDER (actual higher), opponents FRAILER than our (bulky) modal spread:
+     Metagross Psychic Fangs -> Dragonite-Mega 28%->54%, Starmie-Mega 13%->33%,
+     etc. (verified our Metagross-Mega DOES use Tough Claws + mega Atk, so it's
+     the targets). Net: a single modal spread under-rates dedicated walls
+     (over-predict) and over-rates glass cannons (under-predict) — a coarse
+     "wall vs offensive" spread split is the deeper (lower-priority) lever.
 
 -In-battle forme modeling — remaining cases after 0.8.10. 0.8.10 fixed the
  STAT-changing transformers (Palafin-Hero stats; Aegislash Blade-offense /
