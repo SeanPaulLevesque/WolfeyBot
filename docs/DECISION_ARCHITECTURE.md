@@ -143,14 +143,17 @@ strictly ascending. Phase-1 modules:
 **1** DamageOutput · **2** ThreatElimination · **3** ProtectValue · **4** TurnOrder ·
 **5** SetterUrgency · **6** SetterDenial · **7** OppProtectRecency ·
 **8** ConsecutiveProtect · **9** FakeOut · **10** FieldCondition · **11** Redirection ·
-**12** Switch · **13** EndgameStall · **14** Doomed. Phase-2 joint adjusters:
+**12** Switch · **13** EndgameStall · **14** Doomed · **15** PriorityKill.
+Phase-2 joint adjusters:
 **J1** Doubling · **J2** Coordination · **J3** FakeOut (free) · **J4** SwitchCollision ·
 **J5** PartnerClears.
 
 Several rows sit beside their thematic siblings rather than in pipeline order:
 **13** EndgameStall (1v1/2v1 cancel) and **14** Doomed (the "KO'd before we act"
 attack penalty) were split out of ProtectValue and ThreatElimination, so rows
-**13.x** / **14.1** sit near the **3.x** / **2.x** rows.  **J5** PartnerClears is
+**13.x** / **14.1** sit near the **3.x** / **2.x** rows; **15** PriorityKill (the
+priority-move revenge-KO boost) is the natural counterpart to **14**, so **15.1**
+sits beside **14.1**.  **J5** PartnerClears is
 the old "Threat Clear" boost — moved to phase 2 because whether a threat is
 cleared depends on the *partner's* chosen action.
 
@@ -177,6 +180,7 @@ cleared depends on the *partner's* chosen action.
 <tr><td>1.1</td><td>Predicted Damage Dealt</td><td colspan="6">×(1&nbsp;+&nbsp;d×2.0)</td><td>—</td><td>—</td><td>—</td><td></td></tr>
 <tr><td>2.1</td><td>Score A Guaranteed Kill</td><td colspan="6">×5</td><td>—</td><td>—</td><td>—</td><td>lowest damage roll ≥ the target's HP (unconditional — the doom cancel is its own module, #14)</td></tr>
 <tr><td>14.1</td><td>Die Before Acting</td><td colspan="6">×0.2</td><td>—</td><td>—</td><td>—</td><td>per-candidate: a certain killer would land before <em>this move</em> (so a priority move that out-speeds the threat is spared — revenge-KO); Protect/switch untouched</td></tr>
+<tr><td>15.1</td><td>Priority Kill</td><td colspan="6">×3.0</td><td>—</td><td>—</td><td>—</td><td>a <em>priority</em> move (bracket&nbsp;&gt;&nbsp;0) that guarantees the OHKO — it removes the foe before it can act, so prefer it over a slower KO</td></tr>
 <tr><td>3.1</td><td>Incoming Kill</td><td colspan="6">—</td><td>×2.5</td><td>—</td><td>—</td><td>an opponent's max roll kills this mon at its current HP</td></tr>
 <tr><td>13.1</td><td>1v1 Endgame</td><td colspan="6">—</td><td>×0.4</td><td>—</td><td>—</td><td>Protect stalling in 1v1 is net neutral</td></tr>
 <tr><td>13.2</td><td>2v1 Endgame</td><td colspan="6">—</td><td>×0.4</td><td>—</td><td>—</td><td>Protect stalling in 2v1 is net negative</td></tr>

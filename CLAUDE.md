@@ -7,7 +7,7 @@ WolfeyBot is a Gen 9 VGC doubles bot that plays on Pokémon Showdown in the
 2026-06-17 (`BATTLE_FORMAT` in `main.py` is `gen9championsvgc2026regmb`); the
 data/usage layer is still Reg M-A-derived pending M-B usage stats (~July). It
 connects via WebSocket, parses the battle protocol, and chooses moves using a
-two-phase scoring engine (14 per-slot modules + 5 joint adjusters; see the
+two-phase scoring engine (15 per-slot modules + 5 joint adjusters; see the
 pipeline section below).
 
 ---
@@ -43,7 +43,7 @@ to make green by editing expectations. This is a hard rule:
 | `main.py` | WebSocket client — connects to Showdown, drives the game loop |
 | `battle.py` / `battle_state.py` | `BattleState` and `Pokemon` dataclasses; battle protocol parser |
 | `decision/engine.py` | `Action`, `ScoringModule`, `DecisionEngine`, `_build_actions` |
-| `decision/modules.py` | All 14 per-slot modules + 5 joint adjusters + `make_engine()` factory |
+| `decision/modules.py` | All 15 per-slot modules + 5 joint adjusters + `make_engine()` factory |
 | `team.py` | `find_member(species)` + active-team selector (`set_active_team`, `get_team`, `list_teams`, `validate_team`, `resolve_team_spec`) |
 | `teams/` | Named ladder teams for A/B testing: `teams/<name>/v<n>.txt` pastes + `teams.json` manifest (name → label, account, current version). See `teams/README.md` |
 | `snapshots/` | Decision-snapshot regression subsystem: `baseline_team.txt` (frozen baseline roster, the no-`--team` fallback) + `<scenario>/<team>.md` generated tables |
@@ -101,6 +101,7 @@ scored **in isolation** (blind to the partner) over its own candidates.
 | 12 | Switch | Board-value (1-ply): `TEMPO×(1+g)×escape×safety` — TEMPO=0.6, g=offense gain, escape=×4.0 if escaping a connecting OHKO into a survivor, safety=×0.3 if switch-in OHKO'd (no same-mon veto — that's phase 2) |
 | 13 | EndgameStall | Protect ×0.4 when `ctx.is_threatened(slot)` and the board is a 1v1 endgame or 2v1 advantage (Protect only delays). Split out of ProtectValue |
 | 14 | Doomed | **Per-candidate** (`_move_undeliverable`): ×0.2 on each attack a certain killer would land before — so a priority move that out-speeds the threat is spared (revenge-KO) while slower moves are cut; Protect/switch untouched. Split out of ThreatElimination |
+| 15 | PriorityKill | ×3.0 on a **priority** move (`priority_bracket > 0`) that `ctx.guarantees_ohko`s its target — it removes the foe before it can act, so prefer the priority KO over a slower one. Gated on guaranteed OHKO, so weak non-KO priority moves get nothing |
 
 ### Phase 2 — joint coordination (`DecisionEngine.coordinate`)
 Phase 1 yields a ranked candidate list per slot. `coordinate` then picks the

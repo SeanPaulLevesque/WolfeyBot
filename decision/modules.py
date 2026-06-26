@@ -627,6 +627,44 @@ class DoomedModule(ScoringModule):
                 )
 
 
+class PriorityKillModule(ScoringModule):
+    """A **priority** move that guarantees a kill → ×3.0.
+
+    A priority KO strikes before the target acts, so it removes the foe before
+    it can deal its damage (to us or our partner) — worth more than the same
+    kill from a slower move.  Gated on a *guaranteed* OHKO (``ctx.ohko``): a
+    non-lethal priority move (a weak Aqua Jet that can't KO) gets nothing, so
+    this can't resurrect the old "weak priority beats a near-OHKO" over-valuation.
+    """
+
+    name = "priority_kill"
+
+    PRIORITY_KILL_FACTOR = 3.0
+
+    def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
+        ctx = _ensure_turn_ctx(state)
+        live = [i for i, o in enumerate(state.opp_actives)
+                if o is not None and not o.fainted]
+        for action in actions:
+            if not action.is_move or action.is_switch or action.move_name in _PROTECT_MOVES:
+                continue
+            if priority_bracket(action.move_name) <= 0:
+                continue   # only priority attacks
+            targets = [action.target_slot] if action.target_slot is not None else live
+            for opp_slot in targets:
+                opp = (state.opp_actives[opp_slot]
+                       if 0 <= opp_slot < len(state.opp_actives) else None)
+                if opp is None or opp.fainted:
+                    continue
+                if ctx.guarantees_ohko(slot, action.move_name, opp_slot):
+                    action.weight *= self.PRIORITY_KILL_FACTOR
+                    action.reasons.append(
+                        f"{self.name}: priority move guarantees a kill"
+                        f" -> x{self.PRIORITY_KILL_FACTOR}"
+                    )
+                    break   # first guaranteed-OHKO target
+
+
 class ProtectValueModule(ScoringModule):
     """
     Scores Protect-family moves when a connecting OHKO threat is present.
@@ -2205,9 +2243,10 @@ def make_engine() -> DecisionEngine:
       DamageOutput -> ThreatElimination -> ProtectValue -> TurnOrder ->
       SetterUrgency -> SetterDenial -> OppProtectRecency ->
       ConsecutiveProtect -> FakeOut -> FieldCondition -> Redirection ->
-      Switch -> EndgameStall -> Doomed
+      Switch -> EndgameStall -> Doomed -> PriorityKill
 
-    (EndgameStall is a ProtectValue sibling — the 1v1/2v1 "Protect only delays"
+    (PriorityKill: a priority move that guarantees a kill -> x3.0, since it
+    removes the foe before it can act.  EndgameStall is a ProtectValue sibling — the 1v1/2v1 "Protect only delays"
     cancel; Doomed is the ThreatElimination sibling — the "KO'd before we act"
     attack penalty.  Both placed last since phase-1 multipliers commute, so
     ordering them here avoids renumbering the others.  The "partner clears the
@@ -2254,6 +2293,7 @@ def make_engine() -> DecisionEngine:
             SwitchModule(),               # 12: evaluate switch options
             EndgameStallModule(),         # 13: cancel Protect when it only delays (1v1/2v1)
             DoomedModule(),               # 14: doomed slot → ×0.2 on attacks (undeliverable)
+            PriorityKillModule(),         # 15: priority move that guarantees a kill → ×3.0
         ],
         joint=[
             DoublingAdjuster(),           # both attack same target: ×0.40–0.70, ×0.05 if overkill

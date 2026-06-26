@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.27.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.28.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -396,7 +396,7 @@ Bench: Gallade, Arcanine-Hisui, Aegislash, Dragonite
 | 14.13 | Aerodactyl | Garchomp | Wave Crash → Aerodactyl `19.49` | Ice Beam → Garchomp `50.51` |
 | 14.14 | Lopunny | Garchomp | Wave Crash → Lopunny `13.33` | Ice Beam → Garchomp `33.68` |
 | 14.15 | Weavile | Garchomp | Switch → Gallade `10.05` | Ice Beam → Garchomp `16.84` |
-| 14.16 | Talonflame | Garchomp | Wave Crash → Talonflame `92.10` | Ice Beam → Garchomp `50.51` |
+| 14.16 | Talonflame | Garchomp | Aqua Jet → Talonflame `98.67` | Ice Beam → Garchomp `50.51` |
 | 14.17 | Charizard | Incineroar | Wave Crash → Incineroar `23.53` | Weather Ball → Charizard `50.53` |
 | 14.18 | Rotom-Wash | Garchomp | Wave Crash → Rotom-Wash `2.98` | Ice Beam → Garchomp `44.90` |
 | 14.19 | Glimmora | Incineroar | Wave Crash → Incineroar `23.53` | Weather Ball → Glimmora `56.40` |

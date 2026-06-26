@@ -36,6 +36,7 @@ from decision import (
     DamageOutputModule,
     ThreatEliminationModule,
     DoomedModule,
+    PriorityKillModule,
     _move_undeliverable,
     TurnOrderModule,
     SetterUrgencyModule,
@@ -2062,6 +2063,46 @@ class TestDoomedModule:
             self.module.score(self._state(), slot=0, actions=[protect, switch])
         assert protect.weight == pytest.approx(1.0)
         assert switch.weight == pytest.approx(1.0)
+
+
+class TestPriorityKillModule:
+    """A priority move that guarantees a kill → ×3.0; non-priority kills and
+    non-KO priority moves get nothing."""
+    module = PriorityKillModule()
+
+    def _state(self):
+        return make_state(
+            my_actives=[make_mon("Basculegion")],
+            opp_actives=[make_mon("Garchomp", side="p2")],
+        )
+
+    def test_priority_kill_boosts(self):
+        ctx = TurnContext(ohko={(0, "Aqua Jet", 0)})   # +1 move that guarantees the OHKO
+        aqua = make_action("Aqua Jet", "Aqua Jet", target_slot=0)
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            self.module.score(self._state(), 0, [aqua])
+        assert aqua.weight == pytest.approx(PriorityKillModule.PRIORITY_KILL_FACTOR)
+
+    def test_non_priority_kill_no_boost(self):
+        ctx = TurnContext(ohko={(0, "Wave Crash", 0)})   # a KO, but normal priority
+        wave = make_action("Wave Crash", "Wave Crash", target_slot=0)
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            self.module.score(self._state(), 0, [wave])
+        assert wave.weight == pytest.approx(1.0)
+
+    def test_non_kill_priority_no_boost(self):
+        ctx = TurnContext(ohko=set())   # Aqua Jet does NOT guarantee a kill
+        aqua = make_action("Aqua Jet", "Aqua Jet", target_slot=0)
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            self.module.score(self._state(), 0, [aqua])
+        assert aqua.weight == pytest.approx(1.0)
+
+    def test_protect_untouched(self):
+        ctx = TurnContext(ohko={(0, "Aqua Jet", 0)})
+        protect = make_action("Protect", "Protect")
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            self.module.score(self._state(), 0, [protect])
+        assert protect.weight == pytest.approx(1.0)
 
 
 class TestMoveUndeliverable:

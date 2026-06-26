@@ -22,6 +22,7 @@ from decision.modules import (  # noqa: F401
     DamageOutputModule,
     ThreatEliminationModule,
     DoomedModule,
+    PriorityKillModule,
     ProtectValueModule,
     PartnerClearsAdjuster,
     EndgameStallModule,

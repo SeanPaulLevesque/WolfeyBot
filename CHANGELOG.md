@@ -1,5 +1,29 @@
 # WolfeyBot Changelog
 
+## 0.28.0 — 2026-06-26
+
+### PriorityKill module (#15) — prefer a priority KO over a slower one
+
+0.27.0 made `DoomedModule` per-candidate so a doomed mon's priority revenge-KO
+survives the ×0.2 cut. This goes one step further: a priority move that gets a
+kill should be *preferred*, not merely un-penalised — it removes the foe before
+it can act, even when we aren't doomed.
+
+- New `PriorityKillModule` (phase-1 #15, after Doomed): ×3.0 on a candidate
+  whose move is in a positive priority bracket (`priority_bracket > 0`) **and**
+  `ctx.guarantees_ohko`s its target. Gated on the guaranteed OHKO, so a weak
+  non-KO priority move (chip Aqua Jet, Quick Attack) gets nothing — the old
+  over-valuation of priority-as-position can't return.
+- Registered in `make_engine` after `DoomedModule`; exported from
+  `decision/__init__`; covered by `TestPriorityKillModule`.
+
+Turn-1 snapshots: 1 off-meta-team@v1 cell shifts (Basculegion vs Talonflame —
+`Wave Crash → Aqua Jet`). Both KO frail Talonflame, but the super-effective
+Adaptability Aqua Jet is a priority KO, so the ×3 edges it past Wave Crash —
+and as a bonus it avoids Wave Crash's recoil. Reviewed and approved. The real
+payoff is mid-game (revenge KOs on chipped foes), which a full-HP turn-1
+snapshot can't surface.
+
 ## 0.27.0 — 2026-06-26
 
 ### Doomed is now per-candidate — priority moves can revenge-KO
