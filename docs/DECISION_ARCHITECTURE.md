@@ -126,22 +126,21 @@ starts at **weight 1.0**; modules **multiply** those weights.
 
 
 
-<style>.decision-table td, .decision-table th { text-align: center; }</style>
-<table class="decision-table">
+<table>
 <thead>
 <tr>
-  <th rowspan="2" style="text-align:center">#</th>
-  <th rowspan="2" style="text-align:center"></th>
-  <th colspan="3" style="text-align:center">Target Slot 1</th>
-  <th colspan="3" style="text-align:center">Target Slot 2</th>
-  <th rowspan="2" style="text-align:center">Protect</th>
-  <th rowspan="2" style="text-align:center">Switch&nbsp;1</th>
-  <th rowspan="2" style="text-align:center">Switch&nbsp;2</th>
-  <th rowspan="2" style="text-align:center">Note</th>
+  <th rowspan="2" align="center">#</th>
+  <th rowspan="2" align="center"></th>
+  <th colspan="3" align="center">Target Slot 1</th>
+  <th colspan="3" align="center">Target Slot 2</th>
+  <th rowspan="2" align="center">Protect</th>
+  <th rowspan="2" align="center">Switch&nbsp;1</th>
+  <th rowspan="2" align="center">Switch&nbsp;2</th>
+  <th rowspan="2" align="center">Note</th>
 </tr>
 <tr>
-  <th style="text-align:center">Attack 1</th><th style="text-align:center">Attack 2</th><th style="text-align:center">Attack 3</th>
-  <th style="text-align:center">Attack 1</th><th style="text-align:center">Attack 2</th><th style="text-align:center">Attack 3</th>
+  <th align="center">Attack 1</th><th align="center">Attack 2</th><th align="center">Attack 3</th>
+  <th align="center">Attack 1</th><th align="center">Attack 2</th><th align="center">Attack 3</th>
 </tr>
 </thead>
 <tbody>
