@@ -1,5 +1,24 @@
 # WolfeyBot Changelog
 
+## 0.34.0 — 2026-06-27
+
+### Lead prediction
+- **Co-occurrence-aware opponent lead prediction.** `select_leads` predicted the
+  opponent's lead pair as the two highest *individual* lead frequencies — which
+  pairs two independently-popular leads that are rarely led *together*
+  (Whimsicott led 428×, Farigiraf 361×, but **co-led only 5×**).
+- `lead_stats.json` gains a `pairs` map (per-battle co-occurrence, sorted key);
+  `record_leads` bumps it, and `lead_pair_frequency` / `pair_partner_counts` /
+  `all_lead_pairs` read it. `build_lead_stats.py` backfills `pairs` from existing
+  logs; `seed_lead_stats.py` gets it for free via `record_leads`.
+- New `predict_pair(species_list)` — three tiers: (1) the previewed pair seen
+  co-led most, if it clears `PAIR_MIN_SUPPORT` (2); (2) else anchor on the
+  strongest single + its most-co-led real partner; (3) else the old top-2
+  singles. Facing {Whimsicott, Farigiraf, Garchomp, …} it now predicts
+  Whimsicott+Garchomp (62) over Whimsicott+Farigiraf (5).
+- Inert (graceful fallback to singles) until `lead_stats.json` is rebuilt with
+  `pairs`; no turn-1 snapshot impact (that scenario uses fixed opponent leads).
+
 ## 0.33.0 — 2026-06-27
 
 ### Modeling

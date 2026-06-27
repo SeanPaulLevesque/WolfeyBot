@@ -287,6 +287,13 @@ Run commands bare with relative paths, exactly as in the block above
   is one-mega-aware (0.6.9); `select_leads` is pair-based and initiative-aware
   (0.7.7) — all C(n,2) lead pairs scored as matchup-vs-predicted-leads ×
   slow-lead/Tailwind-exposure rows, with the slow row waived vs TR rosters.
+  *Opponent-lead prediction is co-occurrence-aware (0.34.0):*
+  `data.lead_stats.predict_pair` prefers the previewed duo actually **co-led**
+  most (a `pairs` map in `lead_stats.json`) over the two highest *individual*
+  leads, which otherwise pairs two rarely-together supports (Whimsicott+Farigiraf
+  co-led only 5×). Falls back to anchor+real-partner, then top-2 singles.
+  **Activate by rebuilding `lead_stats.json` with `pairs` (`tools/build_lead_stats.py`
+  or any `record_leads` reseed)** — inert (singles fallback) until then.
   Remaining idea: validate the row magnitudes (×0.85) against the next
   100-game sample's led-vs-back splits.
 - **Task #5** — Stat-aware mega selection. *Core idea now implemented in

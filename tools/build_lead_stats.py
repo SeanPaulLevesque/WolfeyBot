@@ -14,6 +14,7 @@ risk of double-counting across reruns.
 """
 from __future__ import annotations
 
+import itertools
 import json
 import pathlib
 import sys
@@ -43,6 +44,7 @@ def _parse_version(name: str) -> tuple[int, ...] | None:
 
 def main() -> None:
     counts:        dict[str, int] = {}
+    pairs:         dict[str, int] = {}
     total_battles: int            = 0
     scanned_files: int            = 0
     skipped:       int            = 0
@@ -93,10 +95,15 @@ def main() -> None:
             total_battles += 1
             for s in leads:
                 counts[s] = counts.get(s, 0) + 1
+            for a, b in itertools.combinations(sorted(set(leads)), 2):
+                key = "|".join((a, b))   # leads already sorted -> canonical key
+                pairs[key] = pairs.get(key, 0) + 1
 
     # Persist — sort descending for human readability.
     sorted_counts = dict(sorted(counts.items(), key=lambda x: -x[1]))
-    data = {"total_battles": total_battles, "counts": sorted_counts}
+    sorted_pairs  = dict(sorted(pairs.items(),  key=lambda x: -x[1]))
+    data = {"total_battles": total_battles, "counts": sorted_counts,
+            "pairs": sorted_pairs}
 
     _STATS_OUT.parent.mkdir(parents=True, exist_ok=True)
     with open(_STATS_OUT, "w", encoding="utf-8") as f:
@@ -117,6 +124,12 @@ def main() -> None:
         for species, count in list(sorted_counts.items())[:20]:
             pct = count / total_battles * 100 if total_battles else 0
             print(f"  {species:<25s}  {count:>4d}  ({pct:5.1f}%)")
+
+    if sorted_pairs:
+        print("\nTop co-led pairs:")
+        for key, count in list(sorted_pairs.items())[:20]:
+            pct = count / total_battles * 100 if total_battles else 0
+            print(f"  {key:<35s}  {count:>4d}  ({pct:5.1f}%)")
 
     print(f"\nWritten to: {_STATS_OUT}")
 

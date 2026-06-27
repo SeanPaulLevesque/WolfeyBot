@@ -540,7 +540,7 @@ def select_leads(
 
     # ── Check whether we have usable lead frequency data ─────────────────
     try:
-        from data.lead_stats import lead_frequency, total_battles as _total
+        from data.lead_stats import predict_pair, total_battles as _total
         has_data = _total() > 0
     except Exception:
         has_data = False
@@ -549,12 +549,10 @@ def select_leads(
         log.info("LEAD ORDER  %s  (no lead data, using original order)", sorted(slots))
         return sorted(slots)
 
-    # ── Predict the 2 most likely opponent leads ──────────────────────────
-    predicted = sorted(
-        opp_species_list,
-        key=lambda s: lead_frequency(s),
-        reverse=True,
-    )[:2]
+    # ── Predict the most likely opponent lead PAIR ────────────────────────
+    # Co-occurrence-aware: prefer the duo actually led together over the two
+    # highest individual leads (which can be two supports rarely paired).
+    predicted = predict_pair(opp_species_list)
     log.info("PREDICTED OPP LEADS  %s", predicted)
 
     # ── Score our bring list against the predicted leads ──────────────────
