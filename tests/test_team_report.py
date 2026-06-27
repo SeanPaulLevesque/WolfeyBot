@@ -9,6 +9,7 @@ import json
 from tools.team_report import (
     roster_stats, move_usage, length_buckets, load_games, derive_team_meta,
     archetype_breakdown, opp_mega_breakdown, lead_outcomes,
+    lead_prediction_outcomes,
 )
 from tools.accuracy_report import compute_prediction, _same_line
 
@@ -152,6 +153,63 @@ class TestLeadOutcomes:
         s = roster_stats([g])
         assert s["Basculegion"]["faints"] == 1
         assert "Whimsicott" not in s   # opp attacker is never credited in our roster
+
+
+class TestLeadPredictionOutcomes:
+    """Did a correct opponent-lead prediction convert to an advantage?  Uses only
+    the recorded ``preview.pred``; games without it are skipped."""
+
+    @staticmethod
+    def _g(outcome, pred, opp_leads, my_leads, opening_ko=False, *, no_pred=False):
+        ev = ([{"sd": "us", "a": my_leads[0], "mv": "X", "tg": opp_leads[0],
+                "h0": 0.5, "d": 0.6}] if opening_ko else [])
+        preview = {} if no_pred else {"pred": pred}
+        return {
+            "outcome": outcome,
+            "preview": preview,
+            "turns": [{
+                "my":  [{"s": s, "hp": 1.0} for s in my_leads],
+                "opp": [{"s": s, "hp": 1.0} for s in opp_leads],
+                "ev":  ev,
+            }],
+        }
+
+    def test_correct_vs_incorrect_split(self):
+        games = [
+            # correct read (order-independent), won, came out ahead
+            self._g("win",  ["Whimsicott", "Garchomp"], ["Garchomp", "Whimsicott"],
+                    ["Aerodactyl", "Venusaur"], opening_ko=True),
+            # wrong read, lost, not ahead
+            self._g("loss", ["Whimsicott", "Garchomp"], ["Incineroar", "Sneasler"],
+                    ["Aerodactyl", "Venusaur"]),
+            # no recorded prediction → skipped entirely
+            self._g("win",  None, ["Garchomp", "Whimsicott"],
+                    ["Aerodactyl", "Venusaur"], no_pred=True),
+        ]
+        r = lead_prediction_outcomes(games)
+        assert r["n_with_pred"] == 2                       # the no-pred game skipped
+        assert r["by_correct"][True]  == {"games": 1, "wins": 1, "ahead": 1}
+        assert r["by_correct"][False] == {"games": 1, "wins": 0, "ahead": 0}
+
+    def test_lead_pair_only_for_correct_games(self):
+        games = [
+            self._g("win",  ["Garchomp", "Whimsicott"], ["Garchomp", "Whimsicott"],
+                    ["Aerodactyl", "Venusaur"], opening_ko=True),
+            self._g("loss", ["Garchomp", "Whimsicott"], ["Incineroar", "Sneasler"],
+                    ["Sneasler", "Kingambit"]),   # incorrect → excluded from pairs
+        ]
+        r = lead_prediction_outcomes(games)
+        pc = r["pairs_correct"]
+        assert pc == {("Aerodactyl", "Venusaur"):
+                      {"games": 1, "wins": 1, "ahead": 1}}
+
+    def test_no_predictions_returns_empty(self):
+        games = [self._g("win", None, ["Garchomp", "Whimsicott"],
+                         ["Aerodactyl", "Venusaur"], no_pred=True)]
+        r = lead_prediction_outcomes(games)
+        assert r["n_with_pred"] == 0
+        assert r["by_correct"][True]["games"] == 0
+        assert r["pairs_correct"] == {}
 
 
 class TestMoveUsage:

@@ -327,6 +327,7 @@ class BattleRecorder:
         slots:    list[int],
         bring:    list[str],
         mega:     Optional[str],
+        pred:     Optional[list[str]] = None,
     ) -> None:
         """Record team preview selection data.
 
@@ -335,6 +336,12 @@ class BattleRecorder:
             slots:    1-based slot indices of our selected team, leads-first.
             bring:    Species names in slot order (parallel to *slots*).
             mega:     Base species name of the designated mega, or ``None``.
+            pred:     The opponent lead pair we predicted at decision time (from
+                      ``data.lead_stats.predict_pair``).  Persisted so the team
+                      report can measure, going forward, whether a *correct*
+                      lead read actually converts to an opening advantage —
+                      recompute-from-current-stats would be anachronistic, so we
+                      only ever use the prediction made at the time.
         """
         d: dict = {
             "opp":   list(opp_team),
@@ -343,6 +350,8 @@ class BattleRecorder:
         }
         if mega:
             d["mega"] = mega
+        if pred:
+            d["pred"] = list(pred)
         self._preview = d
 
     def record_decision(

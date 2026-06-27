@@ -442,12 +442,21 @@ def _pick_team(state: BattleState, recorder: Optional[BattleRecorder] = None) ->
 
     if recorder is not None:
         bring = [team[i - 1].name for i in slots]
+        # The opponent lead pair we predicted (only meaningful with lead data);
+        # recorded so the report can later confirm a correct read → advantage.
+        try:
+            from data.lead_stats import predict_pair, total_battles
+            predicted = (predict_pair(state.opp_preview_team)
+                         if total_battles() > 0 else None)
+        except Exception:
+            predicted = None
         try:
             recorder.record_preview(
                 opp_team=list(state.opp_preview_team),
                 slots=list(slots),
                 bring=bring,
                 mega=state.designated_mega,
+                pred=predicted,
             )
         except Exception:
             log.warning("Recorder failed to capture team preview")

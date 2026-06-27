@@ -189,6 +189,65 @@ def lead_outcomes(games, opening_turns=3):
         "by_sign": dict(ahead)}}
 
 
+def _opening_net(turns, opening_turns):
+    """Our KOs minus our faints over the first *opening_turns* turns (same
+    d>=h0 attribution as roster_stats / lead_outcomes)."""
+    kos = faints = 0
+    for t in turns[:opening_turns]:
+        for e in t.get("ev", []):
+            d, h0 = e.get("d"), e.get("h0")
+            if not (d is not None and h0 and d >= h0 - 0.02):
+                continue
+            if e.get("sd") == "us":
+                kos += 1
+            elif e.get("sd") == "opp":
+                faints += 1
+    return kos - faints
+
+
+def lead_prediction_outcomes(games, opening_turns=3):
+    """Did a *correct* opponent-lead prediction convert to an advantage?
+
+    Uses only the prediction recorded at decision time (``preview.pred``); games
+    without it (logged before 0.35.0) are skipped — we never recompute against
+    the current stats, which have drifted since those games were played.
+
+    Returns ``{"by_correct", "pairs_correct", "n_with_pred", "turns"}``:
+    * ``by_correct`` — ``{True/False: {games, wins, ahead}}``: the headline split
+      of win rate + opening-ahead rate by whether our predicted leads matched the
+      opponent's actual turn-1 leads.
+    * ``pairs_correct`` — per our lead PAIR, restricted to correct-prediction
+      games: which openings actually cash a correct read into an advantage.
+    """
+    by_correct = {True:  dict(games=0, wins=0, ahead=0),
+                  False: dict(games=0, wins=0, ahead=0)}
+    pairs_correct = collections.defaultdict(lambda: dict(games=0, wins=0, ahead=0))
+    n_with_pred = 0
+    for g in games:
+        pred  = (g.get("preview") or {}).get("pred")
+        turns = g.get("turns", [])
+        if not pred or not turns:
+            continue
+        actual = sorted({base_forme(m["s"]) for m in turns[0].get("opp", []) if m})
+        if not actual:
+            continue
+        predicted = sorted({base_forme(s) for s in pred if s})
+        n_with_pred += 1
+        correct = predicted == actual
+        win = g.get("outcome") == "win"
+        ahead = _opening_net(turns, opening_turns) > 0
+        rec = by_correct[correct]
+        rec["games"] += 1; rec["wins"] += win; rec["ahead"] += ahead
+        if correct:
+            leads = tuple(sorted({base_forme(m["s"])
+                                  for m in turns[0].get("my", []) if m}))
+            if len(leads) == 2:
+                pr = pairs_correct[leads]
+                pr["games"] += 1; pr["wins"] += win; pr["ahead"] += ahead
+    return {"by_correct": by_correct, "pairs_correct": dict(pairs_correct),
+            "n_with_pred": n_with_pred, "turns": opening_turns}
+
+
 def move_usage(games):
     """Return ``{species: {move: times_chosen}}`` from each turn's chosen action
     (``dec[].ch``), excluding switches."""
@@ -379,6 +438,35 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
         for pr in sorted(pairs, key=lambda p: -pairs[p]["games"]):
             r = pairs[pr]; w = r["wins"]; gp = r["games"]
             out.append(f"| {' + '.join(pr)} | {gp} | {w}-{gp-w} | {_pct(w/gp)} |")
+
+    # 1b. LEAD PREDICTION -> ADVANTAGE
+    lp = lead_prediction_outcomes(games)
+    out += ["", "### Prediction → advantage", ""]
+    if not lp["n_with_pred"]:
+        out += ["*No games yet with a recorded lead prediction (`preview.pred`, "
+                "added 0.35.0). Populates as new games are played.*"]
+    else:
+        bc = lp["by_correct"]
+        out += [f"Of {lp['n_with_pred']} games with a recorded prediction: do we "
+                "gain when our predicted opponent leads were **correct**? "
+                f"*Ahead* = positive opening net over the first {lp['turns']} turns.",
+                "",
+                "| Predicted leads | Games | Win rate | Ahead rate |",
+                "|---|--:|--:|--:|"]
+        for correct, lbl in ((True, "correct"), (False, "incorrect")):
+            r = bc[correct]
+            if r["games"]:
+                out.append(f"| {lbl} | {r['games']} | {_pct(r['wins']/r['games'])} "
+                           f"| {_pct(r['ahead']/r['games'])} |")
+        pc = lp["pairs_correct"]
+        if pc:
+            out += ["", "Our lead pair, restricted to correct-prediction games:", "",
+                    "| Lead pair | Games | W-L | Win rate | Ahead rate |",
+                    "|---|--:|--:|--:|--:|"]
+            for pr in sorted(pc, key=lambda p: -pc[p]["games"]):
+                r = pc[pr]; w = r["wins"]; n = r["games"]
+                out.append(f"| {' + '.join(pr)} | {n} | {w}-{n-w} | "
+                           f"{_pct(w/n)} | {_pct(r['ahead']/n)} |")
 
     # 2. MOVE USAGE
     use = move_usage(games)

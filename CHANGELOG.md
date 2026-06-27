@@ -1,5 +1,20 @@
 # WolfeyBot Changelog
 
+## 0.35.0 — 2026-06-27
+
+### Lead prediction — measuring payoff
+- **Record the predicted opponent leads at decision time.** The battle log's
+  `preview` gains a `pred` field (the `predict_pair` result). We never recompute
+  predictions after the fact — the `lead_stats` prior drifts as games accrue, so
+  a recompute would be anachronistic — hence this is forward-only.
+- **`team_report.py` → new "Prediction → advantage" section** (in the generated
+  report) via `lead_prediction_outcomes`: of games with a recorded prediction,
+  the win rate **and** opening-exchange ahead-rate (KOs−faints over the first 3
+  turns) split by whether our predicted opponent leads were **correct** — the
+  confirmation that a correct read converts to an advantage — plus a per-our-
+  lead-pair breakdown restricted to correct-prediction games. Older logs (no
+  `pred`) are skipped; the section shows a placeholder until new games accrue.
+
 ## 0.34.0 — 2026-06-27
 
 ### Lead prediction
