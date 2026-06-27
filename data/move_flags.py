@@ -136,7 +136,6 @@ _CONTACT_MOVES: frozenset[str] = frozenset({
     "Pluck",
     "Poison Fang",
     "Poison Jab",
-    "Poltergeist",
     "Population Bomb",
     "Pounce",
     "Power Trip",
