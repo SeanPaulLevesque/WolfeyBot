@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.30.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.31.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -74,7 +74,7 @@ Bench: Aerodactyl, Sneasler, Basculegion, Venusaur
 | # | Opp [A] | Opp [B] | Garchomp [A] | Kingambit [B] |
 |---|---|---|---|---|
 | 3.1 | Incineroar | Sneasler | Stomping Tantrum → Sneasler `28.48` | Low Kick → Incineroar `1.82` |
-| 3.2 | Incineroar | Whimsicott | Poison Jab → Whimsicott `14.04` | Iron Head → Whimsicott `4.51` |
+| 3.2 | Incineroar | Whimsicott | Stomping Tantrum → Incineroar `6.26` | Iron Head → Whimsicott `8.19` |
 | 3.3 | Incineroar | Garchomp | Switch → Basculegion `4.35` | Protect → ? `2.00` |
 | 3.4 | Incineroar | Farigiraf | Stomping Tantrum → Incineroar `6.26` | Kowtow Cleave → Farigiraf `8.25` |
 | 3.5 | Incineroar | Kingambit | Stomping Tantrum → Incineroar `3.13` | Low Kick → Kingambit `2.56` |
@@ -82,7 +82,7 @@ Bench: Aerodactyl, Sneasler, Basculegion, Venusaur
 | 3.7 | Farigiraf | Sneasler | Stomping Tantrum → Sneasler `56.96` | Kowtow Cleave → Farigiraf `8.25` |
 | 3.8 | Farigiraf | Garchomp | Dragon Claw → Garchomp `15.16` | Kowtow Cleave → Farigiraf `8.25` |
 | 3.9 | Whimsicott | Garchomp | Dragon Claw → Garchomp `15.16` | Iron Head → Whimsicott `8.19` |
-| 3.10 | Whimsicott | Kingambit | Poison Jab → Whimsicott `28.09` | Iron Head → Whimsicott `6.01` |
+| 3.10 | Whimsicott | Kingambit | Poison Jab → Whimsicott `28.09` | Low Kick → Kingambit `5.13` |
 | 3.11 | Sneasler | Garchomp | Stomping Tantrum → Sneasler `28.48` | Kowtow Cleave → Garchomp `1.71` |
 | 3.12 | Sneasler | Kingambit | Stomping Tantrum → Sneasler `28.48` | Low Kick → Kingambit `2.56` |
 | 3.13 | Aerodactyl | Garchomp | Dragon Claw → Garchomp `15.16` | Iron Head → Aerodactyl `8.73` |
@@ -130,7 +130,7 @@ Bench: Aerodactyl, Kingambit, Sneasler, Basculegion
 | # | Opp [A] | Opp [B] | Garchomp [A] | Venusaur [B] |
 |---|---|---|---|---|
 | 5.1 | Incineroar | Sneasler | Stomping Tantrum → Sneasler `28.48` | Earth Power → Incineroar `2.10` |
-| 5.2 | Incineroar | Whimsicott | Poison Jab → Whimsicott `14.04` | Sludge Bomb → Whimsicott `12.20` |
+| 5.2 | Incineroar | Whimsicott | Stomping Tantrum → Incineroar `6.26` | Sludge Bomb → Whimsicott `22.17` |
 | 5.3 | Incineroar | Garchomp | Switch → Basculegion `4.35` | Protect → ? `2.00` |
 | 5.4 | Incineroar | Farigiraf | Stomping Tantrum → Incineroar `6.26` | Sludge Bomb → Farigiraf `6.55` |
 | 5.5 | Incineroar | Kingambit | Stomping Tantrum → Incineroar `3.13` | Earth Power → Kingambit `3.89` |
@@ -138,7 +138,7 @@ Bench: Aerodactyl, Kingambit, Sneasler, Basculegion
 | 5.7 | Farigiraf | Sneasler | Stomping Tantrum → Sneasler `56.96` | Sludge Bomb → Farigiraf `4.37` |
 | 5.8 | Farigiraf | Garchomp | Dragon Claw → Garchomp `15.16` | Sludge Bomb → Farigiraf `4.37` |
 | 5.9 | Whimsicott | Garchomp | Dragon Claw → Garchomp `15.16` | Sludge Bomb → Whimsicott `16.63` |
-| 5.10 | Whimsicott | Kingambit | Poison Jab → Whimsicott `28.09` | Sludge Bomb → Whimsicott `12.20` |
+| 5.10 | Whimsicott | Kingambit | Poison Jab → Whimsicott `28.09` | Sludge Bomb → Whimsicott `8.87` |
 | 5.11 | Sneasler | Garchomp | Stomping Tantrum → Sneasler `28.48` | Switch → Basculegion `1.60` |
 | 5.12 | Sneasler | Kingambit | Stomping Tantrum → Sneasler `28.48` | Earth Power → Kingambit `2.60` |
 | 5.13 | Aerodactyl | Garchomp | Dragon Claw → Garchomp `15.16` | Giga Drain → Aerodactyl `3.66` |
@@ -158,7 +158,7 @@ Bench: Aerodactyl, Basculegion, Venusaur, Garchomp
 | # | Opp [A] | Opp [B] | Sneasler [A] | Kingambit [B] |
 |---|---|---|---|---|
 | 6.1 | Incineroar | Sneasler | Close Combat → Incineroar `2.83` | Switch → Basculegion `6.48` |
-| 6.2 | Incineroar | Whimsicott | Dire Claw → Whimsicott `11.95` | Iron Head → Whimsicott `4.51` |
+| 6.2 | Incineroar | Whimsicott | Close Combat → Incineroar `5.65` | Iron Head → Whimsicott `8.19` |
 | 6.3 | Incineroar | Garchomp | Protect → ? `5.00` | Protect → ? `2.00` |
 | 6.4 | Incineroar | Farigiraf | Close Combat → Incineroar `7.54` | Kowtow Cleave → Farigiraf `8.25` |
 | 6.5 | Incineroar | Kingambit | Close Combat → Incineroar `3.77` | Low Kick → Kingambit `2.56` |
@@ -166,7 +166,7 @@ Bench: Aerodactyl, Basculegion, Venusaur, Garchomp
 | 6.7 | Farigiraf | Sneasler | Switch → Basculegion `7.32` | Protect → ? `5.00` |
 | 6.8 | Farigiraf | Garchomp | Switch → Aerodactyl `4.06` | Kowtow Cleave → Farigiraf `8.25` |
 | 6.9 | Whimsicott | Garchomp | Switch → Venusaur `4.67` | Iron Head → Whimsicott `8.19` |
-| 6.10 | Whimsicott | Kingambit | Dire Claw → Whimsicott `23.90` | Iron Head → Whimsicott `6.01` |
+| 6.10 | Whimsicott | Kingambit | Dire Claw → Whimsicott `23.90` | Low Kick → Kingambit `5.13` |
 | 6.11 | Sneasler | Garchomp | Switch → Basculegion `7.34` | Protect → ? `5.00` |
 | 6.12 | Sneasler | Kingambit | Close Combat → Kingambit `2.49` | Switch → Garchomp `5.35` |
 | 6.13 | Aerodactyl | Garchomp | Switch → Basculegion `8.20` | Iron Head → Aerodactyl `8.73` |

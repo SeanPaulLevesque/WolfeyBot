@@ -29,6 +29,7 @@ from decision import (
     EndgameStallModule,
     ConsecutiveProtectModule,
     DoublingAdjuster,
+    OverkillAdjuster,
     CoordinationAdjuster,
     FakeOutAdjuster,
     SwitchCollisionAdjuster,
@@ -991,34 +992,34 @@ class TestDoublingAdjuster:
             opp_last_moves=opp_last,
         )
 
-    def test_both_attack_same_target_base_penalty_on_higher_slot(self):
-        state = self._state(["Earthquake", ""])   # slot 0 didn't Protect
+    def test_both_attack_same_target_flat_penalty_on_higher_slot(self):
+        state = self._state(["Earthquake", ""])
         a0 = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
         a1 = make_action("Dragon Claw", "Dragon Claw", target_slot=0, weight=5.0)
-        with patch("decision.modules.find_member", return_value=None):  # other opp threatening
-            fa, fb, reason = self.adj.factor(state, 0, a0, 1, a1)
+        fa, fb, reason = self.adj.factor(state, 0, a0, 1, a1)
         assert fa == 1.0
-        assert fb == pytest.approx(0.40)   # not protected + other threatening
+        assert fb == pytest.approx(DoublingAdjuster.DOUBLING_FACTOR)   # flat 0.4
         assert reason and "doubling_up" in reason
 
     def test_different_targets_no_penalty(self):
         state = self._state(["", ""])
         a0 = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
         a1 = make_action("Dragon Claw", "Dragon Claw", target_slot=1, weight=5.0)
-        with patch("decision.modules.find_member", return_value=None):
-            assert self.adj.factor(state, 0, a0, 1, a1) == (1.0, 1.0, None)
+        assert self.adj.factor(state, 0, a0, 1, a1) == (1.0, 1.0, None)
 
-    def test_protected_last_turn_reduces_penalty(self):
+    def test_flat_penalty_ignores_target_protect_recency(self):
+        """The penalty is flat — a target that Protected last turn is NOT softened
+        here (OppProtectRecency #11 already values attacking it)."""
         state = self._state(["Protect", ""])   # target used Protect last turn
         a0 = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
         a1 = make_action("Close Combat", "Close Combat", target_slot=0, weight=5.0)
-        with patch("decision.modules.find_member", return_value=None):
-            fa, fb, _ = self.adj.factor(state, 0, a0, 1, a1)
-        assert fb == pytest.approx(0.55)
+        fa, fb, _ = self.adj.factor(state, 0, a0, 1, a1)
+        assert fb == pytest.approx(DoublingAdjuster.DOUBLING_FACTOR)   # still 0.4
 
-    def test_confirmed_ohko_near_veto_on_non_killer(self):
-        """When slot A already confirms the OHKO, slot B is the wasteful doubler
-        → the near-veto (×0.05) falls on slot B, so the spread pair wins."""
+    def test_base_penalty_applies_even_when_overkill(self):
+        """DoublingAdjuster is now the spread tax only — it applies its base
+        penalty whether or not a slot confirms the kill (the near-veto is
+        OverkillAdjuster's separate job)."""
         state = self._state(["Earthquake", ""])
         a0 = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=25.0)
         a1 = make_action("Dragon Claw", "Dragon Claw", target_slot=0, weight=5.0)
@@ -1027,20 +1028,8 @@ class TestDoublingAdjuster:
              patch("decision.modules._ensure_turn_ctx", return_value=ctx):
             fa, fb, reason = self.adj.factor(state, 0, a0, 1, a1)
         assert fa == 1.0
-        assert fb == pytest.approx(0.40 * DoublingAdjuster.CONFIRMED_OHKO_FACTOR)
-        assert "overkill" in reason
-
-    def test_confirmed_ohko_by_higher_slot_penalises_lower(self):
-        """Symmetric: slot B confirms the kill → slot A is the wasteful doubler."""
-        state = self._state(["Earthquake", ""])
-        a0 = make_action("Dragon Claw", "Dragon Claw", target_slot=0, weight=5.0)
-        a1 = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=25.0)
-        ctx = TurnContext(doomed={0: False, 1: False}, ohko={(1, "Wave Crash", 0)})
-        with patch("decision.modules.find_member", return_value=None), \
-             patch("decision.modules._ensure_turn_ctx", return_value=ctx):
-            fa, fb, _ = self.adj.factor(state, 0, a0, 1, a1)
-        assert fa == pytest.approx(0.40 * DoublingAdjuster.CONFIRMED_OHKO_FACTOR)
-        assert fb == 1.0
+        assert fb == pytest.approx(0.40)        # base only — no overkill folded in
+        assert "doubling_up" in reason
 
     def test_only_one_live_opp_no_penalty(self):
         """2v1 — nowhere to spread, so doubling is forced and unpenalised."""
@@ -1060,6 +1049,55 @@ class TestDoublingAdjuster:
         a0 = make_action("Protect", "Protect", weight=3.0)
         a1 = make_action("Dragon Claw", "Dragon Claw", target_slot=0, weight=5.0)
         assert self.adj.factor(state, 0, a0, 1, a1) == (1.0, 1.0, None)
+
+
+class TestOverkillAdjuster:
+    """Phase-2 near-veto: when one slot guarantees the OHKO on the shared target,
+    the *other* (wasteful doubler) gets ×0.05 so the spread pair wins.  Composes
+    on top of DoublingAdjuster's base penalty."""
+    adj = OverkillAdjuster()
+
+    def _state(self):
+        return make_state(
+            my_actives=[make_mon("Garganacl"), make_mon("Sylveon")],
+            opp_actives=[make_mon("Garchomp", side="p2"),
+                         make_mon("Incineroar", side="p2")],
+        )
+
+    def test_no_penalty_when_no_confirmed_kill(self):
+        a0 = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
+        a1 = make_action("Dragon Claw", "Dragon Claw", target_slot=0, weight=5.0)
+        ctx = TurnContext(doomed={0: False, 1: False})   # no OHKO
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            assert self.adj.factor(self._state(), 0, a0, 1, a1) == (1.0, 1.0, None)
+
+    def test_different_targets_no_penalty(self):
+        a0 = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
+        a1 = make_action("Dragon Claw", "Dragon Claw", target_slot=1, weight=5.0)
+        ctx = TurnContext(doomed={0: False, 1: False}, ohko={(0, "Wave Crash", 0)})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            assert self.adj.factor(self._state(), 0, a0, 1, a1) == (1.0, 1.0, None)
+
+    def test_near_veto_on_non_killer(self):
+        """Slot A confirms the OHKO → slot B is the wasteful doubler (×0.05)."""
+        a0 = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=25.0)
+        a1 = make_action("Dragon Claw", "Dragon Claw", target_slot=0, weight=5.0)
+        ctx = TurnContext(doomed={0: False, 1: False}, ohko={(0, "Wave Crash", 0)})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            fa, fb, reason = self.adj.factor(self._state(), 0, a0, 1, a1)
+        assert fa == 1.0
+        assert fb == pytest.approx(OverkillAdjuster.FACTOR)
+        assert "overkill" in reason
+
+    def test_near_veto_by_higher_slot_penalises_lower(self):
+        """Symmetric: slot B confirms the kill → slot A is the wasteful doubler."""
+        a0 = make_action("Dragon Claw", "Dragon Claw", target_slot=0, weight=5.0)
+        a1 = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=25.0)
+        ctx = TurnContext(doomed={0: False, 1: False}, ohko={(1, "Wave Crash", 0)})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            fa, fb, _ = self.adj.factor(self._state(), 0, a0, 1, a1)
+        assert fa == pytest.approx(OverkillAdjuster.FACTOR)
+        assert fb == 1.0
 
 
 class TestCoordinationAdjuster:

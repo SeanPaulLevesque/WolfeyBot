@@ -1,5 +1,22 @@
 # WolfeyBot Changelog
 
+## 0.31.0 — 2026-06-27
+
+### Decision engine
+- **Doubling adjuster split + flattened.** The single `DoublingAdjuster` was
+  doing two jobs: the spread-your-damage tax *and* the overkill near-veto. Split
+  into two phase-2 adjusters — `DoublingAdjuster` (J1) and `OverkillAdjuster`
+  (J2) — over a shared `_doubling_target` gate.
+- **Flat ×0.4 doubling penalty.** The base tax dropped its `_FACTORS` 2×2 table
+  (0.40–0.70, softened when the target Protected last turn or the other foe
+  wasn't threatening) for a single flat ×0.4. The softeners were redundant:
+  target-Protect recency is already `OppProtectRecencyModule` (#11), and the
+  other foe's threat is already priced into the per-slot threat weights. Removed
+  the now-dead `_other_opp_threatens` helper.
+- **Turn-1 snapshots: 57 cells moved** — every changed cell flips from doubling
+  onto one foe to **spreading** across both (the harsher flat penalty tips
+  marginal doubles toward the survivor). Approved behavior change; spot-checked.
+
 ## 0.30.0 — 2026-06-26
 
 A batch of small, mostly behavior-preserving fixes + modeling and logging

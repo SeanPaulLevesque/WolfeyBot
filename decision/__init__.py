@@ -41,6 +41,7 @@ from decision.modules import (  # noqa: F401
     _best_offense,
     _switch_in_survives,
     DoublingAdjuster,
+    OverkillAdjuster,
     CoordinationAdjuster,
     FakeOutAdjuster,
     SwitchCollisionAdjuster,

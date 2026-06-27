@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.30.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.31.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -59,12 +59,12 @@ Bench: Arcanine-Hisui, Basculegion, Dragonite, Pelipper
 | 2.12 | Sneasler | Kingambit | Psycho Cut → Sneasler `50.13` | Sacred Sword → Kingambit `1.53` |
 | 2.13 | Aerodactyl | Garchomp | Switch → Basculegion `9.93` | Iron Head → Aerodactyl `5.20` |
 | 2.14 | Lopunny | Garchomp | Sacred Sword → Lopunny `16.45` | Poltergeist → Garchomp `1.52` |
-| 2.15 | Weavile | Garchomp | Sacred Sword → Weavile `8.49` | Sacred Sword → Weavile `2.17` |
+| 2.15 | Weavile | Garchomp | Sacred Sword → Weavile `8.49` | Sacred Sword → Weavile `1.58` |
 | 2.16 | Talonflame | Garchomp | Switch → Basculegion `10.30` | Poltergeist → Talonflame `4.17` |
 | 2.17 | Charizard | Incineroar | Sacred Sword → Incineroar `17.38` | Switch → Arcanine-Hisui `14.31` |
 | 2.18 | Rotom-Wash | Garchomp | Leaf Blade → Rotom-Wash `35.87` | Poltergeist → Garchomp `1.52` |
 | 2.19 | Glimmora | Incineroar | Sacred Sword → Incineroar `17.38` | Switch → Basculegion `2.07` |
-| 2.20 | Pelipper | Dragonite | Psycho Cut → Pelipper `8.94` | Poltergeist → Pelipper `2.05` |
+| 2.20 | Pelipper | Dragonite | Psycho Cut → Pelipper `8.94` | Poltergeist → Dragonite `1.82` |
 
 ---
 
@@ -92,7 +92,7 @@ Bench: Arcanine-Hisui, Aegislash, Dragonite, Pelipper
 | 3.17 | Charizard | Incineroar | Sacred Sword → Incineroar `17.38` | Wave Crash → Charizard `27.15` |
 | 3.18 | Rotom-Wash | Garchomp | Leaf Blade → Rotom-Wash `35.87` | Wave Crash → Garchomp `3.03` |
 | 3.19 | Glimmora | Incineroar | Sacred Sword → Incineroar `17.38` | Wave Crash → Glimmora `40.14` |
-| 3.20 | Pelipper | Dragonite | Psycho Cut → Pelipper `8.94` | Wave Crash → Pelipper `3.24` |
+| 3.20 | Pelipper | Dragonite | Psycho Cut → Dragonite `4.16` | Wave Crash → Pelipper `5.89` |
 
 ---
 
@@ -288,7 +288,7 @@ Bench: Gallade, Arcanine-Hisui, Dragonite, Pelipper
 | 10.17 | Charizard | Incineroar | Switch → Arcanine-Hisui `14.31` | Wave Crash → Charizard `20.36` |
 | 10.18 | Rotom-Wash | Garchomp | Poltergeist → Rotom-Wash `1.89` | Wave Crash → Garchomp `4.04` |
 | 10.19 | Glimmora | Incineroar | Iron Head → Glimmora `0.93` | Wave Crash → Incineroar `48.47` |
-| 10.20 | Pelipper | Dragonite | Poltergeist → Pelipper `3.73` | Wave Crash → Pelipper `4.32` |
+| 10.20 | Pelipper | Dragonite | Poltergeist → Dragonite `1.82` | Wave Crash → Pelipper `7.85` |
 
 ---
 
@@ -298,7 +298,7 @@ Bench: Gallade, Arcanine-Hisui, Basculegion, Pelipper
 | # | Opp [A] | Opp [B] | Aegislash [A] | Dragonite [B] |
 |---|---|---|---|---|
 | 11.1 | Incineroar | Sneasler | Switch → Gallade `3.16` | Air Slash → Sneasler `17.34` |
-| 11.2 | Incineroar | Whimsicott | Iron Head → Whimsicott `2.43` | Air Slash → Whimsicott `9.01` |
+| 11.2 | Incineroar | Whimsicott | Sacred Sword → Incineroar `1.26` | Air Slash → Whimsicott `16.39` |
 | 11.3 | Incineroar | Garchomp | Switch → Basculegion `1.81` | Dragon Pulse → Garchomp `3.21` |
 | 11.4 | Incineroar | Farigiraf | Sacred Sword → Incineroar `1.69` | Dragon Pulse → Farigiraf `9.07` |
 | 11.5 | Incineroar | Kingambit | King's Shield → ? `2.00` | Protect → ? `2.00` |
@@ -306,7 +306,7 @@ Bench: Gallade, Arcanine-Hisui, Basculegion, Pelipper
 | 11.7 | Farigiraf | Sneasler | Switch → Gallade `3.16` | Air Slash → Sneasler `34.68` |
 | 11.8 | Farigiraf | Garchomp | Iron Head → Farigiraf `2.88` | Dragon Pulse → Garchomp `12.84` |
 | 11.9 | Whimsicott | Garchomp | Iron Head → Whimsicott `4.86` | Dragon Pulse → Garchomp `8.56` |
-| 11.10 | Whimsicott | Kingambit | Iron Head → Whimsicott `6.48` | Air Slash → Whimsicott `9.01` |
+| 11.10 | Whimsicott | Kingambit | Sacred Sword → Kingambit `3.06` | Air Slash → Whimsicott `16.39` |
 | 11.11 | Sneasler | Garchomp | Switch → Gallade `3.16` | Air Slash → Sneasler `11.56` |
 | 11.12 | Sneasler | Kingambit | Switch → Gallade `3.16` | Air Slash → Sneasler `17.34` |
 | 11.13 | Aerodactyl | Garchomp | Iron Head → Aerodactyl `5.20` | Dragon Pulse → Garchomp `8.56` |
@@ -334,7 +334,7 @@ Bench: Gallade, Arcanine-Hisui, Basculegion, Dragonite
 | 12.7 | Farigiraf | Sneasler | Switch → Gallade `3.16` | Hurricane → Sneasler `49.95` |
 | 12.8 | Farigiraf | Garchomp | Iron Head → Farigiraf `2.88` | Ice Beam → Garchomp `89.80` |
 | 12.9 | Whimsicott | Garchomp | Iron Head → Whimsicott `4.86` | Ice Beam → Garchomp `89.80` |
-| 12.10 | Whimsicott | Kingambit | Iron Head → Whimsicott `6.48` | Hurricane → Whimsicott `12.95` |
+| 12.10 | Whimsicott | Kingambit | Sacred Sword → Kingambit `3.06` | Hurricane → Whimsicott `23.55` |
 | 12.11 | Sneasler | Garchomp | Switch → Gallade `3.16` | Hurricane → Sneasler `24.98` |
 | 12.12 | Sneasler | Kingambit | Switch → Gallade `3.16` | Hurricane → Sneasler `24.98` |
 | 12.13 | Aerodactyl | Garchomp | Iron Head → Aerodactyl `5.20` | Ice Beam → Garchomp `67.35` |
@@ -418,7 +418,7 @@ Bench: Gallade, Arcanine-Hisui, Aegislash, Basculegion
 | 15.7 | Farigiraf | Sneasler | Air Slash → Sneasler `23.12` | Weather Ball → Farigiraf `11.30` |
 | 15.8 | Farigiraf | Garchomp | Dragon Pulse → Farigiraf `4.54` | Ice Beam → Garchomp `89.80` |
 | 15.9 | Whimsicott | Garchomp | Air Slash → Whimsicott `8.19` | Ice Beam → Garchomp `89.80` |
-| 15.10 | Whimsicott | Kingambit | Air Slash → Whimsicott `10.93` | Hurricane → Whimsicott `12.95` |
+| 15.10 | Whimsicott | Kingambit | Air Slash → Whimsicott `10.93` | Weather Ball → Kingambit `10.70` |
 | 15.11 | Sneasler | Garchomp | Air Slash → Sneasler `8.67` | Ice Beam → Garchomp `44.90` |
 | 15.12 | Sneasler | Kingambit | Switch → Gallade `2.80` | Hurricane → Sneasler `24.98` |
 | 15.13 | Aerodactyl | Garchomp | Dragon Pulse → Aerodactyl `4.40` | Ice Beam → Garchomp `67.35` |

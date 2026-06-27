@@ -1732,26 +1732,6 @@ class SwitchSafetyModule(ScoringModule):
                     f"{self.name}: switch-in OHKO'd -> x{self.DANGER_FACTOR}")
 
 
-def _other_opp_threatens(
-    state: "BattleState", our_slots: list[int], ignored_opp_slot: int
-) -> bool:
-    """True if any opponent other than *ignored_opp_slot* max-roll-OHKOs any of
-    our active mons at *our_slots* — a read of ``ctx.incoming_ohko``.
-
-    If no slot has a computed threat entry, conservatively assume the other
-    opponent *is* threatening, which makes doubling-up more costly (biasing
-    toward spreading damage)."""
-    ctx = _ensure_turn_ctx(state)
-    known = [s for s in our_slots if s in ctx.incoming_ohko]
-    if not known:
-        return True   # nothing computable → assume the other opp is threatening
-    return any(
-        os != ignored_opp_slot
-        for s in known
-        for os in ctx.incoming_ohko[s]
-    )
-
-
 class PartnerClearsAdjuster(JointAdjuster):
     """Phase-2: a Protect is worth more when the **partner's chosen attack**
     erases the threatener this turn.
@@ -1798,74 +1778,77 @@ class PartnerClearsAdjuster(JointAdjuster):
         return 1.0, 1.0, None
 
 
+def _doubling_target(state, a0, a1):
+    """The opponent slot both actions attack when doubling-up applies, else None.
+
+    Requires two attacks aimed at the **same** opponent slot, with **>=2** live
+    foes (with one foe doubling is forced — nothing to spread to).  Shared gate
+    for both DoublingAdjuster and OverkillAdjuster."""
+    if not (_is_attack(a0) and _is_attack(a1)):
+        return None
+    target = a0.target_slot
+    if target is None or target != a1.target_slot:
+        return None
+    live = sum(1 for o in state.opp_actives if o is not None and not o.fainted)
+    return target if live >= 2 else None
+
+
 class DoublingAdjuster(JointAdjuster):
-    """
-    Penalises a pair where **both slots attack the same opponent** — doubling up.
+    """**Spread your damage.**  Both slots attacking the same opponent → a flat
+    ×``DOUBLING_FACTOR`` penalty on the higher slot, so a pair that spreads
+    competes.
 
-    Doubling is costly when the target Protects (both moves wasted) or is already
-    dead (the partner confirm-OHKOs it).  The base penalty is *reduced* when:
-
-    * the target used Protect last turn (unlikely to spam it again), or
-    * the OTHER opponent is not threatening (low opportunity cost of ignoring it).
-
-    When one slot already **guarantees** the OHKO on the shared target, the
-    other's attack there is wasted, so a near-veto factor (×0.05) stacks on the
-    base — which is what makes the joint argmax pick the pair that **spreads**
-    onto the survivor (the old explicit "redirect", now emergent).  With only one
-    live foe there is nothing to spread to, so no penalty applies (forced double).
-
-    Base schedule — (target_protected_last_turn, other_not_threatening):
-        (True,  True):  ×0.70
-        (True,  False) / (False, True): ×0.55
-        (False, False): ×0.40   (riskiest)
+    One number, no context softeners: "the target Protected last turn" is
+    already handled by OppProtectRecency (#11), and "the other foe is
+    threatening" by the threat / incoming weights — folding either in here was
+    redundant.  The sharper "one slot already confirms the kill, so the other is
+    pure overkill" near-veto is a separate concern — :class:`OverkillAdjuster`,
+    which composes multiplicatively on top.
     """
 
     name = "doubling_up"
 
-    _FACTORS = {
-        (True,  True):  0.70,
-        (True,  False): 0.55,
-        (False, True):  0.55,
-        (False, False): 0.40,
-    }
-    CONFIRMED_OHKO_FACTOR = 0.05   # one slot already guarantees the kill (overkill)
+    DOUBLING_FACTOR = 0.4
 
     def factor(self, state, slot_a, a0, slot_b, a1):
-        if not (_is_attack(a0) and _is_attack(a1)):
+        target = _doubling_target(state, a0, a1)
+        if target is None:
             return 1.0, 1.0, None
-        target = a0.target_slot
-        if target is None or target != a1.target_slot:
-            return 1.0, 1.0, None   # not the same target → not doubling up
+        return (1.0, self.DOUBLING_FACTOR,
+                f"{self.name}: both attack slot {target} -> x{self.DOUBLING_FACTOR}")
 
-        active_opps = [i for i, o in enumerate(state.opp_actives)
-                       if o is not None and not o.fainted]
-        if len(active_opps) < 2:
-            return 1.0, 1.0, None   # only one foe — doubling is forced, nothing to spread to
 
-        opp_last = state.opp_last_moves
-        target_protected = (target < len(opp_last)
-                            and opp_last[target] in _PROTECT_MOVES)
-        other_threatening = _other_opp_threatens(state, [slot_a, slot_b], target)
-        base = self._FACTORS[(target_protected, not other_threatening)]
+class OverkillAdjuster(JointAdjuster):
+    """**Don't pile onto a dead mon.**  When one slot already *guarantees* the
+    OHKO on the shared target, the other slot's attack there is wasted, so
+    near-veto it (×``FACTOR``) — making the joint argmax pick the pair that
+    **spreads** onto the survivor (the emergent focus-fire "redirect").
 
+    Composes on top of :class:`DoublingAdjuster`'s base penalty (both apply when
+    both slots attack the same OHKO'd target).  The near-veto falls on the
+    **non-killer** (the wasteful doubler); the slot landing the kill is untouched.
+    """
+
+    name = "overkill"
+
+    FACTOR = 0.05   # near-veto on the wasteful doubler when the partner confirms the kill
+
+    def factor(self, state, slot_a, a0, slot_b, a1):
+        target = _doubling_target(state, a0, a1)
+        if target is None:
+            return 1.0, 1.0, None
         ctx = _ensure_turn_ctx(state)
         a0_kills = (ctx.guarantees_ohko(slot_a, a0.move_name, target)
                     and not _move_undeliverable(state, slot_a, a0.move_name, ctx))
         a1_kills = (ctx.guarantees_ohko(slot_b, a1.move_name, target)
                     and not _move_undeliverable(state, slot_b, a1.move_name, ctx))
-        if a0_kills or a1_kills:
-            # One slot already confirms the kill → the *other's* attack here is
-            # wasted (overkill).  Penalise the non-killer so the pair that spreads
-            # onto the survivor wins (the emergent focus-fire "redirect").
-            f = base * self.CONFIRMED_OHKO_FACTOR
-            reason = (f"{self.name}: both attack slot {target}, partner confirms"
-                      f" the OHKO (overkill) -> x{f:.3f}")
-            if a1_kills and not a0_kills:
-                return f, 1.0, reason   # slot_a is the wasteful doubler
-            return 1.0, f, reason       # slot_b is the wasteful doubler (default)
-        # Base doubling penalty falls on the higher slot (the conventional
-        # "doubling-up" partner), matching the old per-slot DoublingUpModule.
-        return 1.0, base, f"{self.name}: both attack slot {target} -> x{base}"
+        if not (a0_kills or a1_kills):
+            return 1.0, 1.0, None
+        reason = (f"{self.name}: partner confirms the OHKO on slot {target}"
+                  f" (overkill) -> x{self.FACTOR}")
+        if a1_kills and not a0_kills:
+            return self.FACTOR, 1.0, reason   # slot_a is the wasteful doubler
+        return 1.0, self.FACTOR, reason       # slot_b is the wasteful doubler (default)
 
 
 class CoordinationAdjuster(JointAdjuster):
@@ -2494,7 +2477,7 @@ def make_engine() -> DecisionEngine:
     **Phase 2** — joint adjusters, applied by :meth:`DecisionEngine.coordinate`
     over *pairs* of candidates (the only place cross-slot effects live), in order:
 
-      Doubling -> Coordination -> FakeOut(free) -> SwitchCollision -> PartnerClears
+      Doubling -> Overkill -> Coordination -> FakeOut(free) -> SwitchCollision -> PartnerClears
 
     The "partner clears the threatener" ×3.0 boost (PartnerClears) is phase 2
     because whether a threat is cleared depends on the partner's chosen action.
@@ -2528,7 +2511,8 @@ def make_engine() -> DecisionEngine:
             SwitchSafetyModule(),         # 18: escape a connecting OHKO (×4.0) / switch into one (×0.3)
         ],
         joint=[
-            DoublingAdjuster(),           # both attack same target: ×0.40–0.70, ×0.05 if overkill
+            DoublingAdjuster(),           # both attack same target: ×0.40–0.70 (spread your damage)
+            OverkillAdjuster(),           # partner already confirms the OHKO: ×0.05 near-veto on the doubler
             CoordinationAdjuster(),       # gratuitous lone Protect beside an attacker: ×0.5
             FakeOutAdjuster(),            # lower slot absorbs Fake Out → free the partner
             SwitchCollisionAdjuster(),    # both switch to the same mon: ×0

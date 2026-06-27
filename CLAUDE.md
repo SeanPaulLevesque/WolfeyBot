@@ -96,7 +96,7 @@ reasons, so the order is for readability only.
 | 3 | Doomed | **Per-candidate** (`_move_undeliverable`): ×0.2 on each attack a certain killer would land before — so a priority move that out-speeds the threat is spared (revenge-KO) while slower moves are cut; Protect/switch untouched. Split out of ThreatElimination |
 | 4 | PriorityKill | ×3.0 on a **priority** move (`priority_bracket > 0`) that `ctx.guarantees_ohko`s its target — it removes the foe before it can act, so prefer the priority KO over a slower one. Gated on guaranteed OHKO, so weak non-KO priority moves get nothing |
 | 5 | PriorityBlock | ×0 on a **priority** attack while any live opponent has a priority-block ability (`_PRIORITY_BLOCK_ABILITIES` = Armor Tail / Queenly Majesty) — these block priority vs the holder *and its ally*, so it can't connect. Protect/switch/non-priority untouched; reads `_effective_ability` (assumes Armor Tail on an unrevealed Farigiraf). Composes with #4 (3.0×0=0) |
-| 6 | ProtectValue | **Single row** on Protect-family moves when `ctx.is_threatened(slot)`: ×2.5. The partner-clears ×3.0 is now a phase-2 adjuster (`PartnerClearsAdjuster`, J5); the 1v1/2v1 "Protect only delays" ×0.4 cancels are a separate `EndgameStallModule` (#7) — one concern per module |
+| 6 | ProtectValue | **Single row** on Protect-family moves when `ctx.is_threatened(slot)`: ×2.5. The partner-clears ×3.0 is now a phase-2 adjuster (`PartnerClearsAdjuster`, J6); the 1v1/2v1 "Protect only delays" ×0.4 cancels are a separate `EndgameStallModule` (#7) — one concern per module |
 | 7 | EndgameStall | Protect ×0.4 when `ctx.is_threatened(slot)` and the board is a 1v1 endgame or 2v1 advantage (Protect only delays). Split out of ProtectValue |
 | 8 | TurnOrder | By rank in the 4-mon turn order (pos 1 = we act before all 3 other actives): pos 1 ×2.0; pos 2 ×1.5; pos 3 ×1.0; pos 4 ×0.75 — attacks only |
 | 9 | Urgency | One urgency boost per turn, first applicable setup in `_SETUP_TYPES` order (TR first): a setter present & its effect stoppable (not active, or last turn) → all attacks ×`SETUP_URGENCY` (flat ×2 for any setup). Target-agnostic — bias toward attacking, not stalling. Walks the shared `_SETUP_TYPES` registry, so a new urgent setup (screens, …) is one new row. (No TR↔TW cross-guard: the meta runs no mixed TR+TW teams.) |
@@ -122,7 +122,8 @@ turn as: phase-1 score all → `coordinate` → record/mega/emit.
 
 | Adjuster | Effect (per-slot factor on the pair) |
 |---|---|
-| Doubling | Both attack the same target: ×0.40–0.70 (penalty on the higher slot); if one slot already confirms the OHKO, ×0.05 **overkill** near-veto on the *non-killer* → the pair that **spreads** onto the survivor wins (emergent "redirect") |
+| Doubling | Both attack the same target: flat ×0.4 (penalty on the higher slot) — the spread-your-damage tax. No conditional softeners (target-Protect recency is #11's job; threats are handled by the threat weights). *Just* the base penalty — the overkill near-veto is its own adjuster |
+| Overkill | One slot already guarantees the OHKO on the shared target → ×0.05 near-veto on the *non-killer* (wasteful doubler), so the pair that **spreads** onto the survivor wins (emergent "redirect"). Composes on top of Doubling |
 | Coordination | A **gratuitous** lone Protect (no `incoming_ohko`/`protect:`/`field_condition` reason) beside an attacking partner: ×0.5 on the Protect → favour double-attack; justified Protects and double-Protects untouched |
 | FakeOut (free) | When **either** slot attacks, divide the partner's Fake-Out multiplier back out (attack un-halved, Protect un-boosted; known from `ctx.fake_out` + the action type) — a pair pays the Fake-Out adjustment once, never twice; symmetric since 0.7.2 |
 | SwitchCollision | Both slots switch to the **same** bench mon → ×0 |
@@ -193,7 +194,7 @@ the best pair.
   gates `is_ohko`/`ohko_with_max_roll` — multi-hit moves break Sash naturally
 - `JointAdjuster` (engine.py) — phase-2 base class; `factor(state, slot_a, a0,
   slot_b, a1) -> (factor_a, factor_b, reason)`. Concrete: `DoublingAdjuster`,
-  `CoordinationAdjuster`, `FakeOutAdjuster`, `SwitchCollisionAdjuster` (modules.py)
+  `OverkillAdjuster`, `CoordinationAdjuster`, `FakeOutAdjuster`, `SwitchCollisionAdjuster` (modules.py)
 - `_PROTECT_MOVES` — frozenset of all Protect-family move names
 - `_FAKE_OUT_USERS` / `_TR_SETTER_SPECIES` / `_TAILWIND_SETTER_SPECIES` —
   frozensets of **base names** (membership normalises megas via the predicates

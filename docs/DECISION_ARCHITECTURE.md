@@ -167,11 +167,12 @@ starts at **weight 1.0**; modules **multiply** those weights.
 <tr><td>17</td><td>Switch offense</td><td colspan="6">—</td><td>—</td><td>×(1+g)</td><td>×(1+g)</td><td>g = the switch-in's best-damage gain over the mon staying in (floored at 0)</td></tr>
 <tr><td>18</td><td>Switch safety</td><td colspan="6">—</td><td>—</td><td>×4.0 / ×0.3</td><td>×4.0 / ×0.3</td><td>×4.0 escape a connecting OHKO into a surviving switch-in; ×0.3 if the switch-in is itself OHKO'd</td></tr>
 <tr><td colspan="12"><strong>Phase 2 — joint adjusters (applied to the chosen pair)</strong></td></tr>
-<tr><td>J1</td><td>doubling up</td><td colspan="6">×0.40–0.70</td><td>—</td><td>—</td><td>—</td><td>both slots attack the same target; ×0.05 on the non-killer when one slot already confirms the OHKO, so the pair that spreads onto the survivor wins</td></tr>
-<tr><td>J2</td><td>attack alongside partner</td><td colspan="6">—</td><td>×0.5</td><td>—</td><td>—</td><td>a gratuitous lone Protect (no real OHKO/stall reason, e.g. only a Fake Out nudge) beside an attacking partner — favour the double-attack</td></tr>
-<tr><td>J3</td><td>Fake Out absorbed (free partner)</td><td colspan="6">×2.0</td><td>×0.33</td><td>—</td><td>—</td><td>when either slot attacks, the partner's Fake-Out multiplier above is divided back out (attack un-halved, Protect un-boosted) — a pair pays the Fake-Out adjustment once, never twice</td></tr>
-<tr><td>J4</td><td>switch collision</td><td colspan="6">—</td><td>—</td><td colspan="2">×0</td><td>both slots switch to the same bench mon → that pair is vetoed</td></tr>
-<tr><td>J5</td><td>Partner Clears</td><td colspan="6">—</td><td>×3.0</td><td>—</td><td>—</td><td>one slot Protects against a connecting OHKO and the partner's chosen attack guaranteed-OHKOs that threatener → Protect so we survive while the partner removes it (was phase-1 "Threat Clear"; it's a cross-slot question, so it's phase 2)</td></tr>
+<tr><td>J1</td><td>doubling up</td><td colspan="6">×0.4</td><td>—</td><td>—</td><td>—</td><td>flat penalty when both slots attack the same target — the spread-your-damage tax (target-Protect recency is #11's job; threats are handled by the threat weights)</td></tr>
+<tr><td>J2</td><td>overkill</td><td colspan="6">×0.05</td><td>—</td><td>—</td><td>—</td><td>one slot already guarantees the OHKO on the shared target → near-veto the other (wasteful) doubler, so the pair that spreads onto the survivor wins. Composes on top of J1</td></tr>
+<tr><td>J3</td><td>attack alongside partner</td><td colspan="6">—</td><td>×0.5</td><td>—</td><td>—</td><td>a gratuitous lone Protect (no real OHKO/stall reason, e.g. only a Fake Out nudge) beside an attacking partner — favour the double-attack</td></tr>
+<tr><td>J4</td><td>Fake Out absorbed (free partner)</td><td colspan="6">×2.0</td><td>×0.33</td><td>—</td><td>—</td><td>when either slot attacks, the partner's Fake-Out multiplier above is divided back out (attack un-halved, Protect un-boosted) — a pair pays the Fake-Out adjustment once, never twice</td></tr>
+<tr><td>J5</td><td>switch collision</td><td colspan="6">—</td><td>—</td><td colspan="2">×0</td><td>both slots switch to the same bench mon → that pair is vetoed</td></tr>
+<tr><td>J6</td><td>Partner Clears</td><td colspan="6">—</td><td>×3.0</td><td>—</td><td>—</td><td>one slot Protects against a connecting OHKO and the partner's chosen attack guaranteed-OHKOs that threatener → Protect so we survive while the partner removes it (was phase-1 "Threat Clear"; it's a cross-slot question, so it's phase 2)</td></tr>
 </tbody>
 </table>
 
