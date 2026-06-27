@@ -653,6 +653,7 @@ def full_damage_calc(
         defender_ability: str = "",
         attacker_item: Optional[str] = None,
         defender_item: Optional[str] = None,
+        defender_has_item: bool = True,
         attacker_boosts: Optional[dict[str, int]] = None,
         defender_boosts: Optional[dict[str, int]] = None,
         weather: Optional[str] = None,
@@ -739,6 +740,15 @@ def full_damage_calc(
     # and only cause a small over-prediction, not the under-prediction this fixes.
     if move_name == "Knock Off" and defender_item:
         power = round(power * 1.5)
+
+    # Poltergeist fails outright if the target holds no item.  `defender_has_item`
+    # is the *belief* the target carries one (True by default / when unknown —
+    # VGC mons almost always do); it goes False only on positive evidence the
+    # item is gone (consumed berry, Knocked Off, an itemless set).  Distinct from
+    # `defender_item` truthiness, which is also None when we merely don't know
+    # *which* item it is.  power=0 routes into the early return below → 0 damage.
+    if move_name == "Poltergeist" and not defender_has_item:
+        power = 0
 
     if category == "Status" or power == 0:
         return DamageResult(
@@ -977,6 +987,7 @@ def incoming_damage(
         opp_item: Optional[str] = None,
         our_ability: str = "",
         our_item: Optional[str] = None,
+        defender_has_item: bool = True,
         weather: Optional[str] = None,
         our_defender_is_full_hp: bool = True,
         our_current_hp: Optional[int] = None,
@@ -1063,6 +1074,7 @@ def incoming_damage(
             defender_ability=our_ability,
             attacker_item=opp_item,
             defender_item=our_item,
+            defender_has_item=defender_has_item,
             weather=weather,
             defender_screens=our_screens,
             attacker_boosts=opp_boosts,
@@ -1090,6 +1102,7 @@ def outgoing_damage(
         our_item: Optional[str] = None,
         opp_ability: str = "",
         opp_item: Optional[str] = None,
+        defender_has_item: bool = True,
         weather: Optional[str] = None,
         opp_is_full_hp: bool = True,
         ally_faint_count: int = 0,
@@ -1156,6 +1169,7 @@ def outgoing_damage(
             defender_ability=opp_ability,
             attacker_item=our_item,
             defender_item=opp_item,
+            defender_has_item=defender_has_item,
             weather=weather,
             defender_is_full_hp=opp_is_full_hp,
             ally_faint_count=ally_faint_count,

@@ -58,6 +58,7 @@ from decision.modules import (  # noqa: F401
     _assumed_item,
     _effective_item,
     _opp_item,
+    _opp_has_item,
     _choice_locked_move,
     _infer_scarf_from_speed,
     _assumed_species,

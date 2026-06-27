@@ -52,6 +52,7 @@ from decision import (
     _assumed_item,
     _effective_item,
     _opp_item,
+    _opp_has_item,
     _best_offense,
     _switch_in_survives,
     _choice_locked_move,
@@ -3333,6 +3334,41 @@ class TestOurConsumedItem:
         ctx = build_turn_context(self._state(item_consumed=True))
         assert 0 in ctx.incoming_ohko[0]
         assert 0 in ctx.incoming_certain[0]       # berry gone: certain kill
+
+
+class TestOppHasItem:
+    """`_opp_has_item` — the belief Poltergeist needs.  True unless we have
+    positive evidence the target's item is gone; an *unknown* item is assumed
+    held (VGC mons almost always carry one), distinct from `_opp_item` returning
+    None when it merely can't name the item."""
+
+    def _state(self, evidence=None, ident="p2: Garchomp"):
+        s = make_state(opp_actives=[])
+        s.opp_item_evidence = {ident: evidence} if evidence else {}
+        return s
+
+    def test_holding_item_now(self):
+        mon = make_mon("Garchomp", side="p2", item="Life Orb")
+        assert _opp_has_item(self._state(), mon) is True
+
+    def test_unknown_item_assumed_held(self):
+        mon = make_mon("Garchomp", side="p2")          # no item, no evidence
+        assert _opp_has_item(self._state(), mon) is True
+
+    def test_evidence_consumed_is_itemless(self):
+        mon = make_mon("Garchomp", side="p2")
+        ev = ItemEvidence(consumed=True)
+        assert _opp_has_item(self._state(ev, mon.ident), mon) is False
+
+    def test_field_stint_consumed_is_itemless(self):
+        mon = make_mon("Garchomp", side="p2", item_consumed=True)
+        assert _opp_has_item(self._state(), mon) is False
+
+    def test_confirmed_item_held_after_switch(self):
+        """Item proven earlier, not currently named on the mon → still held."""
+        mon = make_mon("Garchomp", side="p2")
+        ev = ItemEvidence(confirmed="Rocky Helmet")
+        assert _opp_has_item(self._state(ev, mon.ident), mon) is True
 
 
 class TestRedirectionModule:

@@ -372,6 +372,27 @@ def _opp_item(state: "BattleState", mon: "Pokemon") -> Optional[str]:
     return _effective_item(mon, _item_evidence(state, mon))
 
 
+def _opp_has_item(state: "BattleState", mon: "Pokemon") -> bool:
+    """Whether we believe opponent *mon* currently holds **any** item — the fact
+    Poltergeist needs (it fails against an itemless target).
+
+    Distinct from ``_opp_item`` resolving to a name: that returns ``None`` both
+    when the item is *known gone* (consumed / Knocked Off) **and** when we just
+    don't know *which* item it is.  Poltergeist only fails in the former case, so
+    this defaults to ``True`` (VGC mons almost always carry an item) and flips to
+    ``False`` only on positive evidence the item is gone."""
+    if mon is None:
+        return False
+    if mon.item:                       # holding one right now
+        return True
+    ev = _item_evidence(state, mon)
+    if ev is not None and ev.consumed:  # watched it use up / lose its item
+        return False
+    if getattr(mon, "item_consumed", False):   # field-stint consumed (berry/Sash)
+        return False
+    return True                         # confirmed/inferred/unknown → assume held
+
+
 def _choice_locked_move(state: "BattleState", mon: "Pokemon") -> Optional[str]:
     """The move a Choice-item opponent is locked into this stint, else None.
 
@@ -1375,6 +1396,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                     our_species=mon.species, our_stats=stats, our_moves=[move],
                     opp_species=_defense_species(opp), our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega), our_item=_our_item(mon),
                     opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
+                    defender_has_item=_opp_has_item(state, opp),
                     weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                     opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
                     opp_is_full_hp=opp_at_full,
@@ -1516,6 +1538,7 @@ def _outgoing_defender_mods(state: "BattleState", opp: "Pokemon") -> dict:
         "opp_current_hp":  (opp.hp if (not opp.hp_is_percentage and opp.hp > 0) else None),
         "opp_hp_percent":  (opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
         "opp_screens":     getattr(state, "opp_screens", None),
+        "defender_has_item": _opp_has_item(state, opp),
     }
 
 
@@ -1546,6 +1569,9 @@ def _incoming_defender_mods(state: "BattleState", mon: "Pokemon | None") -> dict
         "our_screens":             getattr(state, "my_screens", None),
         "our_defender_is_full_hp": at_full,
         "our_hp_percent":          (None if at_full else mon.hp_fraction * 100.0),
+        # Our own item is always known: an opponent's Poltergeist vs us fails when
+        # we hold nothing (e.g. our Sash/berry already popped).
+        "defender_has_item":       bool(getattr(mon, "item", None)),
     }
 
 

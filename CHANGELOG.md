@@ -1,5 +1,22 @@
 # WolfeyBot Changelog
 
+## 0.33.0 — 2026-06-27
+
+### Modeling
+- **Poltergeist needs a target item.** Poltergeist fails outright (0 power, no
+  OHKO) against a target holding no item. `damage.py` gains a `defender_has_item`
+  flag (default True); `full_damage_calc` zeroes Poltergeist when it's False.
+- **Belief, not just the named item.** New `_opp_has_item(state, mon)`: True
+  unless we have *positive evidence* the item is gone (`ItemEvidence.consumed` or
+  `Pokemon.item_consumed`). An *unknown* item is assumed held (VGC mons almost
+  always carry one) — distinct from `_opp_item` returning None when it merely
+  can't name the item, so Poltergeist isn't wrongly failed against unknowns.
+- Wired through both damage paths: the shared `_outgoing_defender_mods` /
+  `_incoming_defender_mods` helpers and the manual OHKO-fact loop in
+  `build_turn_context`, so `ctx.ohko` / threat / doom all respect it. An
+  opponent's Poltergeist into our itemless mon is likewise read as a non-threat.
+- Turn-1 snapshots unchanged (opening items are unknown → assumed held).
+
 ## 0.32.0 — 2026-06-27
 
 ### Decision engine

@@ -418,6 +418,21 @@ class TestMoveMechanics:
                                   self._DEF, self._DEF, defender_item="Sitrus Berry").damage_avg
         assert w_item / no_item == pytest.approx(1.5, rel=0.04)
 
+    def test_poltergeist_hits_item_holder(self):
+        """Default (defender believed to hold an item) → normal Ghost damage."""
+        r = full_damage_calc("Poltergeist", "Atk", "Def", self._ATK, self._DEF,
+                             defender_has_item=True)
+        assert r.power == 110
+        assert r.damage_avg > 0
+
+    def test_poltergeist_fails_without_item(self):
+        """No item on the target → the move fails outright (0 power, 0 damage)."""
+        r = full_damage_calc("Poltergeist", "Atk", "Def", self._ATK, self._DEF,
+                             defender_has_item=False)
+        assert r.power == 0
+        assert r.damage_avg == 0
+        assert not r.is_ohko
+
     def _rage_fist_power(self, times_hit):
         return full_damage_calc("Rage Fist", "Annihilape", "Def",
                                 self._DEF, self._DEF, times_hit=times_hit).power

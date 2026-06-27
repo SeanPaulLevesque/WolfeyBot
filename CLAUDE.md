@@ -168,7 +168,12 @@ the best pair.
   (above), `_effective_ability(mon)` (revealed > top-usage ability of the
   assumed forme — so a pre-mega Pyroar → Pyroar-Mega → Fire Mane),
   `_effective_item(mon, evidence)` / `_opp_item(state, mon)`
-  (prefer `_opp_item` wherever `state` is in scope). Item inference is a
+  (prefer `_opp_item` wherever `state` is in scope), and `_opp_has_item(state,
+  mon)` — the **does it hold *any* item** belief Poltergeist needs (True unless
+  `ItemEvidence.consumed` / `item_consumed`; unknown → assumed held, since
+  `_opp_item` returning None conflates "consumed" with "don't know which"). It
+  feeds `damage.py`'s `defender_has_item` (Poltergeist → 0 vs an itemless target)
+  through the `_*_defender_mods` helpers and the OHKO-fact loop. Item inference is a
   **usage-stats prior resolved against observed `ItemEvidence`** (since 0.12.0):
   held-now > `consumed`→None > `confirmed` > field-stint consumed > prior with
   `evidence.ruled_out` removed. `_assumed_item(species, ruled_out)` walks the
