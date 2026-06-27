@@ -1,5 +1,26 @@
 # WolfeyBot Changelog
 
+## 0.32.0 — 2026-06-27
+
+### Decision engine
+- **DamageOutput saturates at lethal.** The damage term now caps the damage
+  fraction at 1.0 (`min(d, 1.0)`) — overkill earns nothing, because a move can't
+  benefit from dealing more than the target's remaining HP (and `d` is already
+  current-HP-relative, so the cap is "remaining HP" at any HP).
+- **Why: correct focus-fire routing.** When two of our mons can each OHKO a foe,
+  both kills now score equally, so the joint `coordinate` pairing falls to the
+  *chip damage that actually differs* — the weaker-on-the-survivor mon lands the
+  kill and the stronger-on-the-survivor mon redirects — instead of being decided
+  by whichever foe an attacker happens to overkill hardest. This is the routing a
+  pairwise overkill adjuster structurally *cannot* do (a per-pair penalty is
+  symmetric within a double and over-fires on capability), so the fix belongs in
+  the value, not an adjuster.
+- **Turn-1 snapshots:** 101 decision cells changed (audited via the cap-
+  independent `ctx.ohko` facts): 0 gain/lose net guaranteed kills in 99 of them;
+  8 swap *which* foe is killed (same count); 2 give up a guaranteed KO made by an
+  overkill move (Head Smash / Wave Crash) to a switch / Protect — reviewed and
+  accepted (threat-priority is a separate concern from raw damage).
+
 ## 0.31.0 — 2026-06-27
 
 ### Decision engine

@@ -468,20 +468,26 @@ class DamageOutputModule(ScoringModule):
     is computed against every active opponent; the best value across all targets
     is used.
 
-    Weight multiplier (damaging moves): DAMAGE_INTERCEPT + DAMAGE_SLOPE * fraction
-    — a single line that floors at 0.5 (a move threatening ~nothing) and passes
-    through the old 1+2f curve at 25% damage (both = 1.5).  Below 25% it devalues
-    weak moves (switch-prone — a move that does ~nothing loses to a switch but
-    still beats sacking into an OHKO); above 25% it climbs past the old curve,
-    sharpening "attack with the big move".
+    Weight multiplier (damaging moves):
+    DAMAGE_INTERCEPT + DAMAGE_SLOPE * min(fraction, 1.0) — a single line that
+    floors at 0.5 (a move threatening ~nothing) and crosses the old 1+2f curve at
+    ~33% damage.  Below that it devalues weak moves (switch-prone — a move that
+    does ~nothing loses to a switch but still beats sacking into an OHKO); above
+    it climbs past the old curve, sharpening "attack with the big move".
 
-    Examples (INTERCEPT=0.5, SLOPE=4.0):
-      100% avg damage (OHKO)  ->  x4.5
-      50%                     ->  x2.5
-      25%                     ->  x1.5   (matches the old 1+2f here)
-      12.5%                   ->  x1.0
-       5%                     ->  x0.7
-       0% (immune / dead)     ->  x0.5   (floor)
+    The fraction is **capped at 1.0** (lethal): damage value saturates at the
+    target's remaining HP, so overkill earns nothing extra.  This is what lets the
+    joint coordinate() pass route the *right* attacker — when two of our mons can
+    each OHKO a foe, both kills score equally, so the pairing falls to the chip
+    damage that actually differs instead of to whichever foe an attacker overkills
+    hardest (see the routing note in DECISION_ARCHITECTURE.md).
+
+    Examples (INTERCEPT=0.5, SLOPE=3.5):
+      >=100% avg damage (OHKO / overkill)  ->  x4.0   (capped — overkill == clean kill)
+      50%                                  ->  x2.25
+      33%                                  ->  x1.67  (crosses the old 1+2f curve)
+      12.5%                                ->  x0.94
+       0% (immune / dead)                  ->  x0.5   (floor)
 
     Status moves are left at the x1.0 baseline (they deal no damage by design,
     not by failure) so ProtectValue / Urgency / FakeOut can score them.
@@ -548,14 +554,23 @@ class DamageOutputModule(ScoringModule):
                 # Spread move (no chosen target): credit the best foe it can hit.
                 fraction = max((_frac(action.move_name, i) for i in live), default=0.0)
 
+            # Damage value saturates at lethal: a move can't benefit from dealing
+            # more than the target's remaining HP, so overkill (fraction > 1.0) is
+            # credited as a clean kill.  Because `fraction` is of *current* HP,
+            # min(.,1.0) caps the credit at the target's remaining HP at any HP.
+            # This keeps two different OHKOs scoring equally, so the joint
+            # coordinate() pairing falls to the chip damage that actually differs
+            # (rather than to whichever foe an attacker happens to overkill hardest).
+            credited = min(fraction, 1.0)
             # Single line: floors at DAMAGE_INTERCEPT (a move threatening
             # ~nothing — immune / fully resisted / a dead Choice-locked move —
             # loses to a healthy switch but still beats sacking into an OHKO)
-            # and matches the old 1+2f curve at 25% damage.
-            factor = self.DAMAGE_INTERCEPT + self.DAMAGE_SLOPE * fraction
+            # and crosses the old 1+2f curve at ~33% damage.
+            factor = self.DAMAGE_INTERCEPT + self.DAMAGE_SLOPE * credited
             action.weight *= factor
             action.reasons.append(
                 f"{self.name}: {fraction:.0%} HP -> x{factor:.2f}"
+                + (" (overkill capped)" if fraction > 1.0 else "")
             )
 
 

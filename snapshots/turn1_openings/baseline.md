@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.31.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.32.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -17,25 +17,25 @@ Bench: Kingambit, Sneasler, Basculegion, Garchomp
 
 | # | Opp [A] | Opp [B] | Aerodactyl [A] | Venusaur [B] |
 |---|---|---|---|---|
-| 1.1 | Incineroar | Sneasler | Dual Wingbeat → Sneasler `35.91` | Switch → Basculegion `6.78` |
-| 1.2 | Incineroar | Whimsicott | Dual Wingbeat → Whimsicott `63.61` | Earth Power → Incineroar `3.76` |
-| 1.3 | Incineroar | Garchomp | Ice Fang → Garchomp `24.20` | Switch → Basculegion `6.10` |
+| 1.1 | Incineroar | Sneasler | Dual Wingbeat → Sneasler `20.00` | Switch → Basculegion `6.78` |
+| 1.2 | Incineroar | Whimsicott | Dual Wingbeat → Whimsicott `40.00` | Earth Power → Incineroar `3.76` |
+| 1.3 | Incineroar | Garchomp | Ice Fang → Garchomp `20.00` | Switch → Basculegion `6.10` |
 | 1.4 | Incineroar | Farigiraf | Dual Wingbeat → Farigiraf `5.02` | Switch → Basculegion `6.03` |
 | 1.5 | Incineroar | Kingambit | Protect → ? `5.00` | Protect → ? `5.00` |
-| 1.6 | Incineroar | Aerodactyl | Rock Tomb → Aerodactyl `6.32` | Switch → Basculegion `9.44` |
-| 1.7 | Farigiraf | Sneasler | Dual Wingbeat → Sneasler `71.81` | Sludge Bomb → Farigiraf `3.91` |
-| 1.8 | Farigiraf | Garchomp | Ice Fang → Garchomp `96.80` | Sludge Bomb → Farigiraf `3.91` |
-| 1.9 | Whimsicott | Garchomp | Ice Fang → Garchomp `96.80` | Sludge Bomb → Whimsicott `14.36` |
-| 1.10 | Whimsicott | Kingambit | Dual Wingbeat → Whimsicott `127.21` | Earth Power → Kingambit `4.57` |
-| 1.11 | Sneasler | Garchomp | Dual Wingbeat → Sneasler `35.91` | Switch → Basculegion `1.70` |
-| 1.12 | Sneasler | Kingambit | Dual Wingbeat → Sneasler `35.91` | Earth Power → Kingambit `2.28` |
-| 1.13 | Aerodactyl | Garchomp | Ice Fang → Garchomp `72.60` | Giga Drain → Aerodactyl `3.26` |
-| 1.14 | Lopunny | Garchomp | Ice Fang → Garchomp `18.15` | Sludge Bomb → Lopunny `1.68` |
-| 1.15 | Weavile | Garchomp | Ice Fang → Garchomp `18.15` | Sludge Bomb → Weavile `1.81` |
-| 1.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `112.77` | Switch → Basculegion `8.57` |
-| 1.17 | Charizard | Incineroar | Rock Tomb → Charizard `26.31` | Protect → ? `7.50` |
-| 1.18 | Rotom-Wash | Garchomp | Ice Fang → Garchomp `48.40` | Giga Drain → Rotom-Wash `2.71` |
-| 1.19 | Glimmora | Incineroar | Protect → ? `7.50` | Earth Power → Glimmora `11.97` |
+| 1.6 | Incineroar | Aerodactyl | Rock Tomb → Aerodactyl `6.00` | Switch → Basculegion `9.44` |
+| 1.7 | Farigiraf | Sneasler | Dual Wingbeat → Sneasler `40.00` | Sludge Bomb → Farigiraf `3.91` |
+| 1.8 | Farigiraf | Garchomp | Ice Fang → Garchomp `80.00` | Sludge Bomb → Farigiraf `3.91` |
+| 1.9 | Whimsicott | Garchomp | Ice Fang → Garchomp `80.00` | Sludge Bomb → Whimsicott `6.00` |
+| 1.10 | Whimsicott | Kingambit | Dual Wingbeat → Whimsicott `80.00` | Earth Power → Kingambit `4.57` |
+| 1.11 | Sneasler | Garchomp | Ice Fang → Garchomp `20.00` | Earth Power → Sneasler `2.26` |
+| 1.12 | Sneasler | Kingambit | Dual Wingbeat → Sneasler `20.00` | Earth Power → Kingambit `2.28` |
+| 1.13 | Aerodactyl | Garchomp | Ice Fang → Garchomp `60.00` | Giga Drain → Aerodactyl `3.26` |
+| 1.14 | Lopunny | Garchomp | Ice Fang → Garchomp `15.00` | Sludge Bomb → Lopunny `1.68` |
+| 1.15 | Weavile | Garchomp | Ice Fang → Garchomp `15.00` | Sludge Bomb → Weavile `1.81` |
+| 1.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `60.00` | Switch → Basculegion `8.57` |
+| 1.17 | Charizard | Incineroar | Rock Tomb → Charizard `15.00` | Protect → ? `7.50` |
+| 1.18 | Rotom-Wash | Garchomp | Ice Fang → Garchomp `40.00` | Giga Drain → Rotom-Wash `2.71` |
+| 1.19 | Glimmora | Incineroar | Protect → ? `7.50` | Earth Power → Glimmora `10.00` |
 | 1.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `14.10` | Switch → Basculegion `3.35` |
 
 ---
@@ -45,25 +45,25 @@ Bench: Kingambit, Sneasler, Basculegion, Garchomp
 
 | # | Opp [A] | Opp [B] | Aerodactyl [A] | Venusaur [B] |
 |---|---|---|---|---|
-| 2.1 | Incineroar | Sneasler | Dual Wingbeat → Sneasler `18.27` | Earth Power → Incineroar `2.10` |
-| 2.2 | Incineroar | Whimsicott | Dual Wingbeat → Whimsicott `32.46` | Earth Power → Incineroar `4.21` |
+| 2.1 | Incineroar | Sneasler | Dual Wingbeat → Sneasler `15.00` | Earth Power → Incineroar `2.10` |
+| 2.2 | Incineroar | Whimsicott | Dual Wingbeat → Whimsicott `30.00` | Earth Power → Incineroar `4.21` |
 | 2.3 | Incineroar | Garchomp | Ice Fang → Garchomp `3.37` | Earth Power → Incineroar `2.10` |
 | 2.4 | Incineroar | Farigiraf | Rock Tomb → Incineroar `4.33` | Sludge Bomb → Farigiraf `6.55` |
 | 2.5 | Incineroar | Kingambit | Protect → ? `5.00` | Protect → ? `2.00` |
 | 2.6 | Incineroar | Aerodactyl | Rock Tomb → Aerodactyl `5.39` | Earth Power → Incineroar `4.21` |
-| 2.7 | Farigiraf | Sneasler | Dual Wingbeat → Sneasler `36.54` | Sludge Bomb → Farigiraf `4.37` |
+| 2.7 | Farigiraf | Sneasler | Dual Wingbeat → Sneasler `30.00` | Sludge Bomb → Farigiraf `4.37` |
 | 2.8 | Farigiraf | Garchomp | Ice Fang → Garchomp `13.48` | Sludge Bomb → Farigiraf `4.37` |
-| 2.9 | Whimsicott | Garchomp | Dual Wingbeat → Whimsicott `64.92` | Giga Drain → Garchomp `2.98` |
-| 2.10 | Whimsicott | Kingambit | Dual Wingbeat → Whimsicott `64.92` | Earth Power → Kingambit `5.19` |
-| 2.11 | Sneasler | Garchomp | Dual Wingbeat → Sneasler `18.27` | Switch → Basculegion `1.60` |
-| 2.12 | Sneasler | Kingambit | Dual Wingbeat → Sneasler `18.27` | Earth Power → Kingambit `2.60` |
+| 2.9 | Whimsicott | Garchomp | Dual Wingbeat → Whimsicott `60.00` | Giga Drain → Garchomp `2.98` |
+| 2.10 | Whimsicott | Kingambit | Dual Wingbeat → Whimsicott `60.00` | Earth Power → Kingambit `5.19` |
+| 2.11 | Sneasler | Garchomp | Dual Wingbeat → Sneasler `15.00` | Switch → Basculegion `1.60` |
+| 2.12 | Sneasler | Kingambit | Dual Wingbeat → Sneasler `15.00` | Earth Power → Kingambit `2.60` |
 | 2.13 | Aerodactyl | Garchomp | Ice Fang → Garchomp `10.11` | Giga Drain → Aerodactyl `3.66` |
 | 2.14 | Lopunny | Garchomp | Ice Fang → Garchomp `2.53` | Sludge Bomb → Lopunny `1.91` |
 | 2.15 | Weavile | Garchomp | Switch → Kingambit `5.41` | Protect → ? `2.00` |
-| 2.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `95.23` | Giga Drain → Garchomp `2.98` |
-| 2.17 | Charizard | Incineroar | Rock Tomb → Charizard `22.55` | Earth Power → Incineroar `4.21` |
-| 2.18 | Rotom-Wash | Garchomp | Ice Fang → Garchomp `6.74` | Giga Drain → Rotom-Wash `3.05` |
-| 2.19 | Glimmora | Incineroar | Switch → Garchomp `7.67` | Earth Power → Glimmora `13.80` |
+| 2.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `60.00` | Giga Drain → Garchomp `2.98` |
+| 2.17 | Charizard | Incineroar | Rock Tomb → Charizard `15.00` | Earth Power → Incineroar `4.21` |
+| 2.18 | Rotom-Wash | Garchomp | Ice Fang → Garchomp `6.74` | Giga Drain → Rotom-Wash `3.00` |
+| 2.19 | Glimmora | Incineroar | Switch → Garchomp `7.67` | Earth Power → Glimmora `10.00` |
 | 2.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `12.21` | Switch → Kingambit `3.20` |
 
 ---
@@ -73,25 +73,25 @@ Bench: Aerodactyl, Sneasler, Basculegion, Venusaur
 
 | # | Opp [A] | Opp [B] | Garchomp [A] | Kingambit [B] |
 |---|---|---|---|---|
-| 3.1 | Incineroar | Sneasler | Stomping Tantrum → Sneasler `28.48` | Low Kick → Incineroar `1.82` |
-| 3.2 | Incineroar | Whimsicott | Stomping Tantrum → Incineroar `6.26` | Iron Head → Whimsicott `8.19` |
+| 3.1 | Incineroar | Sneasler | Stomping Tantrum → Sneasler `20.00` | Low Kick → Incineroar `1.82` |
+| 3.2 | Incineroar | Whimsicott | Stomping Tantrum → Incineroar `6.26` | Iron Head → Whimsicott `6.00` |
 | 3.3 | Incineroar | Garchomp | Switch → Basculegion `4.35` | Protect → ? `2.00` |
-| 3.4 | Incineroar | Farigiraf | Stomping Tantrum → Incineroar `6.26` | Kowtow Cleave → Farigiraf `8.25` |
+| 3.4 | Incineroar | Farigiraf | Stomping Tantrum → Incineroar `6.26` | Kowtow Cleave → Farigiraf `8.00` |
 | 3.5 | Incineroar | Kingambit | Stomping Tantrum → Incineroar `3.13` | Low Kick → Kingambit `2.56` |
-| 3.6 | Incineroar | Aerodactyl | Stomping Tantrum → Incineroar `6.26` | Iron Head → Aerodactyl `8.73` |
-| 3.7 | Farigiraf | Sneasler | Stomping Tantrum → Sneasler `56.96` | Kowtow Cleave → Farigiraf `8.25` |
-| 3.8 | Farigiraf | Garchomp | Dragon Claw → Garchomp `15.16` | Kowtow Cleave → Farigiraf `8.25` |
-| 3.9 | Whimsicott | Garchomp | Dragon Claw → Garchomp `15.16` | Iron Head → Whimsicott `8.19` |
-| 3.10 | Whimsicott | Kingambit | Poison Jab → Whimsicott `28.09` | Low Kick → Kingambit `5.13` |
-| 3.11 | Sneasler | Garchomp | Stomping Tantrum → Sneasler `28.48` | Kowtow Cleave → Garchomp `1.71` |
-| 3.12 | Sneasler | Kingambit | Stomping Tantrum → Sneasler `28.48` | Low Kick → Kingambit `2.56` |
-| 3.13 | Aerodactyl | Garchomp | Dragon Claw → Garchomp `15.16` | Iron Head → Aerodactyl `8.73` |
+| 3.6 | Incineroar | Aerodactyl | Stomping Tantrum → Incineroar `6.26` | Iron Head → Aerodactyl `6.00` |
+| 3.7 | Farigiraf | Sneasler | Stomping Tantrum → Sneasler `40.00` | Kowtow Cleave → Farigiraf `8.00` |
+| 3.8 | Farigiraf | Garchomp | Dragon Claw → Garchomp `15.16` | Kowtow Cleave → Farigiraf `8.00` |
+| 3.9 | Whimsicott | Garchomp | Dragon Claw → Garchomp `15.16` | Iron Head → Whimsicott `6.00` |
+| 3.10 | Whimsicott | Kingambit | Stomping Tantrum → Kingambit `11.13` | Iron Head → Whimsicott `8.00` |
+| 3.11 | Sneasler | Garchomp | Stomping Tantrum → Sneasler `20.00` | Kowtow Cleave → Garchomp `1.71` |
+| 3.12 | Sneasler | Kingambit | Stomping Tantrum → Sneasler `20.00` | Low Kick → Kingambit `2.56` |
+| 3.13 | Aerodactyl | Garchomp | Dragon Claw → Garchomp `15.16` | Iron Head → Aerodactyl `6.00` |
 | 3.14 | Lopunny | Garchomp | Dragon Claw → Garchomp `3.79` | Switch → Basculegion `4.33` |
-| 3.15 | Weavile | Garchomp | Dragon Claw → Garchomp `3.79` | Low Kick → Weavile `4.67` |
-| 3.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `110.26` | Kowtow Cleave → Garchomp `3.43` |
-| 3.17 | Charizard | Incineroar | Rock Tomb → Charizard `25.48` | Protect → ? `7.50` |
+| 3.15 | Weavile | Garchomp | Dragon Claw → Garchomp `3.79` | Iron Head → Weavile `3.00` |
+| 3.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `80.00` | Kowtow Cleave → Garchomp `3.43` |
+| 3.17 | Charizard | Incineroar | Rock Tomb → Charizard `20.00` | Protect → ? `7.50` |
 | 3.18 | Rotom-Wash | Garchomp | Dragon Claw → Garchomp `7.58` | Kowtow Cleave → Rotom-Wash `2.15` |
-| 3.19 | Glimmora | Incineroar | Stomping Tantrum → Glimmora `35.28` | Low Kick → Incineroar `1.82` |
+| 3.19 | Glimmora | Incineroar | Stomping Tantrum → Glimmora `20.00` | Low Kick → Incineroar `1.82` |
 | 3.20 | Pelipper | Dragonite | Dragon Claw → Dragonite `8.24` | Kowtow Cleave → Pelipper `4.19` |
 
 ---
@@ -101,24 +101,24 @@ Bench: Kingambit, Basculegion, Venusaur, Garchomp
 
 | # | Opp [A] | Opp [B] | Aerodactyl [A] | Sneasler [B] |
 |---|---|---|---|---|
-| 4.1 | Incineroar | Sneasler | Dual Wingbeat → Sneasler `35.91` | Close Combat → Incineroar `3.77` |
-| 4.2 | Incineroar | Whimsicott | Dual Wingbeat → Whimsicott `63.61` | Close Combat → Incineroar `7.54` |
-| 4.3 | Incineroar | Garchomp | Ice Fang → Garchomp `24.20` | Close Combat → Incineroar `3.77` |
+| 4.1 | Incineroar | Sneasler | Dual Wingbeat → Sneasler `20.00` | Close Combat → Incineroar `3.77` |
+| 4.2 | Incineroar | Whimsicott | Dual Wingbeat → Whimsicott `40.00` | Close Combat → Incineroar `7.54` |
+| 4.3 | Incineroar | Garchomp | Ice Fang → Garchomp `20.00` | Close Combat → Incineroar `3.77` |
 | 4.4 | Incineroar | Farigiraf | Dual Wingbeat → Farigiraf `5.02` | Close Combat → Incineroar `11.31` |
 | 4.5 | Incineroar | Kingambit | Rock Tomb → Incineroar `2.46` | Close Combat → Kingambit `4.97` |
-| 4.6 | Incineroar | Aerodactyl | Rock Tomb → Aerodactyl `6.32` | Close Combat → Incineroar `7.54` |
-| 4.7 | Farigiraf | Sneasler | Dual Wingbeat → Sneasler `71.81` | Switch → Basculegion `7.32` |
-| 4.8 | Farigiraf | Garchomp | Ice Fang → Garchomp `96.80` | Protect → ? `7.50` |
-| 4.9 | Whimsicott | Garchomp | Ice Fang → Garchomp `96.80` | Dire Claw → Whimsicott `11.95` |
-| 4.10 | Whimsicott | Kingambit | Dual Wingbeat → Whimsicott `127.21` | Close Combat → Kingambit `6.63` |
-| 4.11 | Sneasler | Garchomp | Dual Wingbeat → Sneasler `35.91` | Switch → Basculegion `1.83` |
-| 4.12 | Sneasler | Kingambit | Dual Wingbeat → Sneasler `35.91` | Close Combat → Kingambit `3.32` |
-| 4.13 | Aerodactyl | Garchomp | Ice Fang → Garchomp `72.60` | Close Combat → Aerodactyl `5.30` |
-| 4.14 | Lopunny | Garchomp | Ice Fang → Garchomp `18.15` | Close Combat → Lopunny `19.71` |
-| 4.15 | Weavile | Garchomp | Ice Fang → Garchomp `18.15` | Close Combat → Weavile `10.09` |
-| 4.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `112.77` | Protect → ? `7.50` |
-| 4.17 | Charizard | Incineroar | Rock Tomb → Charizard `35.08` | Close Combat → Incineroar `5.65` |
-| 4.18 | Rotom-Wash | Garchomp | Ice Fang → Garchomp `48.40` | Close Combat → Rotom-Wash `3.02` |
+| 4.6 | Incineroar | Aerodactyl | Rock Tomb → Aerodactyl `6.00` | Close Combat → Incineroar `7.54` |
+| 4.7 | Farigiraf | Sneasler | Dual Wingbeat → Sneasler `40.00` | Switch → Basculegion `7.32` |
+| 4.8 | Farigiraf | Garchomp | Ice Fang → Garchomp `80.00` | Protect → ? `7.50` |
+| 4.9 | Whimsicott | Garchomp | Ice Fang → Garchomp `80.00` | Dire Claw → Whimsicott `6.00` |
+| 4.10 | Whimsicott | Kingambit | Dual Wingbeat → Whimsicott `80.00` | Close Combat → Kingambit `6.63` |
+| 4.11 | Sneasler | Garchomp | Dual Wingbeat → Sneasler `20.00` | Switch → Basculegion `1.83` |
+| 4.12 | Sneasler | Kingambit | Dual Wingbeat → Sneasler `20.00` | Close Combat → Kingambit `3.32` |
+| 4.13 | Aerodactyl | Garchomp | Ice Fang → Garchomp `60.00` | Close Combat → Aerodactyl `5.30` |
+| 4.14 | Lopunny | Garchomp | Ice Fang → Garchomp `15.00` | Close Combat → Lopunny `15.00` |
+| 4.15 | Weavile | Garchomp | Ice Fang → Garchomp `15.00` | Close Combat → Weavile `3.00` |
+| 4.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `60.00` | Protect → ? `7.50` |
+| 4.17 | Charizard | Incineroar | Rock Tomb → Charizard `20.00` | Close Combat → Incineroar `5.65` |
+| 4.18 | Rotom-Wash | Garchomp | Ice Fang → Garchomp `40.00` | Close Combat → Rotom-Wash `3.02` |
 | 4.19 | Glimmora | Incineroar | Switch → Garchomp `7.41` | Close Combat → Incineroar `2.83` |
 | 4.20 | Pelipper | Dragonite | Ice Fang → Dragonite `10.17` | Rock Tomb → Pelipper `6.60` |
 
@@ -129,25 +129,25 @@ Bench: Aerodactyl, Kingambit, Sneasler, Basculegion
 
 | # | Opp [A] | Opp [B] | Garchomp [A] | Venusaur [B] |
 |---|---|---|---|---|
-| 5.1 | Incineroar | Sneasler | Stomping Tantrum → Sneasler `28.48` | Earth Power → Incineroar `2.10` |
-| 5.2 | Incineroar | Whimsicott | Stomping Tantrum → Incineroar `6.26` | Sludge Bomb → Whimsicott `22.17` |
+| 5.1 | Incineroar | Sneasler | Stomping Tantrum → Sneasler `20.00` | Earth Power → Incineroar `2.10` |
+| 5.2 | Incineroar | Whimsicott | Stomping Tantrum → Incineroar `6.26` | Sludge Bomb → Whimsicott `8.00` |
 | 5.3 | Incineroar | Garchomp | Switch → Basculegion `4.35` | Protect → ? `2.00` |
 | 5.4 | Incineroar | Farigiraf | Stomping Tantrum → Incineroar `6.26` | Sludge Bomb → Farigiraf `6.55` |
 | 5.5 | Incineroar | Kingambit | Stomping Tantrum → Incineroar `3.13` | Earth Power → Kingambit `3.89` |
 | 5.6 | Incineroar | Aerodactyl | Stomping Tantrum → Incineroar `6.26` | Giga Drain → Aerodactyl `4.88` |
-| 5.7 | Farigiraf | Sneasler | Stomping Tantrum → Sneasler `56.96` | Sludge Bomb → Farigiraf `4.37` |
+| 5.7 | Farigiraf | Sneasler | Stomping Tantrum → Sneasler `40.00` | Sludge Bomb → Farigiraf `4.37` |
 | 5.8 | Farigiraf | Garchomp | Dragon Claw → Garchomp `15.16` | Sludge Bomb → Farigiraf `4.37` |
-| 5.9 | Whimsicott | Garchomp | Dragon Claw → Garchomp `15.16` | Sludge Bomb → Whimsicott `16.63` |
-| 5.10 | Whimsicott | Kingambit | Poison Jab → Whimsicott `28.09` | Sludge Bomb → Whimsicott `8.87` |
-| 5.11 | Sneasler | Garchomp | Stomping Tantrum → Sneasler `28.48` | Switch → Basculegion `1.60` |
-| 5.12 | Sneasler | Kingambit | Stomping Tantrum → Sneasler `28.48` | Earth Power → Kingambit `2.60` |
+| 5.9 | Whimsicott | Garchomp | Dragon Claw → Garchomp `15.16` | Sludge Bomb → Whimsicott `6.00` |
+| 5.10 | Whimsicott | Kingambit | Stomping Tantrum → Kingambit `11.13` | Sludge Bomb → Whimsicott `8.00` |
+| 5.11 | Sneasler | Garchomp | Stomping Tantrum → Sneasler `20.00` | Switch → Basculegion `1.60` |
+| 5.12 | Sneasler | Kingambit | Stomping Tantrum → Sneasler `20.00` | Earth Power → Kingambit `2.60` |
 | 5.13 | Aerodactyl | Garchomp | Dragon Claw → Garchomp `15.16` | Giga Drain → Aerodactyl `3.66` |
 | 5.14 | Lopunny | Garchomp | Dragon Claw → Garchomp `3.79` | Sludge Bomb → Lopunny `1.91` |
 | 5.15 | Weavile | Garchomp | Switch → Kingambit `5.43` | Protect → ? `2.00` |
-| 5.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `110.26` | Giga Drain → Garchomp `2.98` |
-| 5.17 | Charizard | Incineroar | Rock Tomb → Charizard `25.48` | Earth Power → Incineroar `3.15` |
-| 5.18 | Rotom-Wash | Garchomp | Dragon Claw → Garchomp `7.58` | Giga Drain → Rotom-Wash `3.05` |
-| 5.19 | Glimmora | Incineroar | Stomping Tantrum → Incineroar `3.13` | Earth Power → Glimmora `27.59` |
+| 5.16 | Talonflame | Garchomp | Rock Tomb → Talonflame `80.00` | Giga Drain → Garchomp `2.98` |
+| 5.17 | Charizard | Incineroar | Rock Tomb → Charizard `20.00` | Earth Power → Incineroar `3.15` |
+| 5.18 | Rotom-Wash | Garchomp | Dragon Claw → Garchomp `7.58` | Giga Drain → Rotom-Wash `3.00` |
+| 5.19 | Glimmora | Incineroar | Stomping Tantrum → Incineroar `3.13` | Earth Power → Glimmora `20.00` |
 | 5.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `10.70` | Switch → Kingambit `3.20` |
 
 ---
@@ -158,22 +158,22 @@ Bench: Aerodactyl, Basculegion, Venusaur, Garchomp
 | # | Opp [A] | Opp [B] | Sneasler [A] | Kingambit [B] |
 |---|---|---|---|---|
 | 6.1 | Incineroar | Sneasler | Close Combat → Incineroar `2.83` | Switch → Basculegion `6.48` |
-| 6.2 | Incineroar | Whimsicott | Close Combat → Incineroar `5.65` | Iron Head → Whimsicott `8.19` |
+| 6.2 | Incineroar | Whimsicott | Close Combat → Incineroar `5.65` | Iron Head → Whimsicott `6.00` |
 | 6.3 | Incineroar | Garchomp | Protect → ? `5.00` | Protect → ? `2.00` |
-| 6.4 | Incineroar | Farigiraf | Close Combat → Incineroar `7.54` | Kowtow Cleave → Farigiraf `8.25` |
+| 6.4 | Incineroar | Farigiraf | Close Combat → Incineroar `7.54` | Kowtow Cleave → Farigiraf `8.00` |
 | 6.5 | Incineroar | Kingambit | Close Combat → Incineroar `3.77` | Low Kick → Kingambit `2.56` |
-| 6.6 | Incineroar | Aerodactyl | Close Combat → Incineroar `5.65` | Iron Head → Aerodactyl `8.73` |
+| 6.6 | Incineroar | Aerodactyl | Close Combat → Incineroar `5.65` | Iron Head → Aerodactyl `6.00` |
 | 6.7 | Farigiraf | Sneasler | Switch → Basculegion `7.32` | Protect → ? `5.00` |
-| 6.8 | Farigiraf | Garchomp | Switch → Aerodactyl `4.06` | Kowtow Cleave → Farigiraf `8.25` |
-| 6.9 | Whimsicott | Garchomp | Switch → Venusaur `4.67` | Iron Head → Whimsicott `8.19` |
-| 6.10 | Whimsicott | Kingambit | Dire Claw → Whimsicott `23.90` | Low Kick → Kingambit `5.13` |
+| 6.8 | Farigiraf | Garchomp | Switch → Aerodactyl `4.06` | Kowtow Cleave → Farigiraf `8.00` |
+| 6.9 | Whimsicott | Garchomp | Switch → Venusaur `4.67` | Iron Head → Whimsicott `6.00` |
+| 6.10 | Whimsicott | Kingambit | Close Combat → Kingambit `9.95` | Iron Head → Whimsicott `8.00` |
 | 6.11 | Sneasler | Garchomp | Switch → Basculegion `7.34` | Protect → ? `5.00` |
 | 6.12 | Sneasler | Kingambit | Close Combat → Kingambit `2.49` | Switch → Garchomp `5.35` |
-| 6.13 | Aerodactyl | Garchomp | Switch → Basculegion `8.20` | Iron Head → Aerodactyl `8.73` |
+| 6.13 | Aerodactyl | Garchomp | Switch → Basculegion `8.20` | Iron Head → Aerodactyl `6.00` |
 | 6.14 | Lopunny | Garchomp | Protect → ? `5.00` | Protect → ? `5.00` |
 | 6.15 | Weavile | Garchomp | Protect → ? `5.00` | Protect → ? `2.00` |
 | 6.16 | Talonflame | Garchomp | Switch → Basculegion `7.02` | Kowtow Cleave → Talonflame `4.79` |
 | 6.17 | Charizard | Incineroar | Protect → ? `5.00` | Switch → Aerodactyl `5.95` |
 | 6.18 | Rotom-Wash | Garchomp | Switch → Venusaur `3.74` | Kowtow Cleave → Rotom-Wash `2.15` |
-| 6.19 | Glimmora | Incineroar | Close Combat → Incineroar `3.77` | Iron Head → Glimmora `3.05` |
+| 6.19 | Glimmora | Incineroar | Close Combat → Incineroar `3.77` | Iron Head → Glimmora `3.00` |
 | 6.20 | Pelipper | Dragonite | Rock Tomb → Dragonite `4.47` | Kowtow Cleave → Pelipper `4.19` |
