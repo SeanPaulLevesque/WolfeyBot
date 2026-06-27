@@ -18,7 +18,7 @@ for fp in files:
 # ── helpers ──────────────────────────────────────────────────────────────
 PROTECTS = {"Protect","Detect","Spiky Shield","King's Shield","Baneful Bunker",
             "Silk Trap","Burning Bulwark","Wide Guard","Quick Guard","Obstruct"}
-def is_switch(a): return any("switch_eval" in r for r in a.get("r", []))
+def is_switch(a): return bool(a.get("sw"))   # switch action (robust across log versions)
 def is_ohko(a):   return any("threat_elimination: guaranteed OHKO" in r for r in a.get("r", []))
 def kind(label, a):
     if a and is_switch(a): return "switch"

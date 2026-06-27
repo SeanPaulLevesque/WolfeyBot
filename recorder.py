@@ -103,6 +103,46 @@ def _compact_action(a: "Action", opp_species: Optional[list] = None) -> dict:
     return out
 
 
+def _action_key(a: "Action") -> str:
+    """Self-describing key for an action in the complete ``wall`` weight map.
+
+    * ``"+<species>"``      — switch to that bench mon.
+    * ``"<move>><slot>"``   — single-target move aimed at opponent *slot* (0/1).
+    * ``"<move>"``          — spread / status / self move, or Protect (no target).
+
+    The opponent slot index (not species) is used so the key is stable as the
+    opponent's HP/species snapshot is read alongside it; resolve ``slot`` against
+    the turn's ``opp`` list for the species.
+    """
+    if a.switch_target:
+        return f"+{a.switch_target}"
+    if a.target_slot is not None:
+        return f"{a.move_name}>{a.target_slot}"
+    return a.move_name
+
+
+def _acts_entry_key(a: dict) -> str:
+    """``_action_key`` equivalent for a logged ``acts`` entry (old-log fallback)."""
+    if a.get("sw"):
+        return f"+{a['sw']}"
+    if a.get("ts") is not None:
+        return f"{a['lb']}>{a['ts']}"
+    return a["lb"]
+
+
+def action_weights(dec: dict) -> dict:
+    """Every scored action's weight for one slot decision, as ``{key: weight}``.
+
+    Uses the complete ``wall`` map when present (new logs); otherwise derives a
+    **partial** map from the curated ``acts`` list (old logs, pre-``wall`` — only
+    the chosen action + top contenders were recorded).  This is the version-
+    agnostic way for analysis to read per-action weights across all logs.
+    """
+    if "wall" in dec:
+        return dec["wall"]
+    return {_acts_entry_key(a): a["w"] for a in dec.get("acts", [])}
+
+
 def _select_actions(ranked: list["Action"]) -> list["Action"]:
     """Return a sorted subset of *ranked*, obeying _MAX/_MIN_ACTIONS rules."""
     if not ranked:
@@ -202,6 +242,52 @@ def _snapshot_state(state: "BattleState") -> dict:
     }
 
 
+def _serialize_board(snap: dict) -> dict:
+    """Compact ``{my, opp, team}`` active-mon lists from a state snapshot.
+
+    Shared by per-turn serialisation and the top-level post-battle ``final``
+    snapshot, so both render mons identically (species, HP fraction, status,
+    boosts, item-consumed)."""
+    out: dict = {}
+    my_list = []
+    for mon in snap["my_actives"]:
+        if mon is None:
+            my_list.append(None)
+        else:
+            m: dict = {"s": mon["species"], "hp": _hp_frac(mon["hp"], mon["max_hp"])}
+            if mon["status"]:
+                m["sts"] = mon["status"]
+            if mon["boosts"]:
+                m["b"] = mon["boosts"]
+            if mon.get("item_consumed"):
+                m["ic"] = True
+            my_list.append(m)
+    if any(x is not None for x in my_list):
+        out["my"] = my_list
+
+    opp_list = []
+    for o in snap["opp_actives"]:
+        if o is None:
+            opp_list.append(None)
+        else:
+            oe: dict = {"s": o["species"], "hp": _hp_frac(o["hp"], o["max_hp"])}
+            if o["status"]:
+                oe["sts"] = o["status"]
+            if o["moves"]:
+                oe["mv"] = sorted(o["moves"])
+            if o["boosts"]:
+                oe["b"] = o["boosts"]
+            opp_list.append(oe)
+    if any(x is not None for x in opp_list):
+        out["opp"] = opp_list
+
+    team_list = [{"s": p["species"], "hp": _hp_frac(p["hp"], p["max_hp"])}
+                 for p in snap["my_team"]]
+    if team_list:
+        out["team"] = team_list
+    return out
+
+
 class BattleRecorder:
     """Records decisions and outcomes for one battle and persists them to disk."""
 
@@ -229,6 +315,9 @@ class BattleRecorder:
         # Team preview selection — set by record_preview() and written to "preview"
         # in the top-level JSON payload.  None if team preview was never recorded.
         self._preview: Optional[dict] = None
+        # Post-battle board snapshot (final HP / faints) — captured at
+        # record_outcome since the last turn has no following snapshot.
+        self._final_snap: Optional[dict] = None
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -286,6 +375,10 @@ class BattleRecorder:
         the battle file from being saved.
         """
         self._outcome = "win" if won else "loss"
+        # Freeze the final board (final HP / who fainted) before saving — the
+        # last turn has no following snapshot to capture its result otherwise.
+        if self._state is not None:
+            self._final_snap = _snapshot_state(self._state)
 
         # ── Record opponent lead stats ────────────────────────────────────
         try:
@@ -320,51 +413,13 @@ class BattleRecorder:
         if snap["my_tailwind"] or snap["opp_tailwind"]:
             t["tw"] = {"us": snap["my_tailwind"], "opp": snap["opp_tailwind"]}
 
-        # Our actives — list indexed by slot; None entries preserve slot alignment
-        my_list = []
-        for mon in snap["my_actives"]:
-            if mon is None:
-                my_list.append(None)
-            else:
-                m: dict = {"s": mon["species"], "hp": _hp_frac(mon["hp"], mon["max_hp"])}
-                if mon["status"]:
-                    m["sts"] = mon["status"]
-                if mon["boosts"]:
-                    m["b"] = mon["boosts"]
-                if mon.get("item_consumed"):
-                    m["ic"] = True
-                my_list.append(m)
-        if any(x is not None for x in my_list):
-            t["my"] = my_list
+        # Board state (our actives / opp actives / full team) at decision time.
+        t.update(_serialize_board(snap))
 
-        # Opponent actives — list indexed by slot; None entries preserved
-        opp_list = []
-        for o in snap["opp_actives"]:
-            if o is None:
-                opp_list.append(None)
-            else:
-                oe: dict = {"s": o["species"], "hp": _hp_frac(o["hp"], o["max_hp"])}
-                if o["status"]:
-                    oe["sts"] = o["status"]
-                if o["moves"]:
-                    oe["mv"] = sorted(o["moves"])
-                if o["boosts"]:
-                    oe["b"] = o["boosts"]
-                opp_list.append(oe)
-        if any(x is not None for x in opp_list):
-            t["opp"] = opp_list
-
-        # Full team snapshot (tracks HP attrition and faints across the battle)
-        team_list = [
-            {"s": p["species"], "hp": _hp_frac(p["hp"], p["max_hp"])}
-            for p in snap["my_team"]
-        ]
-        if team_list:
-            t["team"] = team_list
-
-        # Per-slot decisions.  opp_species lets each action resolve its numeric
-        # target slot to the opponent species (tg).
-        opp_species = [(o["s"] if o is not None else None) for o in opp_list]
+        # Per-slot decisions.  opp_species resolves an action's numeric target
+        # slot to the opponent species (tg / ct).
+        opp_species = [(o["species"] if o is not None else None)
+                       for o in snap["opp_actives"]]
         dec_list = []
         for slot, ranked in sorted(entry["slots"].items()):
             if not ranked:
@@ -375,14 +430,18 @@ class BattleRecorder:
                 "sl":   slot,
                 "ch":   chosen.label,
                 "acts": acts,
+                # Complete per-action weight map (every candidate, weights only),
+                # self-describing keys — see _action_key / action_weights.  `acts`
+                # above stays the detailed (reasons) subset; `wall` is additive.
+                "wall": {_action_key(a): round(a.weight, 2) for a in ranked},
             }
             # Resolve the chosen action's target slot to the opponent species so
             # the log shows *who* each slot attacked without cross-referencing
             # ``ts`` against the opp list.  Omitted for Protect / switches / any
             # action with no opponent target.
             cts = chosen.target_slot
-            if cts is not None and 0 <= cts < len(opp_list) and opp_list[cts] is not None:
-                dec["ct"] = opp_list[cts]["s"]
+            if cts is not None and 0 <= cts < len(opp_species) and opp_species[cts]:
+                dec["ct"] = opp_species[cts]
             dec_list.append(dec)
         if dec_list:
             t["dec"] = dec_list
@@ -417,6 +476,25 @@ class BattleRecorder:
         if pin:
             t["pin"] = pin
 
+        # Turn result: faints this turn (per side) and switches (in/out).  These
+        # are the explicit outcome of the turn — `res` complements the move-level
+        # `ev` (which records damage but not faints) and captures faints with no
+        # move (residual / recoil / weather) too.
+        faints = (getattr(self._state, "faints_log", None) or {}).get(turn_num)
+        if faints:
+            res: dict = {}
+            us  = [f["a"] for f in faints if f["sd"] == "us"]
+            opp = [f["a"] for f in faints if f["sd"] == "opp"]
+            if us:
+                res["us"] = us
+            if opp:
+                res["opp"] = opp
+            if res:
+                t["res"] = res
+        switches = (getattr(self._state, "switches_log", None) or {}).get(turn_num)
+        if switches:
+            t["sw"] = switches
+
         return t
 
     def _save(self) -> None:
@@ -448,6 +526,9 @@ class BattleRecorder:
                 payload["team_version"] = self.team_version
         if self._preview is not None:
             payload["preview"] = self._preview
+        # Post-battle board snapshot (final HP / faints) — the last turn's result.
+        if self._final_snap is not None:
+            payload["final"] = _serialize_board(self._final_snap)
         # Reliable record of every opponent forme/mega that appeared (accumulated
         # by the parser as it happens), independent of the decision-time
         # snapshots — so analysis needn't reconstruct megas from snapshot/event

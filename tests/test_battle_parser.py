@@ -343,6 +343,32 @@ class TestMoveInstrumentation:
         # Flare Blitz's recorded damage stays the original 200->150 = 0.25
         assert ev[1]["dmg"] == pytest.approx(0.25, abs=0.01)
 
+    def test_multihit_move_counts_each_strike(self):
+        """A multi-hit move increments the target's times_hit once *per strike*
+        (drives Rage Fist power); the recorded dmg is still the first strike."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p1a: Garchomp|Garchomp, L50, M|200/200"))
+        run(parser.feed("|switch|p2a: Annihilape|Annihilape, L50, M|200/200"))
+        run(parser.feed("|turn|1"))
+        run(parser.feed("|move|p1a: Garchomp|Bullet Seed|p2a: Annihilape"))
+        run(parser.feed("|-damage|p2a: Annihilape|170/200"))
+        run(parser.feed("|-damage|p2a: Annihilape|140/200"))
+        run(parser.feed("|-damage|p2a: Annihilape|110/200"))
+        assert parser.state.opp_actives[0].times_hit == 3
+
+    def test_residual_damage_does_not_count_as_hit(self):
+        """Damage tagged ``[from] …`` (residual / item / recoil) is not a hit."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p1a: Garchomp|Garchomp, L50, M|200/200"))
+        run(parser.feed("|switch|p2a: Annihilape|Annihilape, L50, M|200/200"))
+        run(parser.feed("|turn|1"))
+        run(parser.feed("|move|p1a: Garchomp|Dragon Claw|p2a: Annihilape"))
+        run(parser.feed("|-damage|p2a: Annihilape|160/200"))            # the hit
+        run(parser.feed("|-damage|p2a: Annihilape|140/200|[from] psn"))  # residual
+        assert parser.state.opp_actives[0].times_hit == 1
+
 
 # ── Status ───────────────────────────────────────────────────────────────────
 
@@ -681,6 +707,36 @@ class TestFaint:
         run(parser.feed("|faint|p2a: Garchomp"))
         assert parser.state.opp_actives[0].fainted is True
         assert parser.state.opp_actives[0].hp == 0
+
+
+# ── Turn-result capture (faints_log / switches_log) ─────────────────────────────
+
+class TestTurnResultCapture:
+    def _battle(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        # Initial leads (turn 0, before |turn|1) — no prior occupant.
+        run(parser.feed("|switch|p1a: Garchomp|Garchomp, L50, M|200/200"))
+        run(parser.feed("|switch|p2a: Incineroar|Incineroar, L50, M|100/100"))
+        run(parser.feed("|turn|1"))
+        return parser
+
+    def test_faint_recorded_per_turn_with_side(self):
+        parser = self._battle()
+        run(parser.feed("|faint|p2a: Incineroar"))
+        assert parser.state.faints_log[1] == [{"sd": "opp", "a": "Incineroar"}]
+
+    def test_midgame_switch_recorded_with_in_and_out(self):
+        parser = self._battle()
+        run(parser.feed("|switch|p1a: Sneasler|Sneasler, L50, M|180/180"))
+        assert parser.state.switches_log[1] == [
+            {"sd": "us", "in": "Sneasler", "out": "Garchomp"}]
+
+    def test_initial_leads_not_recorded_as_switches(self):
+        # The two initial-lead |switch| messages had no prior occupant, so
+        # nothing is logged (turn 0 bucket stays empty/absent).
+        parser = self._battle()
+        assert parser.state.switches_log == {}
 
 
 # ── Win ───────────────────────────────────────────────────────────────────────

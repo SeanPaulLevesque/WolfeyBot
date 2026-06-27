@@ -146,24 +146,26 @@ starts at **weight 1.0**; modules **multiply** those weights.
 </thead>
 <tbody>
 <tr><td>—</td><td>Starting Weight</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>1</td><td>All options equally likely to start</td></tr>
-<tr><td>1.1</td><td>Predicted Damage Dealt</td><td>×(1&nbsp;+&nbsp;d×2.0)</td><td>×(1&nbsp;+&nbsp;d×2.0)</td><td>×(1&nbsp;+&nbsp;d×2.0)</td><td>×(1&nbsp;+&nbsp;d×2.0)</td><td>×(1&nbsp;+&nbsp;d×2.0)</td><td>×(1&nbsp;+&nbsp;d×2.0)</td><td>—</td><td>—</td><td>—</td><td>d = Median damage roll as a fraction of the target's current HP</td></tr>
-<tr><td>2.1</td><td>Score A Guaranteed Kill</td><td>×5</td><td>×5</td><td>×5</td><td>×5</td><td>×5</td><td>×5</td><td>—</td><td>—</td><td>—</td><td>Lowest damage roll ≥ the target's HP</td></tr>
-<tr><td>14.1</td><td>Die Before Acting</td><td>×0.2</td><td>×0.2</td><td>×0.2</td><td>×0.2</td><td>×0.2</td><td>×0.2</td><td>—</td><td>—</td><td>—</td><td>A faster threat will kill before we act (priority aware)</td></tr>
-<tr><td>15.1</td><td>Priority Kill</td><td>×3.0</td><td>×3.0</td><td>×3.0</td><td>×3.0</td><td>×3.0</td><td>×3.0</td><td>—</td><td>—</td><td>—</td><td>If one of our priority moves can score a kill</td></tr>
-<tr><td>16.1</td><td>Priority Block</td><td>×0</td><td>×0</td><td>×0</td><td>×0</td><td>×0</td><td>×0</td><td>—</td><td>—</td><td>—</td><td>Cancel priority attacks while an opponent has Armor&nbsp;Tail / Queenly&nbsp;Majesty on the field</td></tr>
-<tr><td>3.1</td><td>Incoming Kill</td><td colspan="6">—</td><td>×2.5</td><td>—</td><td>—</td><td>An opponent's max roll kills this mon at its current HP</td></tr>
-<tr><td>13.1</td><td>1v1 Endgame</td><td colspan="6">—</td><td>×0.4</td><td>—</td><td>—</td><td>Protect stalling in 1v1 is net neutral</td></tr>
-<tr><td>13.2</td><td>2v1 Endgame</td><td colspan="6">—</td><td>×0.4</td><td>—</td><td>—</td><td>Protect stalling in 2v1 is net negative</td></tr>
-<tr><td>4.1</td><td>Turn Order</td><td colspan="6">pos 1 ×2.0 · pos 2 ×1.5 · pos 3 ×1.0 · pos 4 ×0.75</td><td>—</td><td>—</td><td>—</td><td>pos = Our rank in the 4-mon turn order</td></tr>
-<tr><td>5.1</td><td>Setup Urgency</td><td colspan="6">×2.0</td><td>—</td><td>—</td><td>—</td><td>A setter is on the field, but their effect isn't active*</td></tr>
-<tr><td>6.1</td><td>Setup Denial</td><td>×2.0</td><td>×2.0</td><td>×2.0</td><td>×2.0</td><td>×2.0</td><td>×2.0</td><td>—</td><td>—</td><td>—</td><td>OHKOs a setter*</td></tr>
-<tr><td>7.1</td><td>target Protected last turn (Slot 1)</td><td colspan="3">×1.3</td><td colspan="3">—</td><td>—</td><td>—</td><td>—</td><td>the Slot-1 target used Protect last turn, so it can't Protect again</td></tr>
-<tr><td>7.2</td><td>target Protected last turn (Slot 2)</td><td colspan="3">—</td><td colspan="3">×1.3</td><td>—</td><td>—</td><td>—</td><td>the Slot-2 target used Protect last turn, so it can't Protect again</td></tr>
-<tr><td>8.1</td><td>I used Protect last turn</td><td colspan="6">—</td><td>×0.2</td><td>—</td><td>—</td><td>consecutive Protect</td></tr>
-<tr><td>9.1</td><td>Fake Out threatened</td><td colspan="6">×0.5</td><td>×3.0</td><td>—</td><td>—</td><td>a fresh Fake Out user is on the field</td></tr>
-<tr><td>10.1</td><td>Field Condition stall</td><td colspan="6">—</td><td>×3.0</td><td>—</td><td>—</td><td>opp Trick Room / Tailwind has 1 or 3 turns left</td></tr>
-<tr><td>11.1</td><td>redirection hedge</td><td>×d&nbsp;(to redirector)</td><td>×d&nbsp;(to redirector)</td><td>×d&nbsp;(to redirector)</td><td>×d&nbsp;(to redirector)</td><td>×d&nbsp;(to redirector)</td><td>×d&nbsp;(to redirector)</td><td>—</td><td>—</td><td>—</td><td>Rage Powder / Follow Me user active; hedge our attack on the possibility of redirection</td></tr>
-<tr><td>12.1</td><td>switch value</td><td colspan="6">—</td><td>—</td><td>TEMPO × (1+g) × escape × safety</td><td>TEMPO × (1+g) × escape × safety</td><td>1-ply board value; TEMPO 0.6; g = offense gain; ×4.0 if escaping a connecting OHKO into a surviving switch-in; ×0.3 if the switch-in is itself OHKO'd</td></tr>
+<tr><td>1</td><td>Predicted Damage Dealt</td><td>×(1&nbsp;+&nbsp;d×2.0)</td><td>×(1&nbsp;+&nbsp;d×2.0)</td><td>×(1&nbsp;+&nbsp;d×2.0)</td><td>×(1&nbsp;+&nbsp;d×2.0)</td><td>×(1&nbsp;+&nbsp;d×2.0)</td><td>×(1&nbsp;+&nbsp;d×2.0)</td><td>—</td><td>—</td><td>—</td><td>d = Median damage roll as a fraction of the target's current HP</td></tr>
+<tr><td>2</td><td>Score A Guaranteed Kill</td><td>×5</td><td>×5</td><td>×5</td><td>×5</td><td>×5</td><td>×5</td><td>—</td><td>—</td><td>—</td><td>Lowest damage roll ≥ the target's HP</td></tr>
+<tr><td>3</td><td>Die Before Acting</td><td>×0.2</td><td>×0.2</td><td>×0.2</td><td>×0.2</td><td>×0.2</td><td>×0.2</td><td>—</td><td>—</td><td>—</td><td>A faster threat will kill before we act (priority aware)</td></tr>
+<tr><td>4</td><td>Priority Kill</td><td>×3.0</td><td>×3.0</td><td>×3.0</td><td>×3.0</td><td>×3.0</td><td>×3.0</td><td>—</td><td>—</td><td>—</td><td>If one of our priority moves can score a kill</td></tr>
+<tr><td>5</td><td>Priority Block</td><td>×0</td><td>×0</td><td>×0</td><td>×0</td><td>×0</td><td>×0</td><td>—</td><td>—</td><td>—</td><td>Cancel priority attacks while an opponent has Armor&nbsp;Tail / Queenly&nbsp;Majesty on the field</td></tr>
+<tr><td>6</td><td>Incoming Kill</td><td colspan="6">—</td><td>×2.5</td><td>—</td><td>—</td><td>An opponent's max roll kills this mon at its current HP</td></tr>
+<tr><td>7.a</td><td>1v1 Endgame</td><td colspan="6">—</td><td>×0.4</td><td>—</td><td>—</td><td>Protect stalling in 1v1 is net neutral</td></tr>
+<tr><td>7.b</td><td>2v1 Endgame</td><td colspan="6">—</td><td>×0.4</td><td>—</td><td>—</td><td>Protect stalling in 2v1 is net negative</td></tr>
+<tr><td>8</td><td>Turn Order</td><td colspan="6">pos 1 ×2.0 · pos 2 ×1.5 · pos 3 ×1.0 · pos 4 ×0.75</td><td>—</td><td>—</td><td>—</td><td>pos = Our rank in the 4-mon turn order</td></tr>
+<tr><td>9</td><td>Setup Urgency</td><td colspan="6">×2.0</td><td>—</td><td>—</td><td>—</td><td>A setter is on the field, but their effect isn't active*</td></tr>
+<tr><td>10</td><td>Setup Denial</td><td>×2.0</td><td>×2.0</td><td>×2.0</td><td>×2.0</td><td>×2.0</td><td>×2.0</td><td>—</td><td>—</td><td>—</td><td>OHKOs a setter*</td></tr>
+<tr><td>11.a</td><td>target Protected last turn (Slot 1)</td><td colspan="3">×1.3</td><td colspan="3">—</td><td>—</td><td>—</td><td>—</td><td>the Slot-1 target used Protect last turn, so it can't Protect again</td></tr>
+<tr><td>11.b</td><td>target Protected last turn (Slot 2)</td><td colspan="3">—</td><td colspan="3">×1.3</td><td>—</td><td>—</td><td>—</td><td>the Slot-2 target used Protect last turn, so it can't Protect again</td></tr>
+<tr><td>12</td><td>I used Protect last turn</td><td colspan="6">—</td><td>×0.2</td><td>—</td><td>—</td><td>consecutive Protect</td></tr>
+<tr><td>13</td><td>Fake Out threatened</td><td colspan="6">×0.5</td><td>×3.0</td><td>—</td><td>—</td><td>a fresh Fake Out user is on the field</td></tr>
+<tr><td>14</td><td>Field Condition stall</td><td colspan="6">—</td><td>×3.0</td><td>—</td><td>—</td><td>opp Trick Room / Tailwind has 1 or 3 turns left</td></tr>
+<tr><td>15</td><td>redirection hedge</td><td>×d&nbsp;(to redirector)</td><td>×d&nbsp;(to redirector)</td><td>×d&nbsp;(to redirector)</td><td>×d&nbsp;(to redirector)</td><td>×d&nbsp;(to redirector)</td><td>×d&nbsp;(to redirector)</td><td>—</td><td>—</td><td>—</td><td>Rage Powder / Follow Me user active; hedge our attack on the possibility of redirection</td></tr>
+<tr><td>16</td><td>Switch tempo</td><td colspan="6">—</td><td>—</td><td>×0.8</td><td>×0.8</td><td>flat cost of switching — forfeit the turn + concede a free hit</td></tr>
+<tr><td>17</td><td>Switch offense</td><td colspan="6">—</td><td>—</td><td>×(1+g)</td><td>×(1+g)</td><td>g = the switch-in's best-damage gain over the mon staying in (floored at 0)</td></tr>
+<tr><td>18</td><td>Switch safety</td><td colspan="6">—</td><td>—</td><td>×4.0 / ×0.3</td><td>×4.0 / ×0.3</td><td>×4.0 escape a connecting OHKO into a surviving switch-in; ×0.3 if the switch-in is itself OHKO'd</td></tr>
 <tr><td colspan="12"><strong>Phase 2 — joint adjusters (applied to the chosen pair)</strong></td></tr>
 <tr><td>J1</td><td>doubling up</td><td colspan="6">×0.40–0.70</td><td>—</td><td>—</td><td>—</td><td>both slots attack the same target; ×0.05 on the non-killer when one slot already confirms the OHKO, so the pair that spreads onto the survivor wins</td></tr>
 <tr><td>J2</td><td>attack alongside partner</td><td colspan="6">—</td><td>×0.5</td><td>—</td><td>—</td><td>a gratuitous lone Protect (no real OHKO/stall reason, e.g. only a Fake Out nudge) beside an attacking partner — favour the double-attack</td></tr>

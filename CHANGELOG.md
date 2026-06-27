@@ -1,5 +1,51 @@
 # WolfeyBot Changelog
 
+## 0.30.0 — 2026-06-26
+
+A batch of small, mostly behavior-preserving fixes + modeling and logging
+upgrades. Turn-1 snapshots unchanged throughout (the new behaviors only bite
+mid-game), so 0 cells moved.
+
+### Modeling
+- **Choice lock + Scarf rule-in.** `_choice_locked_move`: a believed-Choice
+  opponent (confirmed / inferred / usage-prior) that has used one move this
+  stint is locked into it — `build_turn_context` and `_switch_in_survives` pass
+  `incoming_damage(only_moves=[locked])`, collapsing its threat to that move
+  (resets on switch). `_infer_scarf_from_speed` rules Choice Scarf **in** as
+  `ItemEvidence.inferred` when a foe outspeeds a mon it couldn't without it
+  (same bracket, no TR/TW/weather) — the complement of the existing rule-out.
+- **Rage Fist multi-hit fix.** The parser now counts `times_hit` **per strike**
+  (Beat Up etc.), not once per move, so the persistent Rage-Fist power is right.
+  `accuracy_report` dispositions a Rage Fist under-prediction whose user was hit
+  earlier that turn as `accepted: Rage Fist same-turn hit count` (inherent lag),
+  not a gap.
+- **Full damage-modifier awareness, both directions.** New shared helpers
+  `_outgoing_{attacker,defender}_mods` / `_incoming_{attacker,defender}_mods` are
+  the single source of truth for boosts / status (burn) / HP / Flash Fire /
+  times_hit / screens. Every `outgoing_damage` / `incoming_damage` caller splats
+  them in, so switch-offense (#17) now sees a debuffed attacker into a +Def wall,
+  and switch-survival (#18) now sees a +Atk foe — both previously ignored these.
+
+### Engine structure
+- **Modules renumbered 1–16** to match `docs/DECISION_ARCHITECTURE.md` top-to-
+  bottom; `make_engine` reordered to suit. Phase 1 commutes (audited: no module
+  reads the running weight or another's reasons), so this is purely cosmetic.
+- **SwitchModule decomposed into #16 SwitchTempo / #17 SwitchOffense /
+  #18 SwitchSafety**, each independently tunable. Behavior-preserving.
+
+### Battle logs (schema 0.30.0)
+- **`wall`** — every scored candidate's weight per slot decision (complete map,
+  self-describing keys), alongside the existing reason-bearing `acts`. Read via
+  `recorder.action_weights(dec)` (falls back to the partial `acts` map on old
+  logs).
+- **Turn results** — per-turn `res` (faints, per side, incl. move-less ones) and
+  `sw` (switches in/out), plus a top-level `final` post-battle board snapshot.
+
+### Tooling
+- `tools/seed_lead_stats.py --dir <folder>` to reseed the opponent-lead prior
+  from one team-version's games; lead stats reseeded from the v7 folder.
+- `analyze_*` scripts detect switches via the `sw` key (robust across versions).
+
 ## 0.29.0 — 2026-06-26
 
 ### Urgency / Setup Denial — merged into registry-driven modules, flat ×2

@@ -110,6 +110,7 @@ class ItemEvidence:
     scoped (it drives Unburden and resets on switch).
     """
     confirmed: Optional[str] = None      # item proven held (Frisk/Trick/Knock-Off/Life-Orb recoil)
+    inferred:  Optional[str] = None      # item deduced from behaviour, not proven (Choice Scarf from an impossible outspeed)
     consumed:  bool = False              # item proven used up / removed (game-scoped)
     ruled_out: set = field(default_factory=set)         # item names proven impossible
     stint_moves: set = field(default_factory=set)       # distinct moves since last switch-in
@@ -190,6 +191,15 @@ class BattleState:
     # "mv": move}, ...]}.  Written by build_turn_context from the same threat
     # assessment that drives the OHKO facts.
     predicted_incoming_log: dict = field(default_factory=dict)
+
+    # Per-turn turn-result capture (keyed by turn number), for decision→outcome
+    # analysis alongside the logged action weights:
+    #   faints_log[turn]   = [{"sd": "us"|"opp", "a": species}, ...]
+    #   switches_log[turn] = [{"sd": "us"|"opp", "in": species, "out": species}, ...]
+    # Written directly to the current turn's bucket by _on_faint / _on_switch
+    # (initial-lead switches have no prior occupant and are skipped).
+    faints_log: dict = field(default_factory=dict)
+    switches_log: dict = field(default_factory=dict)
 
     # Every opponent forme observed on the field this battle (base + any mega /
     # forme-change), accumulated as it appears — independent of the decision-time

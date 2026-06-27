@@ -103,7 +103,19 @@ Add more complete weather and field effects to the engine. ie damage from sandst
   -> SwitchModule now evaluates bench mons with the live tracked item (None once consumed); see CHANGELOG 0.7.6.
 -[ANSWERED] Does sneasler's unburden ability get accounted for?
   -> Yes: turn_order applies the x2 once item_consumed is set (White Herb popped); order is stages -> Scarf -> weather ability -> Unburden -> Tailwind -> paralysis.
--Take Choice items locking in moves into account. An opponent with a revealed/assumed Choice Scarf/Band/Specs that has already attacked is locked into that one move until it switches: incoming threat should collapse to just the locked move (not their full movepool), Protect/switch value changes when we resist the locked move, and a locked-in opponent that switches out resets the lock. Pairs with the likely-moves switch module idea above and the existing item inference (_effective_item already assumes Choice items at >=40% usage; the lock itself is the unmodeled part).
+-[DONE 0.30.0] Take Choice items locking in moves into account. `_choice_locked_move`
+ (decision/modules.py): a believed-Choice opponent (`_opp_item` ∈ CHOICE_ITEMS —
+ confirmed / inferred / usage-prior) that has used exactly one distinct move this
+ stint (`stint_moves`) is locked into it.  `build_turn_context` passes that as
+ `incoming_damage(only_moves=[locked])` at both incoming-threat call sites, so the
+ threat collapses to the locked move; Protect/switch value shifts fall out of the
+ corrected facts, and the lock resets on switch (stint_moves clears).  Paired with
+ a speed-based **rule-IN** (`_infer_scarf_from_speed`): an opponent that outspeeds
+ a mon it shouldn't (same bracket, no TR/TW/weather, certain `will_outspeed`) is
+ marked `ItemEvidence.inferred = "Choice Scarf"`, which `_effective_item` resolves
+ above the usage prior — so the lock fires even when Scarf isn't the modal item.
+ Remaining (lower value): exploit the lock offensively (a mon stuck on a weak
+ move is safe to set up / pivot against) beyond the incoming-threat collapse.
 -Model redirection: Rage Powder / Follow Me (and the siblings Spotlight, plus the
  Storm Drain/Lightning Rod ability variants). In doubles these pull ALL of the
  opponents' single-target moves onto the user for the turn (Follow Me/Rage Powder

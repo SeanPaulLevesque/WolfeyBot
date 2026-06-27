@@ -235,6 +235,13 @@ class BattleParser:
         side  = _side_from_ident(ident)
         slot  = _slot_from_ident(ident)   # 0 for slot-a, 1 for slot-b
         species = details.split(",")[0]
+        # Who held this slot before (None for an initial lead) — lets a mid-game
+        # switch / post-faint replacement be logged as a turn result below.
+        _prev_actives = (self.state.my_actives if side == self.state.my_side
+                         else self.state.opp_actives)
+        _prev_species = (_prev_actives[slot].species
+                         if slot < len(_prev_actives) and _prev_actives[slot]
+                         else None)
         hp, max_hp = _parse_hp(condition)
         status = _parse_status(condition)
 
@@ -280,6 +287,14 @@ class BattleParser:
             # distinct-moves-this-stint counter resets.  Permanent facts
             # (ruled_out / confirmed / consumed) on the evidence record persist.
             self.state.evidence_for(mon.ident).stint_moves = set()
+
+        # Log the switch as a turn result — skip initial leads (no prior
+        # occupant).  Captures voluntary switches AND post-faint replacements
+        # (the fainted mon is still in the slot when its replacement arrives).
+        if _prev_species is not None:
+            sd = "us" if side == self.state.my_side else "opp"
+            self.state.switches_log.setdefault(self.state.turn, []).append(
+                {"sd": sd, "in": species, "out": _prev_species})
 
     async def _on_swap(self, args: list[str]):
         # |swap|IDENT|POSITION — a same-side active-slot swap (Ally Switch).  In
@@ -397,13 +412,16 @@ class BattleParser:
     async def _on_damage(self, args: list[str]):
         if len(args) < 2:
             return
-        self._apply_hp_update(args[0], args[1])
+        # Direct damage from the resolving move has no ``[from] …`` tag; residual
+        # / item / recoil / ability damage does (and never counts as a "hit").
+        from_move = not any(str(a).startswith("[from]") for a in args[2:])
+        self._apply_hp_update(args[0], args[1], from_move=from_move)
         self._note_item_from_tags(args)
 
     async def _on_heal(self, args: list[str]):
         if len(args) < 2:
             return
-        self._apply_hp_update(args[0], args[1])
+        self._apply_hp_update(args[0], args[1], from_move=False)
         self._note_item_from_tags(args)
 
     async def _on_status(self, args: list[str]):
@@ -554,6 +572,10 @@ class BattleParser:
         if mon:
             mon.fainted = True
             mon.hp = 0
+            # Explicit per-turn result capture: who fainted, this turn, which side.
+            sd = "us" if _side_from_ident(args[0]) == self.state.my_side else "opp"
+            self.state.faints_log.setdefault(self.state.turn, []).append(
+                {"sd": sd, "a": mon.species})
 
     async def _on_win(self, args: list[str]):
         # Flush the final turn's move events before the battle is recorded
@@ -843,7 +865,7 @@ class BattleParser:
         team = self.state.my_team if side == self.state.my_side else self.state.opp_team
         return next((p for p in team if p.ident == normalized), None)
 
-    def _apply_hp_update(self, ident: str, condition: str):
+    def _apply_hp_update(self, ident: str, condition: str, from_move: bool = True):
         mon = self._find_mon(ident)
         if mon:
             hp_before_frac = mon.hp_fraction
@@ -852,20 +874,25 @@ class BattleParser:
             mon.fainted = (condition.strip() == "0 fnt")
             # Attribute this HP drop to the move currently resolving, if it
             # targeted this mon (0.8.1 actual-damage instrumentation).  Linked
-            # by the immediately-preceding |move|; cleared once attributed so
-            # residual / item damage doesn't double-count.
+            # by the immediately-preceding |move|.  *from_move* is False for
+            # residual / item / recoil damage (``[from] …``) and heals, which
+            # are never a "hit".
             pending = getattr(self, "_pending_event", None)
-            if (pending is not None and pending.get("dmg") is None
+            if (from_move and pending is not None
                     and pending.get("_tgt_ident") == _normalize_ident(ident)):
                 drop = (pending["hp0"] if pending["hp0"] is not None
                         else hp_before_frac) - mon.hp_fraction
-                pending["dmg"] = round(max(drop, 0.0), 3)
-                # Count this as a move-hit on the target (drives Rage Fist power).
-                # Only fires when a move caused the drop — residual / weather /
-                # item damage has no pending move event, so it isn't counted.
+                # Count EACH damaging strike as a move-hit on the target (drives
+                # Rage Fist power): a multi-hit move (Beat Up, Population Bomb,
+                # …) increments once per strike, not once per move.  Not cleared
+                # after the first strike, so later strikes of the same move keep
+                # matching; a new |move| overwrites the pending event.
                 if drop > 0:
                     mon.times_hit += 1
-                self._pending_event = None
+                # Record the move's actual damage once, on the first strike (the
+                # offline accuracy instrumentation compares this to prediction).
+                if pending.get("dmg") is None:
+                    pending["dmg"] = round(max(drop, 0.0), 3)
 
     # ── Opponent item-evidence helpers ────────────────────────────────────────
 

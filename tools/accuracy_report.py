@@ -276,8 +276,20 @@ def compute_prediction(games, slop=0.15):
                 if mv in assessed:
                     pred = assessed[mv]               # we assessed this exact move
                     if act - pred > slop:
-                        # We assessed this move but under-rated it -> real gap.
-                        def_under.append((act - pred, attacker, defender, mv, pred, act, "gap", loc))
+                        # Rage Fist's power scales with hits its user took THIS
+                        # turn *before* acting (we chip it, or the opponent
+                        # Beat-Ups its own Annihilape); the start-of-turn
+                        # prediction can't see those, so an under-prediction
+                        # whose user was already damaged earlier this turn is the
+                        # inherent same-turn lag, not an actionable model gap.
+                        user_hit_pre = (mv == "Rage Fist" and any(
+                            _base(e2.get("tg")) == _base(attacker)
+                            and (e2.get("d") or 0) > 0
+                            and e2.get("o", 0) < e.get("o", 0)
+                            for e2 in ev))
+                        disp = ("accepted: Rage Fist same-turn hit count"
+                                if user_hit_pre else "gap")
+                        def_under.append((act - pred, attacker, defender, mv, pred, act, disp, loc))
                 else:
                     # Move we never assessed — accepted as a coverage limit, but
                     # distinguish WHY: if we have no pin entry for this attacker at

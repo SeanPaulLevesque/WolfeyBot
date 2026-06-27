@@ -983,6 +983,7 @@ def incoming_damage(
         our_hp_percent: Optional[float] = None,
         our_screens=None,
         top_n_moves: int = 6,
+        only_moves: Optional[list[str]] = None,
         opp_boosts: Optional[dict[str, int]] = None,
         our_boosts: Optional[dict[str, int]] = None,
         opp_hp_fraction: float = 1.0,
@@ -1010,6 +1011,8 @@ def incoming_damage(
                           the opponent's screens. None/empty = no reduction.
         our_defender_is_full_hp: Whether our Pokémon is at full HP.
         top_n_moves:      How many of the opponent's top moves to evaluate.
+        only_moves:       If given, assess exactly these moves instead of the
+                          usage top-N (a Choice-locked opponent's single move).
         opp_boosts:       Opponent's current stat-stage boosts dict (e.g. {"atk": 2}).
         our_boosts:       Our Pokémon's current stat-stage boosts dict (e.g. {"def": -1}).
 
@@ -1035,7 +1038,12 @@ def incoming_damage(
         our_stats = dict(our_stats)
         our_stats["hp"] = max(1, round(our_stats["hp"] * our_hp_percent / 100.0))
 
-    moves = [m for m, _ in move_distribution(opp_species)[:top_n_moves]]
+    if only_moves:
+        # Caller knows exactly which move(s) can be used — e.g. a Choice-locked
+        # opponent stuck on one move until it switches.  Assess only those.
+        moves = list(only_moves)
+    else:
+        moves = [m for m, _ in move_distribution(opp_species)[:top_n_moves]]
     if not moves:
         # No usage data for this species (rare mon / type-shifted forme) — fall
         # back to representative STAB moves so the opponent still registers a

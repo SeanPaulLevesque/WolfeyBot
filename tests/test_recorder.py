@@ -13,11 +13,46 @@ from recorder import (
     _hp_frac,
     _compact_action,
     _select_actions,
+    _action_key,
+    action_weights,
     BattleRecorder,
     _MAX_ACTIONS,
     _MIN_ACTIONS,
 )
 from decision import Action
+
+
+# ── wall: complete per-action weight map ───────────────────────────────────────
+
+class TestActionWeights:
+    def test_key_single_target_move(self):
+        a = Action(label="Dragon Claw", move_name="Dragon Claw", weight=3.5,
+                   target_slot=1)
+        assert _action_key(a) == "Dragon Claw>1"
+
+    def test_key_spread_or_status_move(self):
+        a = Action(label="Earth Power", move_name="Earth Power", weight=2.0,
+                   target_slot=None)
+        assert _action_key(a) == "Earth Power"
+
+    def test_key_switch(self):
+        a = Action(label="Switch Garchomp", move_name="", weight=1.0,
+                   switch_target="Garchomp")
+        assert _action_key(a) == "+Garchomp"
+
+    def test_action_weights_uses_wall_when_present(self):
+        dec = {"wall": {"Dragon Claw>0": 3.5, "+Garchomp": 1.2}, "acts": []}
+        assert action_weights(dec) == {"Dragon Claw>0": 3.5, "+Garchomp": 1.2}
+
+    def test_action_weights_falls_back_to_acts(self):
+        # Old log: no `wall`, only the curated `acts` subset.
+        dec = {"acts": [
+            {"lb": "Dragon Claw", "w": 3.5, "ts": 0, "tg": "Incineroar"},
+            {"lb": "Protect", "w": 2.5},
+            {"lb": "Switch Garchomp", "w": 1.2, "sw": "Garchomp"},
+        ]}
+        assert action_weights(dec) == {
+            "Dragon Claw>0": 3.5, "Protect": 2.5, "+Garchomp": 1.2}
 
 
 # ── _hp_frac ─────────────────────────────────────────────────────────────────
@@ -203,6 +238,8 @@ def _make_mock_state(turn=1):
                                boosts=dict(_ZERO))]
     state.events_log = {}   # real dict (0.8.1) — MagicMock would break _build_turn
     state.predicted_incoming_log = {}   # real dict (0.8.4) — same reason
+    state.faints_log = {}   # real dict (0.30.0 turn-result capture) — same reason
+    state.switches_log = {}   # real dict (0.30.0) — same reason
     return state
 
 
@@ -299,6 +336,44 @@ class TestTailwindAndBoostsInLog:
                 turn = self._save_turn(tmpdir, state)
         assert turn["tw"] == {"us": False, "opp": True}
         assert turn["opp"][0]["b"] == {"spe": 2}   # only non-zero boosts kept
+
+
+class TestTurnResultAndFinalSnapshot:
+    """Per-turn faints (`res`) + switches (`sw`), and the post-battle `final`
+    board snapshot (0.30.0 turn-result capture)."""
+
+    def _save(self, tmpdir, state):
+        rec = BattleRecorder("battle-res-test", "0.30.0")
+        rec.record_decision(state, slot=0, ranked_actions=_make_actions())
+        rec.record_outcome(won=True)
+        with open(os.path.join(tmpdir, "Battle Data", "0.30.0",
+                               "battle-res-test.json"), encoding="utf-8") as f:
+            return json.load(f)
+
+    def test_res_and_sw_written_when_present(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                state = _make_mock_state(turn=1)
+                state.faints_log = {1: [{"sd": "opp", "a": "Garchomp"},
+                                        {"sd": "us", "a": "Garganacl"}]}
+                state.switches_log = {1: [{"sd": "us", "in": "Sneasler",
+                                           "out": "Garganacl"}]}
+                turn = self._save(tmpdir, state)["turns"][0]
+        assert turn["res"] == {"us": ["Garganacl"], "opp": ["Garchomp"]}
+        assert turn["sw"] == [{"sd": "us", "in": "Sneasler", "out": "Garganacl"}]
+
+    def test_res_and_sw_omitted_when_absent(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                turn = self._save(tmpdir, _make_mock_state(turn=1))["turns"][0]
+        assert "res" not in turn and "sw" not in turn
+
+    def test_final_snapshot_present(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("recorder._PROJECT_ROOT", tmpdir):
+                data = self._save(tmpdir, _make_mock_state(turn=1))
+        assert "final" in data
+        assert data["final"]["team"][0]["s"] == "Garganacl"
 
 
 class TestMoveEventsInLog:

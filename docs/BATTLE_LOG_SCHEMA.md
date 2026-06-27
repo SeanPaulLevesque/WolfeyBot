@@ -14,9 +14,14 @@ This file is the only context needed — do not load `recorder.py` or `analyze_b
   "t":       "2026-05-24T19:23:28Z",                        // UTC timestamp
   "outcome": "win" | "loss" | null,                         // null = abandoned
   "turns":   [ <turn>, ... ],
+  "final":   { "my":[...], "opp":[...], "team":[...] },     // OPTIONAL (0.30.0) post-battle board
   "data_gaps": ["stats:Stunfisk-Galar", "types:Fakemon"]    // OPTIONAL (0.7.6)
 }
 ```
+
+`final` (optional, 0.30.0+): a post-battle board snapshot in the same active-mon
+format as a turn's `my`/`opp`/`team` (final HP, who fainted = hp 0).  The last
+turn has no following turn to record its result, so this captures the end state.
 
 `data_gaps` (optional, 0.7.6+): deduped `"kind:species"` strings for every
 data-layer lookup that failed during the battle — present **only** when at
@@ -43,9 +48,18 @@ Also emitted as a `WARNING` log line when the battle is saved.
   "team": [ <active>, ... ],   // full 4-mon team snapshot (including actives)
   "dec":  [ <decision>, ... ], // one entry per active slot that had a choice
   "ev":   [ <event>, ... ],    // OPTIONAL (0.8.1) actual move resolution (omitted if none)
-  "pin":  [ <pred-incoming>, ... ] // OPTIONAL (0.8.4) predicted worst-case incoming
+  "pin":  [ <pred-incoming>, ... ], // OPTIONAL (0.8.4) predicted worst-case incoming
+  "res":  {"us": ["Sneasler"], "opp": ["Incineroar"]}, // OPTIONAL (0.30.0) faints THIS turn, per side
+  "sw":   [ {"sd":"us","in":"Garchomp","out":"Sneasler"}, ... ] // OPTIONAL (0.30.0) switches this turn
 }
 ```
+
+`res` / `sw` (optional, 0.30.0+) are the **explicit turn result**: `res` lists
+the species that fainted this turn per side (`us` = ours, `opp` = theirs) —
+captured even for move-less faints (residual / recoil / weather), which `ev`
+(damage-only) misses; `sw` lists switches as `{sd, in, out}` (voluntary switches
+and post-faint replacements; initial leads are excluded). Pair them with the
+turn's `dec`/`wall` weights to study decision → outcome.
 
 ### Predicted-incoming object (`pin`, 0.8.4+)
 
@@ -120,9 +134,33 @@ target only; switches are not recorded as events (only `|move|` actions).
 {
   "sl":   0,          // slot index: 0 = left active, 1 = right active
   "ch":   "Protect",  // chosen action label (the action actually sent)
-  "acts": [ <action>, ... ]  // top scored actions, highest weight first (up to 4)
+  "acts": [ <action>, ... ], // top scored actions w/ reasons, highest weight first (up to 4)
+  "wall": { <key>: <weight>, ... }  // EVERY candidate's weight (0.30.0+); see below
 }
 ```
+
+### Complete weight map (`wall`, 0.30.0+)
+
+`acts` is the detailed-but-truncated view (top actions, with reason strings).
+`wall` is the **complete** map of *every* scored candidate for the slot to its
+final phase-1 weight (2 dp), weights only — it never truncates, so it's the
+field to use for "what was every option worth". Keys are self-describing:
+
+| Key form | Meaning |
+|---|---|
+| `"<move>><slot>"` | single-target move aimed at opponent `slot` (0/1) — e.g. `"Rock Tomb>1"` |
+| `"<move>"` | spread / status / self move, or `Protect` (no target) |
+| `"+<species>"` | switch to that bench mon — e.g. `"+Garchomp"` |
+
+The opponent **slot index** (not species) is used; resolve it against the
+turn's `opp` list for the species. Weights are phase-1 (per-slot, blind to the
+partner); phase-2 joint factors apply only to the chosen pair (`ch`).
+
+**Reading across log versions:** use `recorder.action_weights(dec)` — it returns
+`wall` when present, otherwise derives a *partial* map (same key form) from the
+older `acts` subset. Pre-0.30.0 logs have no `wall`, so only the curated
+actions' weights are recoverable; the full set was never recorded and cannot be
+faithfully backfilled (re-scoring would use a different engine).
 
 ### Action object
 

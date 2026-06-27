@@ -42,7 +42,7 @@ Ability: Clear Body
 EVs: 14 HP / 27 Atk / 25 Spe
 Jolly Nature
 - Protect
-- Body Press
+- Bullet Punch
 - Psychic Fangs
 - Iron Head
 

@@ -17,7 +17,7 @@ SETUP = {"Trick Room","Tailwind","Shell Smash","Dragon Dance","Swords Dance",
          "Calm Mind","Nasty Plot","Quiver Dance","Geomancy","Tidy Up","Bulk Up",
          "Aurora Veil","Iron Defense","Acid Armor","Agility","Rock Polish",
          "Belly Drum","Clangorous Soul","Victory Dance","Coil","Work Up","Growth"}
-def is_switch(a): return any("switch_eval" in r for r in a.get("r", []))
+def is_switch(a): return bool(a.get("sw"))   # switch action (robust across log versions)
 def threat_just(a):  # protect justified by a threat/field reason?
     R=" ".join(a.get("r",[]))
     return any(k in R for k in ("incoming_ohko","field_condition","fake_out","protect:","setter_presence"))

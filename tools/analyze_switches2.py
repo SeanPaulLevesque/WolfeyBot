@@ -16,7 +16,7 @@ for fp in files:
     except Exception:
         pass
 
-def is_switch_act(a): return any("switch_eval" in r for r in a.get("r", []))
+def is_switch_act(a): return bool(a.get("sw"))   # switch action (robust across log versions)
 PROTECTS = {"Protect","Detect","Spiky Shield","King's Shield","Baneful Bunker",
             "Silk Trap","Burning Bulwark","Wide Guard","Quick Guard"}
 

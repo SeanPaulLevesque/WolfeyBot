@@ -7,7 +7,7 @@ WolfeyBot is a Gen 9 VGC doubles bot that plays on Pokémon Showdown in the
 2026-06-17 (`BATTLE_FORMAT` in `main.py` is `gen9championsvgc2026regmb`); the
 data/usage layer is still Reg M-A-derived pending M-B usage stats (~July). It
 connects via WebSocket, parses the battle protocol, and chooses moves using a
-two-phase scoring engine (16 per-slot modules + 5 joint adjusters; see the
+two-phase scoring engine (18 per-slot modules + 5 joint adjusters; see the
 pipeline section below).
 
 ---
@@ -43,7 +43,7 @@ to make green by editing expectations. This is a hard rule:
 | `main.py` | WebSocket client — connects to Showdown, drives the game loop |
 | `battle.py` / `battle_state.py` | `BattleState` and `Pokemon` dataclasses; battle protocol parser |
 | `decision/engine.py` | `Action`, `ScoringModule`, `DecisionEngine`, `_build_actions` |
-| `decision/modules.py` | All 16 per-slot modules + 5 joint adjusters + `make_engine()` factory |
+| `decision/modules.py` | All 18 per-slot modules + 5 joint adjusters + `make_engine()` factory |
 | `team.py` | `find_member(species)` + active-team selector (`set_active_team`, `get_team`, `list_teams`, `validate_team`, `resolve_team_spec`) |
 | `teams/` | Named ladder teams for A/B testing: `teams/<name>/v<n>.txt` pastes + `teams.json` manifest (name → label, account, current version). See `teams/README.md` |
 | `snapshots/` | Decision-snapshot regression subsystem: `baseline_team.txt` (frozen baseline roster, the no-`--team` fallback) + `<scenario>/<team>.md` generated tables |
@@ -81,28 +81,34 @@ target* is part of the action's identity — not a field that modules pick and
 overwrite. Spread/status/self moves and switches are single candidates
 (`target_slot=None`).
 
-### Phase 1 — per-slot scoring (11 modules, in order)
+### Phase 1 — per-slot scoring (18 modules)
 Each candidate starts at `weight = 1.0`; modules multiply — never add. A slot is
-scored **in isolation** (blind to the partner) over its own candidates.
+scored **in isolation** (blind to the partner) over its own candidates. The
+numbering matches `docs/DECISION_ARCHITECTURE.md` and the `make_engine` list, but
+**phase 1 is order-independent**: every module multiplies from precomputed
+`TurnContext` facts and reads neither the running weight nor another module's
+reasons, so the order is for readability only.
 
 | # | Module | What it does |
 |---|---|---|
-| 1 | DamageOutput | `×(1 + dmg_fraction × 2.0)` scored against the candidate's **own** fixed target (spread/status: best live foe) |
-| 2 | ThreatElimination | "Can I guarantee a kill?" → ×5.0 when `ctx.guarantees_ohko(slot, move, its target)`. **Unconditional** now — the "will I die before I act?" ×0.2 cancel is a separate `DoomedModule` (#14). No target override (target is fixed) |
-| 3 | ProtectValue | **Single row** on Protect-family moves when `ctx.is_threatened(slot)`: ×2.5. The partner-clears ×3.0 is now a phase-2 adjuster (`PartnerClearsAdjuster`, J5); the 1v1/2v1 "Protect only delays" ×0.4 cancels are a separate `EndgameStallModule` (#13) — one concern per module |
-| 4 | TurnOrder | By rank in the 4-mon turn order (pos 1 = we act before all 3 other actives): pos 1 ×2.0; pos 2 ×1.5; pos 3 ×1.0; pos 4 ×0.75 — attacks only |
-| 5 | Urgency | One urgency boost per turn, first applicable setup in `_SETUP_TYPES` order (TR first): a setter present & its effect stoppable (not active, or last turn) → all attacks ×`SETUP_URGENCY` (flat ×2 for any setup). Target-agnostic — bias toward attacking, not stalling. Walks the shared `_SETUP_TYPES` registry, so a new urgent setup (screens, …) is one new row. (No TR↔TW cross-guard: the meta runs no mixed TR+TW teams.) |
-| 6 | Setup Denial | A candidate aimed at a setter it guaranteed-OHKOs (`ctx.ohko`), that we outspeed, whose setup move has no +1 priority (Prankster/Gale Wings) → ×`SETUP_DENIAL` (flat ×2 for any setup). At most one denial per action (TR claim wins); active effects can't be denied. Same shared `_SETUP_TYPES` registry as Urgency (#5) |
-| 7 | OppProtectRecency | ×1.3 if the candidate's target used Protect last turn |
-| 8 | ConsecutiveProtect | ×0.2 if we used Protect last turn — no exceptions |
-| 9 | FakeOut | `ctx.fake_out_fired(slot)` (fresh Fake Out user on field): Protect ×2.0, all attacks ×0.5 — for **every** slot |
-| 10 | FieldCondition | turns_left=1 or 3 → Protect ×3.0 (stall every other turn) |
-| 11 | Redirection | Hedge single-target attacks vs an active Rage Powder / Follow Me user: ×(damage to the redirector, capped 1.0); immune→×0, OHKO-on-redirector→×1.0. Exempts spread/status/switch, a Stalwart/Propeller-Tail attacker, and (Rage Powder) a Grass / Overcoat / Safety-Goggles attacker |
-| 12 | Switch | Board-value (1-ply): `TEMPO×(1+g)×escape×safety` — TEMPO=0.6, g=offense gain, escape=×4.0 if escaping a connecting OHKO into a survivor, safety=×0.3 if switch-in OHKO'd (no same-mon veto — that's phase 2) |
-| 13 | EndgameStall | Protect ×0.4 when `ctx.is_threatened(slot)` and the board is a 1v1 endgame or 2v1 advantage (Protect only delays). Split out of ProtectValue |
-| 14 | Doomed | **Per-candidate** (`_move_undeliverable`): ×0.2 on each attack a certain killer would land before — so a priority move that out-speeds the threat is spared (revenge-KO) while slower moves are cut; Protect/switch untouched. Split out of ThreatElimination |
-| 15 | PriorityKill | ×3.0 on a **priority** move (`priority_bracket > 0`) that `ctx.guarantees_ohko`s its target — it removes the foe before it can act, so prefer the priority KO over a slower one. Gated on guaranteed OHKO, so weak non-KO priority moves get nothing |
-| 16 | PriorityBlock | ×0 on a **priority** attack while any live opponent has a priority-block ability (`_PRIORITY_BLOCK_ABILITIES` = Armor Tail / Queenly Majesty) — these block priority vs the holder *and its ally*, so it can't connect. Protect/switch/non-priority untouched; reads `_effective_ability` (assumes Armor Tail on an unrevealed Farigiraf). Composes with #15 (3.0×0=0) |
+| 1 | DamageOutput | `×(1 + dmg_fraction × 2.0)` scored against the candidate's **own** fixed target (spread/status: best live foe). Damage modifiers come from the shared `_outgoing_attacker_mods(mon)` / `_outgoing_defender_mods(state, opp)` helpers (boosts, burn/status, HP, Flash Fire, times_hit / opp boosts, current HP, screens) — the single source of truth all `outgoing_damage` callers splat in, so a new modifier added there is picked up everywhere |
+| 2 | ThreatElimination | "Can I guarantee a kill?" → ×5.0 when `ctx.guarantees_ohko(slot, move, its target)`. **Unconditional** now — the "will I die before I act?" ×0.2 cancel is a separate `DoomedModule` (#3). No target override (target is fixed) |
+| 3 | Doomed | **Per-candidate** (`_move_undeliverable`): ×0.2 on each attack a certain killer would land before — so a priority move that out-speeds the threat is spared (revenge-KO) while slower moves are cut; Protect/switch untouched. Split out of ThreatElimination |
+| 4 | PriorityKill | ×3.0 on a **priority** move (`priority_bracket > 0`) that `ctx.guarantees_ohko`s its target — it removes the foe before it can act, so prefer the priority KO over a slower one. Gated on guaranteed OHKO, so weak non-KO priority moves get nothing |
+| 5 | PriorityBlock | ×0 on a **priority** attack while any live opponent has a priority-block ability (`_PRIORITY_BLOCK_ABILITIES` = Armor Tail / Queenly Majesty) — these block priority vs the holder *and its ally*, so it can't connect. Protect/switch/non-priority untouched; reads `_effective_ability` (assumes Armor Tail on an unrevealed Farigiraf). Composes with #4 (3.0×0=0) |
+| 6 | ProtectValue | **Single row** on Protect-family moves when `ctx.is_threatened(slot)`: ×2.5. The partner-clears ×3.0 is now a phase-2 adjuster (`PartnerClearsAdjuster`, J5); the 1v1/2v1 "Protect only delays" ×0.4 cancels are a separate `EndgameStallModule` (#7) — one concern per module |
+| 7 | EndgameStall | Protect ×0.4 when `ctx.is_threatened(slot)` and the board is a 1v1 endgame or 2v1 advantage (Protect only delays). Split out of ProtectValue |
+| 8 | TurnOrder | By rank in the 4-mon turn order (pos 1 = we act before all 3 other actives): pos 1 ×2.0; pos 2 ×1.5; pos 3 ×1.0; pos 4 ×0.75 — attacks only |
+| 9 | Urgency | One urgency boost per turn, first applicable setup in `_SETUP_TYPES` order (TR first): a setter present & its effect stoppable (not active, or last turn) → all attacks ×`SETUP_URGENCY` (flat ×2 for any setup). Target-agnostic — bias toward attacking, not stalling. Walks the shared `_SETUP_TYPES` registry, so a new urgent setup (screens, …) is one new row. (No TR↔TW cross-guard: the meta runs no mixed TR+TW teams.) |
+| 10 | Setup Denial | A candidate aimed at a setter it guaranteed-OHKOs (`ctx.ohko`), that we outspeed, whose setup move has no +1 priority (Prankster/Gale Wings) → ×`SETUP_DENIAL` (flat ×2 for any setup). At most one denial per action (TR claim wins); active effects can't be denied. Same shared `_SETUP_TYPES` registry as Urgency (#9) |
+| 11 | OppProtectRecency | ×1.3 if the candidate's target used Protect last turn |
+| 12 | ConsecutiveProtect | ×0.2 if we used Protect last turn — no exceptions |
+| 13 | FakeOut | `ctx.fake_out_fired(slot)` (fresh Fake Out user on field): Protect ×2.0, all attacks ×0.5 — for **every** slot |
+| 14 | FieldCondition | turns_left=1 or 3 → Protect ×3.0 (stall every other turn) |
+| 15 | Redirection | Hedge single-target attacks vs an active Rage Powder / Follow Me user: ×(damage to the redirector, capped 1.0); immune→×0, OHKO-on-redirector→×1.0. Exempts spread/status/switch, a Stalwart/Propeller-Tail attacker, and (Rage Powder) a Grass / Overcoat / Safety-Goggles attacker |
+| 16 | SwitchTempo | Flat cost of switching at all: ×0.8 on every switch (forfeit the turn + concede a free hit). A switch must earn its keep via #17/#18 |
+| 17 | SwitchOffense | ×(1+g), `g = max(0, switch_in_offense − current_offense)` (best single hit to the live foes). Floored at 0 — a softer-hitting defensive switch isn't penalised here. `_best_offense` is full-damage-modifier-aware via the shared `_outgoing_*_mods` helpers, for **both** the current mon (its boosts/burn/HP) and the switch-in (its own — e.g. a persistent burn), and the opponent's boosts/screens — so a debuffed mon vs a +Def wall is judged on the real board |
+| 18 | SwitchSafety | One `_switch_in_survives` board check: ×4.0 if the current mon faces a connecting OHKO and the switch-in survives (escape); ×0.3 if the switch-in is itself OHKO'd (soft discount, not a veto). Same-bench-mon collision is phase 2. `_switch_in_survives` (and the active-mon threat facts in `build_turn_context`) are full-modifier-aware via the shared `_incoming_attacker_mods(opp)` / `_incoming_defender_mods(state, mon)` helpers — so a +Atk foe / our screens / our boosts all count |
 
 ### Phase 2 — joint coordination (`DecisionEngine.coordinate`)
 Phase 1 yields a ranked candidate list per slot. `coordinate` then picks the
@@ -172,8 +178,14 @@ the best pair.
   keyed by normalized ident so it survives the per-switch object replacement) is
   fed by the parser: ≥2 distinct moves in one stint → rule out `CHOICE_ITEMS`;
   being outsped when even its slowest scarf would be faster → rule out Choice
-  Scarf (`_observe_speed_from_history`, run from `build_turn_context`); `[from]
-  item:` / `-item` → `confirmed`; `-enditem` → `consumed`. This **one item belief**
+  Scarf (`_observe_speed_from_history`, run from `build_turn_context`);
+  **outspeeding us when even its fastest non-scarf spread couldn't → rule Choice
+  Scarf *in*** as `evidence.inferred` (`_infer_scarf_from_speed`, 0.30.0; same
+  bracket, no TR/TW/weather); `[from] item:` / `-item` → `confirmed`; `-enditem`
+  → `consumed`. **Choice lock (0.30.0):** a believed-Choice opponent that has used
+  exactly one move this stint is locked into it (`_choice_locked_move`) — the
+  incoming-threat facts assess `only_moves=[locked]` instead of its whole
+  movepool (resets on switch). This **one item belief**
   feeds **both** damage math and the speed pipeline (since 0.11.0): `turn_order`
   applies it via `data.items.speed_multiplier` (Choice Scarf ×1.5, Iron Ball /
   Macho Brace ×0.5) — `speed_distribution` is a pure *spread* prior with no scarf

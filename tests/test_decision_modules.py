@@ -32,7 +32,9 @@ from decision import (
     CoordinationAdjuster,
     FakeOutAdjuster,
     SwitchCollisionAdjuster,
-    SwitchModule,
+    SwitchTempoModule,
+    SwitchOffenseModule,
+    SwitchSafetyModule,
     DamageOutputModule,
     ThreatEliminationModule,
     DoomedModule,
@@ -49,6 +51,10 @@ from decision import (
     _assumed_item,
     _effective_item,
     _opp_item,
+    _best_offense,
+    _switch_in_survives,
+    _choice_locked_move,
+    _infer_scarf_from_speed,
     _assumed_species,
     _offense_species,
     _defense_species,
@@ -1815,13 +1821,18 @@ class TestSetupDenial:
 
 
 class TestSwitchModule:
-    module = SwitchModule()
+    """The decomposed switch modules (#16 tempo, #17 offense, #18 safety) — run
+    in sequence they reproduce the old single-module product."""
+
+    def _score_all(self, state, slot, actions):
+        SwitchTempoModule().score(state, slot, actions)
+        SwitchOffenseModule().score(state, slot, actions)
+        SwitchSafetyModule().score(state, slot, actions)
 
     def test_does_not_veto_partner_switch_collision(self):
-        """SwitchModule is partner-blind now: the two-slots-switch-to-the-same-mon
-        veto moved to the joint phase (SwitchCollisionAdjuster, see
-        TestSwitchCollisionAdjuster).  Scoring a slot here must NOT zero a switch
-        just because a partner decision targets the same bench mon."""
+        """Partner-blind: the two-slots-switch-to-the-same-mon veto lives in the
+        joint phase (SwitchCollisionAdjuster).  Scoring a slot here must NOT zero
+        a switch just because a partner decision targets the same bench mon."""
         partner_decision = make_action("Switch Sylveon", switch_target="Sylveon",
                                         weight=3.0)
         state = make_state(
@@ -1833,9 +1844,9 @@ class TestSwitchModule:
                                     weight=2.0)
 
         with patch("decision.modules.find_member", return_value=None):
-            self.module.score(state, slot=1, actions=[switch_action])
+            self._score_all(state, 1, [switch_action])
 
-        assert switch_action.weight != 0.0   # not vetoed by the per-slot module
+        assert switch_action.weight != 0.0   # not vetoed by the per-slot modules
 
     def _board_value_state(self):
         cur     = make_mon("Garganacl")
@@ -1864,11 +1875,12 @@ class TestSwitchModule:
              patch("decision.modules.outgoing_damage",
                    return_value=[make_damage_result(damage_avg=40.0, defender_hp=100)]), \
              patch("decision.modules.incoming_damage", side_effect=incoming):
-            self.module.score(state, slot=0, actions=[switch])
+            self._score_all(state, 0, [switch])
 
         # offense gain 0 (current and switch-in deal the same) → (1+g)=1.0;
         # threatened + survives → × ESCAPE_FACTOR.
-        expected = SwitchModule.TEMPO_FACTOR * 1.0 * SwitchModule.ESCAPE_FACTOR
+        expected = (SwitchTempoModule.TEMPO_FACTOR * 1.0
+                    * SwitchSafetyModule.ESCAPE_FACTOR)
         assert switch.weight == pytest.approx(expected, abs=0.05)
 
     def test_switch_into_ohko_is_discouraged(self):
@@ -1884,9 +1896,10 @@ class TestSwitchModule:
                    return_value=[make_damage_result(damage_avg=40.0, defender_hp=100)]), \
              patch("decision.modules.incoming_damage",
                    return_value=[MagicMock(ohko_with_max_roll=True, is_ohko=True, hp_fraction_max=1.2)]):  # everything OHKO'd
-            self.module.score(state, slot=0, actions=[switch])
+            self._score_all(state, 0, [switch])
 
-        expected = SwitchModule.TEMPO_FACTOR * 1.0 * SwitchModule.DANGER_FACTOR
+        expected = (SwitchTempoModule.TEMPO_FACTOR * 1.0
+                    * SwitchSafetyModule.DANGER_FACTOR)
         assert switch.weight == pytest.approx(expected, abs=0.05)
 
 
@@ -2143,6 +2156,143 @@ class TestPriorityBlockModule:
         aqua = make_action("Aqua Jet", "Aqua Jet", target_slot=0)
         self.module.score(self._state("Cud Chew"), 0, [aqua])
         assert aqua.weight == pytest.approx(1.0)
+
+
+class TestInferScarfFromSpeed:
+    """Rule Choice Scarf IN when an opponent outspeeds a mon it shouldn't be
+    able to (same bracket) — with the confounders excluded."""
+    from turn_order import Combatant as _C
+
+    def _state(self, *, tr=False, weather=None, opp_tw=False,
+               opp_mv="Electroweb", our_mv="Dragon Claw"):
+        opp = make_mon("Rotom-Heat", side="p2")
+        s = make_state(my_actives=[make_mon("Garchomp")], opp_actives=[opp])
+        s.trick_room = tr
+        s.weather = weather
+        s.opp_tailwind = opp_tw
+        s.events_log = {1: [
+            {"o": 0, "sd": "opp", "a": "Rotom-Heat", "mv": opp_mv},
+            {"o": 1, "sd": "us", "a": "Garchomp", "mv": our_mv},
+        ]}
+        s.opp_item_evidence = {}
+        return s, opp
+
+    def _run(self, s, outspeed=1.0):
+        ours = self._C(name="Garchomp", side="own", slot=0, exact_speed=169)
+        theirs = self._C(name="Rotom-Heat", side="opp", slot=0)
+        with patch("decision.modules.will_outspeed", return_value=outspeed), \
+             patch("decision.modules._our_combatant", return_value=ours), \
+             patch("decision.modules._opp_combatant", return_value=theirs):
+            _infer_scarf_from_speed(s)
+
+    def _inferred(self, s, opp):
+        ev = s.opp_item_evidence.get(opp.ident)
+        return ev.inferred if ev else None
+
+    def test_infers_scarf_on_clean_outspeed(self):
+        s, opp = self._state()
+        self._run(s, outspeed=1.0)
+        assert self._inferred(s, opp) == "Choice Scarf"
+
+    def test_no_infer_when_not_certain_outspeed(self):
+        s, opp = self._state()
+        self._run(s, outspeed=0.7)
+        assert self._inferred(s, opp) is None
+
+    def test_no_infer_under_trick_room(self):
+        s, opp = self._state(tr=True)
+        self._run(s, outspeed=1.0)
+        assert self._inferred(s, opp) is None
+
+    def test_no_infer_with_weather(self):
+        s, opp = self._state(weather="sun")
+        self._run(s, outspeed=1.0)
+        assert self._inferred(s, opp) is None
+
+    def test_no_infer_under_opp_tailwind(self):
+        s, opp = self._state(opp_tw=True)
+        self._run(s, outspeed=1.0)
+        assert self._inferred(s, opp) is None
+
+    def test_no_infer_when_opp_used_priority_move(self):
+        # Sucker Punch (+1) vs our Dragon Claw (+0): different bracket, so the
+        # order is explained by priority, not speed.
+        s, opp = self._state(opp_mv="Sucker Punch")
+        self._run(s, outspeed=1.0)
+        assert self._inferred(s, opp) is None
+
+
+class TestBestOffenseModifiers:
+    """_best_offense (switch #17 / DamageOutput #1) applies the attacker's and the
+    opponent's damage modifiers — boosts and burn — to the real board."""
+    _STATS = {"hp": 183, "atk": 182, "def": 115, "spa": 90, "spd": 105, "spe": 169}
+
+    def _state(self, *, opp_boosts=None, atk_status=None):
+        opp = make_mon("Garchomp", side="p2", boosts=opp_boosts)
+        atk = make_mon("Garchomp", status=atk_status)
+        return make_state(my_actives=[atk], opp_actives=[opp]), atk
+
+    def _offense(self, state, atk):
+        return _best_offense(state, "Garchomp", self._STATS, "", None,
+                             ["Earthquake"], atk)
+
+    def test_opponent_defense_boost_lowers_offense(self):
+        base_s, base_atk = self._state()
+        boost_s, boost_atk = self._state(opp_boosts={"def": 2})
+        assert self._offense(boost_s, boost_atk) < self._offense(base_s, base_atk)
+
+    def test_attacker_burn_lowers_physical_offense(self):
+        clean_s, clean_atk = self._state()
+        burn_s, burn_atk = self._state(atk_status="brn")
+        assert self._offense(burn_s, burn_atk) < self._offense(clean_s, clean_atk)
+
+
+class TestSwitchSurvivalModifiers:
+    """_switch_in_survives (#18) now threads the opponent's attack boosts into the
+    incoming-damage check (previously omitted) — a +Atk foe is judged correctly."""
+
+    def test_passes_opponent_attack_boosts(self):
+        opp = make_mon("Incineroar", side="p2", boosts={"atk": 2})
+        state = make_state(my_actives=[make_mon("Garchomp")], opp_actives=[opp])
+        bench_tm = make_mock_member()
+        bench_mon = make_mon("Sneasler")
+        captured = {}
+
+        def fake_incoming(**kw):
+            captured.update(kw)
+            return [MagicMock(ohko_with_max_roll=False)]
+
+        with patch("decision.modules.incoming_damage", side_effect=fake_incoming):
+            _switch_in_survives(state, "Sneasler", bench_tm, None, bench_mon)
+        assert captured.get("opp_boosts") == {"atk": 2}
+
+
+class TestChoiceLockedMove:
+    """A Choice-item opponent locked into one move this stint resolves to that
+    move; otherwise None.  (Rotom-Heat's usage-prior item is Choice Scarf.)"""
+
+    def _state(self, stint, item=None):
+        opp = make_mon("Rotom-Heat", side="p2", item=item)
+        s = make_state(my_actives=[make_mon("Garchomp")], opp_actives=[opp])
+        s.opp_item_evidence = {opp.ident: ItemEvidence(stint_moves=set(stint))}
+        return s, opp
+
+    def test_locked_when_choice_and_one_move(self):
+        s, opp = self._state({"Electroweb"})
+        assert _choice_locked_move(s, opp) == "Electroweb"
+
+    def test_not_locked_with_two_distinct_moves(self):
+        s, opp = self._state({"Electroweb", "Overheat"})
+        assert _choice_locked_move(s, opp) is None
+
+    def test_not_locked_before_any_move(self):
+        s, opp = self._state(set())
+        assert _choice_locked_move(s, opp) is None
+
+    def test_not_locked_when_item_is_not_choice(self):
+        # A revealed non-Choice item overrides the Choice-Scarf prior.
+        s, opp = self._state({"Electroweb"}, item="Leftovers")
+        assert _choice_locked_move(s, opp) is None
 
 
 class TestMoveUndeliverable:
@@ -3094,7 +3244,7 @@ class TestBenchConsumedItem:
     field stint must not soak hits for the switch-in evaluation."""
 
     def _score_bench_kingambit(self, *, item=None, item_consumed=False):
-        """Run SwitchModule.score over one switch action to a live bench
+        """Run the switch-safety module over one switch action to a live bench
         Kingambit; return the bench_item passed to _switch_in_survives."""
         state = TestEffectiveItem._single_slot_state("Venusaur", "Sneasler")
         # Mirror live: a bench mon comes from |request| with its item populated.
@@ -3104,11 +3254,10 @@ class TestBenchConsumedItem:
         state.available_switches = [bench]
 
         action = Action(label="Switch Kingambit", switch_target="Kingambit")
-        with patch.object(SwitchModule, "_switch_in_survives",
-                          return_value=True) as survives_spy, \
-             patch.object(SwitchModule, "_best_offense", return_value=0.0):
-            SwitchModule().score(state, 0, [action])
-        # call signature: (state, species, bench_tm, bench_item)
+        with patch("decision.modules._switch_in_survives",
+                   return_value=True) as survives_spy:
+            SwitchSafetyModule().score(state, 0, [action])
+        # call signature: (state, species, bench_tm, bench_item, bench_mon)
         return survives_spy.call_args[0][3]
 
     def test_consumed_bench_item_evaluated_as_none(self):

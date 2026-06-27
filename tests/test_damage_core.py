@@ -122,6 +122,15 @@ class TestIncomingScreens:
         empty = incoming_damage("Garchomp", "Garchomp", self._OUR, our_screens=set())
         assert no[0].damage_avg == pytest.approx(empty[0].damage_avg, rel=1e-6)
 
+    def test_only_moves_restricts_assessment(self):
+        """only_moves assesses exactly the given move(s) — a Choice-locked
+        opponent's single move — instead of the usage top-N."""
+        full = incoming_damage("Garchomp", "Garchomp", self._OUR)
+        one = incoming_damage("Garchomp", "Garchomp", self._OUR,
+                              only_moves=["Earthquake"])
+        assert len(one) == 1
+        assert len(full) > 1
+
 
 class TestFlagAbilities:
     """Sharpness/Strong Jaw/Iron Fist boost their flagged move classes."""

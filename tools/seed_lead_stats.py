@@ -12,6 +12,7 @@ Usage::
     .venv\\Scripts\\python.exe tools/seed_lead_stats.py            # last 50 M-B games
     .venv\\Scripts\\python.exe tools/seed_lead_stats.py --last 100
     .venv\\Scripts\\python.exe tools/seed_lead_stats.py --format regma --dry-run
+    .venv\\Scripts\\python.exe tools/seed_lead_stats.py --dir "Battle Data/0.29.0/meta-team/v7"
 """
 import argparse
 import json
@@ -52,6 +53,10 @@ def main(argv=None) -> None:
                     help="number of most-recent games to seed from (default 50)")
     ap.add_argument("--format", default="regmb",
                     help="battle-id format substring to match (default regmb)")
+    ap.add_argument("--dir", default=None,
+                    help="seed from ALL *.json under this folder (e.g. one team "
+                         "version's games) instead of the most-recent N; "
+                         "ignores --last/--format")
     ap.add_argument("--dry-run", action="store_true",
                     help="show what would be seeded without writing")
     args = ap.parse_args(argv)
@@ -60,9 +65,17 @@ def main(argv=None) -> None:
     except Exception:
         pass
 
-    logs = _recent_logs(args.format, args.last)
+    if args.dir:
+        base = args.dir if os.path.isabs(args.dir) else os.path.join(ROOT, args.dir)
+        logs = [f for f in glob.glob(os.path.join(base, "**", "*.json"),
+                                     recursive=True) if "lead_stats" not in f]
+        src = args.dir
+    else:
+        logs = _recent_logs(args.format, args.last)
+        src = f"most-recent '{args.format}'"
     if not logs:
-        print(f"No '{args.format}' battle logs found under Battle Data/.")
+        where = args.dir if args.dir else f"'{args.format}' logs under Battle Data/"
+        print(f"No battle logs found in {where}.")
         return
 
     games = [(p, _opp_leads(p)) for p in logs]
@@ -70,8 +83,8 @@ def main(argv=None) -> None:
 
     print(f"Before: {lead_stats.total_battles()} battles, "
           f"{len(lead_stats.all_lead_counts())} species.")
-    print(f"Seeding from {len(games)} of the {len(logs)} most-recent "
-          f"'{args.format}' logs (skipped {len(logs) - len(games)} with no turn-1 opp).")
+    print(f"Seeding from {len(games)} of {len(logs)} {src} logs "
+          f"(skipped {len(logs) - len(games)} with no turn-1 opp).")
 
     if args.dry_run:
         from collections import Counter

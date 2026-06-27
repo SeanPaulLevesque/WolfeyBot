@@ -32,6 +32,7 @@ from data import (
     mega_forme_for_stone as _mega_forme_for_stone,
     population_move_users as _population_move_users,
     SPEED_BOOST_ITEMS as _SPEED_BOOST_ITEMS,
+    CHOICE_ITEMS as _CHOICE_ITEMS,
     note_gap as _note_gap,
 )
 from team import find_member
@@ -336,8 +337,10 @@ def _effective_item(mon: "Pokemon", evidence: "ItemEvidence | None" = None) -> O
       1. ``mon.item`` — held right now (revealed this field stint).
       2. ``evidence.consumed`` — we watched it use up / lose its item (game-scoped).
       3. ``evidence.confirmed`` — revealed in an earlier stint (survives switches).
-      4. ``mon.item_consumed`` — field-stint consumed (Sash popped / berry eaten).
-      5. usage-stats prior, with ``evidence.ruled_out`` items removed.
+      4. ``evidence.inferred`` — deduced from behaviour (Choice Scarf from an
+         impossible outspeed); below proof, above the usage prior.
+      5. ``mon.item_consumed`` — field-stint consumed (Sash popped / berry eaten).
+      6. usage-stats prior, with ``evidence.ruled_out`` items removed.
     """
     if mon.item:
         return mon.item
@@ -346,6 +349,8 @@ def _effective_item(mon: "Pokemon", evidence: "ItemEvidence | None" = None) -> O
             return None
         if evidence.confirmed:
             return evidence.confirmed
+        if evidence.inferred:
+            return evidence.inferred
     if mon.item_consumed:          # Sash popped / berry eaten / Knocked Off
         return None
     ruled = evidence.ruled_out if evidence is not None else frozenset()
@@ -365,6 +370,23 @@ def _opp_item(state: "BattleState", mon: "Pokemon") -> Optional[str]:
     observed evidence on *state*.  The standard opponent-item lookup — prefer
     this over bare ``_effective_item(mon)`` wherever ``state`` is in scope."""
     return _effective_item(mon, _item_evidence(state, mon))
+
+
+def _choice_locked_move(state: "BattleState", mon: "Pokemon") -> Optional[str]:
+    """The move a Choice-item opponent is locked into this stint, else None.
+
+    An opponent we believe holds a Choice item (``_opp_item`` resolves to one —
+    confirmed, inferred, or the usage-stats prior) is locked into the *first*
+    move it commits to until it switches.  We read that from ``stint_moves``:
+    exactly one distinct move used since switch-in ⇒ locked into it.  Two or more
+    distinct moves would already have ruled Choice out, and a fresh switch-in
+    (no move yet) isn't locked, so both cases return None.  The lock resets on
+    switch for free (the parser clears ``stint_moves``)."""
+    if _opp_item(state, mon) not in _CHOICE_ITEMS:
+        return None
+    ev = _item_evidence(state, mon)
+    stint = ev.stint_moves if ev else set()
+    return next(iter(stint)) if len(stint) == 1 else None
 
 
 def _effective_ability(mon: "Pokemon") -> Optional[str]:
@@ -492,21 +514,18 @@ class DamageOutputModule(ScoringModule):
                    if 0 <= opp_slot < len(state.opp_actives) else None)
             if opp is None or opp.fainted:
                 return 0.0
-            # Pass the observed current HP so KO thresholds use actual HP, not the
-            # typical-spread max HP estimate.  Skip the override when HP is a
-            # percentage (opp.hp would then be e.g. 60 meaning "60%", not absolute).
-            cur_hp = (opp.hp if (not opp.hp_is_percentage and opp.hp > 0) else None)
+            # Attacker/defender damage modifiers (boosts, status, HP, screens, …)
+            # come from the shared mod helpers so this stays in sync with every
+            # other outgoing_damage caller (e.g. SwitchOffense #17).
             results = outgoing_damage(
                 our_species=mon.species, our_stats=stats, our_moves=[move_name],
-                opp_species=_defense_species(opp), our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega), our_item=_our_item(mon),
+                opp_species=_defense_species(opp),
+                our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega),
+                our_item=_our_item(mon),
                 opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
-                weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
-                opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
-                opp_screens=getattr(state, "opp_screens", None),
-                attacker_boosts=mon.boosts, defender_boosts=opp.boosts,
-                attacker_hp_fraction=mon.hp_fraction,
-                attacker_status=mon.status or "",
-                flash_fire_active=mon.flash_fire_active,
+                weather=_assumed_weather(state), ally_faint_count=ally_faints,
+                **_outgoing_attacker_mods(mon),
+                **_outgoing_defender_mods(state, opp),
             )
             return results[0].hp_fraction_avg if results else 0.0
 
@@ -679,7 +698,7 @@ class PriorityBlockModule(ScoringModule):
     attacks against the whole opposing side.  We zero them out so the engine
     falls back to a connecting (non-priority) move or a switch.
 
-    Multiplicative ×0, so it composes with PriorityKill (#15): a priority move
+    Multiplicative ×0, so it composes with PriorityKill (#4): a priority move
     that would otherwise KO is still nullified (3.0 × 0 = 0) — it can't connect.
     Protect (self-target, +4), switches, and non-priority moves are untouched,
     since these abilities only block priority *aimed at their side*.
@@ -1215,6 +1234,66 @@ def _observe_speed_from_history(state: "BattleState") -> None:
                 break
 
 
+def _infer_scarf_from_speed(state: "BattleState") -> None:
+    """Rule a Choice Scarf **in** from observed move order — the complement of
+    :func:`_observe_speed_from_history` (which only rules it out).
+
+    If an opponent moved **before** one of our exact-speed actives in the same
+    priority bracket, and our mon would certainly outspeed even the opponent's
+    fastest plausible **non-scarf** spread (``will_outspeed == 1.0``), then a
+    Choice Scarf is the only explanation — record it as ``inferred`` (which
+    ``_effective_item`` then resolves above the usage prior, so the speed model
+    and the Choice-lock pick it up).
+
+    Deliberately conservative — to avoid false positives it bails out wholesale
+    on the alternative explanations for going first: Trick Room, opposing
+    Tailwind, any weather (Swift Swim / Chlorophyll / Sand Rush / Slush Rush),
+    and a same-bracket requirement (so move priority, not speed, never explains
+    the order).  Our own paralysis is handled by ``will_outspeed`` itself (a
+    halved speed fails the ``== 1.0`` test).  Idempotent."""
+    log = getattr(state, "events_log", None)
+    if not log or state.trick_room or state.opp_tailwind or state.weather:
+        return
+    events = log.get(max(log)) or []
+    ours = [e for e in events if e.get("sd") == "us"]
+    opps = [e for e in events if e.get("sd") == "opp"]
+    if not ours or not opps:
+        return
+    for oe in opps:
+        opp_slot = next((i for i, m in enumerate(state.opp_actives)
+                         if m is not None and not m.fainted
+                         and _base_forme(m.species) == _base_forme(oe.get("a"))), None)
+        if opp_slot is None:
+            continue
+        opp_mon = state.opp_actives[opp_slot]
+        ev = state.opp_item_evidence.get(opp_mon.ident)
+        if opp_mon.item or (ev and (ev.confirmed or ev.consumed or ev.inferred)):
+            continue                       # item already known / inferred
+        if ev and "Choice Scarf" in ev.ruled_out:
+            continue                       # already ruled out
+        opp_prio = priority_bracket(oe.get("mv") or "")
+        yc = _opp_combatant(state, opp_slot)
+        if yc is None:
+            continue
+        yc_nonscarf = replace(yc, item=None)   # strip any assumed Scarf
+        for ue in ours:
+            if ue.get("o", 0) <= oe.get("o", 0):
+                continue                   # our mon did not move AFTER the opp
+            if priority_bracket(ue.get("mv") or "") != opp_prio:
+                continue                   # different bracket → order not by speed
+            our_slot = next((i for i, m in enumerate(state.my_actives)
+                             if m is not None and not m.fainted
+                             and _base_forme(m.species) == _base_forme(ue.get("a"))), None)
+            if our_slot is None:
+                continue
+            xc = _our_combatant(state, our_slot)
+            if xc is None or xc.exact_speed is None:
+                continue
+            if will_outspeed(xc, yc_nonscarf, trick_room=False) == 1.0:
+                state.evidence_for(opp_mon.ident).inferred = "Choice Scarf"
+                break
+
+
 def build_turn_context(state: "BattleState") -> TurnContext:
     """Compute the per-turn fact context once — the **only** place the engine
     runs damage calculations for yes/no facts.
@@ -1231,9 +1310,11 @@ def build_turn_context(state: "BattleState") -> TurnContext:
     (matching ``_build_actions``), so a Disabled kill move never counts as a
     partner-clear or a neutralizer.
     """
-    # Refresh observation-driven item evidence (e.g. refute Choice Scarf from
-    # observed turn order) before any fact uses _effective_item this turn.
+    # Refresh observation-driven item evidence (rule Choice Scarf out from a
+    # too-slow move, or in from an impossible outspeed) before any fact uses
+    # _effective_item this turn.
     _observe_speed_from_history(state)
+    _infer_scarf_from_speed(state)
 
     ctx = TurnContext()
     ally_faints = sum(1 for p in state.my_team if p is not None and p.fainted)
@@ -1303,7 +1384,6 @@ def build_turn_context(state: "BattleState") -> TurnContext:
         if tm is None or stats is None:
             _note_gap("team_member", mon.species)
             continue
-        at_full = (mon.hp >= mon.max_hp) or (mon.hp_is_percentage and mon.hp >= 99)
         # Consumption-aware defender item: a popped Chople/Sitrus must not keep
         # halving incoming damage in the facts.  Falls back to the team.txt item
         # when the battle state hasn't tracked one (tests, fresh leads).
@@ -1315,6 +1395,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
         for opp_slot, opp in enumerate(state.opp_actives):
             if opp is None or opp.fainted:
                 continue
+            locked = _choice_locked_move(state, opp)
             threats = incoming_damage(
                 opp_species=_offense_species(opp),
                 our_species=mon.species,
@@ -1324,16 +1405,10 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega),
                 our_item=our_item,
                 weather=_assumed_weather(state),
-                our_screens=getattr(state, "my_screens", None),
-                our_defender_is_full_hp=at_full,
-                our_hp_percent=(None if at_full else mon.hp_fraction * 100.0),
-                opp_boosts=opp.boosts,
-                our_boosts=mon.boosts,
-                opp_hp_fraction=opp.hp_fraction,
-                opp_status=opp.status or "",
+                only_moves=([locked] if locked else None),
                 opp_ally_faint_count=opp_faints,
-                opp_times_hit=getattr(opp, "times_hit", 0),
-                opp_flash_fire_active=opp.flash_fire_active,
+                **_incoming_attacker_mods(opp),
+                **_incoming_defender_mods(state, mon),
             )
             if any(t.ohko_with_max_roll for t in threats):
                 max_roll_kills.append(opp_slot)
@@ -1396,51 +1471,199 @@ def _ensure_turn_ctx(state: "BattleState") -> TurnContext:
     return state._turn_ctx
 
 
-class SwitchModule(ScoringModule):
+# ── Shared outgoing-damage modifiers ──────────────────────────────────────────
+# Single source of truth for "how a mon's / opponent's current state changes the
+# damage dealt".  Every outgoing_damage caller (DamageOutput #1, SwitchOffense
+# #17, …) splats these in, so a new damage modifier added here is picked up
+# everywhere at once — no per-caller kwarg list to keep in sync.
+
+def _outgoing_attacker_mods(mon: "Pokemon") -> dict:
+    """Attacker-side outgoing-damage modifiers carried on *mon*: stat boosts,
+    status (burn is non-volatile, so it follows the mon across switches),
+    HP-fraction (pinch abilities), Flash Fire, and Rage-Fist hit count."""
+    if mon is None:
+        return {}
+    return {
+        "attacker_boosts":      getattr(mon, "boosts", None),
+        "attacker_status":      mon.status or "",
+        "attacker_hp_fraction": mon.hp_fraction,
+        "flash_fire_active":    getattr(mon, "flash_fire_active", False),
+        "times_hit":            getattr(mon, "times_hit", 0),
+    }
+
+
+def _outgoing_defender_mods(state: "BattleState", opp: "Pokemon") -> dict:
+    """Defender(opponent)-side outgoing-damage modifiers: the opponent's stat
+    boosts (a +2-Def wall takes less), its current HP (KO threshold + the
+    fraction denominator), and its side's screens."""
+    return {
+        "defender_boosts": getattr(opp, "boosts", None),
+        "opp_current_hp":  (opp.hp if (not opp.hp_is_percentage and opp.hp > 0) else None),
+        "opp_hp_percent":  (opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
+        "opp_screens":     getattr(state, "opp_screens", None),
+    }
+
+
+def _incoming_attacker_mods(opp: "Pokemon") -> dict:
+    """Attacker(opponent)-side ``incoming_damage`` modifiers from an opp Pokemon:
+    stat boosts (a +2-Atk foe hits harder), status, HP-fraction (pinch
+    abilities), Flash Fire, Rage-Fist hit count.  The defensive mirror of
+    :func:`_outgoing_attacker_mods`."""
+    return {
+        "opp_boosts":            getattr(opp, "boosts", None),
+        "opp_status":            opp.status or "",
+        "opp_hp_fraction":       opp.hp_fraction,
+        "opp_flash_fire_active": getattr(opp, "flash_fire_active", False),
+        "opp_times_hit":         getattr(opp, "times_hit", 0),
+    }
+
+
+def _incoming_defender_mods(state: "BattleState", mon: "Pokemon | None") -> dict:
+    """Defender(our-mon)-side ``incoming_damage`` modifiers: our stat boosts, our
+    screens, and the HP terms — the full-HP gate (Sash/Sturdy) and the % HP a
+    chipped / arriving mon is evaluated at.  Mirror of
+    :func:`_outgoing_defender_mods`."""
+    at_full = (mon is None
+               or mon.hp >= getattr(mon, "max_hp", mon.hp)
+               or (mon.hp_is_percentage and mon.hp >= 99))
+    return {
+        "our_boosts":              getattr(mon, "boosts", None),
+        "our_screens":             getattr(state, "my_screens", None),
+        "our_defender_is_full_hp": at_full,
+        "our_hp_percent":          (None if at_full else mon.hp_fraction * 100.0),
+    }
+
+
+# ── Switch evaluation (decomposed into modules 16–18) ─────────────────────────
+# A switch is scored by a cheap 1-ply board lookahead, split into three
+# independent multipliers so each can be tuned on its own (phase 1 commutes):
+#   16 SwitchTempo   — the flat cost of switching at all
+#   17 SwitchOffense — does the switch-in hit the current foes harder?
+#   18 SwitchSafety  — escape a connecting OHKO / avoid switching into one
+# The two damage helpers below are shared by the offense / safety modules.
+# (Two slots switching to the *same* bench mon is vetoed jointly in phase 2 —
+# SwitchCollisionAdjuster — not here.)
+
+def _best_offense(
+    state: "BattleState", species: str, stats: Optional[dict],
+    ability: Optional[str], item: Optional[str], move_names: list[str],
+    mon: "Pokemon | None" = None,
+) -> float:
+    """Best average damage fraction *species* deals to any active opponent.
+
+    *mon* is the attacking Pokemon (current active or bench switch-in); its own
+    damage modifiers (boosts, burn, HP, …) are applied via
+    :func:`_outgoing_attacker_mods`, and each opponent's via
+    :func:`_outgoing_defender_mods` — so a debuffed attacker into a boosted /
+    screened wall is scored correctly, for the current mon and the switch-in
+    alike."""
+    if not stats or not move_names:
+        return 0.0
+    ally_faints = sum(1 for p in state.my_team if p is not None and p.fainted)
+    atk_mods = _outgoing_attacker_mods(mon)
+    best = 0.0
+    for opp in state.opp_actives:
+        if opp is None or opp.fainted:
+            continue
+        def_mods = _outgoing_defender_mods(state, opp)
+        for mv in move_names:
+            results = outgoing_damage(
+                our_species=species, our_stats=stats, our_moves=[mv],
+                our_ability=ability or "", our_item=item,
+                opp_species=_defense_species(opp), opp_ability=_effective_ability(opp) or "",
+                opp_item=_opp_item(state, opp), weather=_assumed_weather(state),
+                ally_faint_count=ally_faints,
+                **atk_mods, **def_mods,
+            )
+            if results:
+                best = max(best, results[0].hp_fraction_avg)
+    return best
+
+
+def _switch_in_survives(
+    state: "BattleState", species: str, bench_tm,
+    bench_item: Optional[str], bench_mon=None,
+) -> bool:
+    """True if no active opponent OHKOs the switch-in on its max roll.
+
+    *bench_item* is the consumption-aware item (None once consumed), not the
+    static team.txt item — a spent Chople must not soak the hit.  *bench_mon*
+    (when known) supplies the switch-in's actual current HP so a chipped bench
+    mon is evaluated at the HP it would arrive with.
     """
-    Scores switches by the value of the resulting board — a cheap 1-ply
-    lookahead — so a switch competes on the same scale as an attack instead of a
-    type-matchup multiplier capped at ×4.0.
+    opp_faints = sum(1 for p in state.opp_team if p is not None and p.fainted)
+    for opp in state.opp_actives:
+        if opp is None or opp.fainted:
+            continue
+        locked = _choice_locked_move(state, opp)
+        threats = incoming_damage(
+            opp_species=_offense_species(opp), our_species=species,
+            our_stats=bench_tm.stats, opp_ability=_effective_ability(opp) or "",
+            opp_item=_opp_item(state, opp),
+            our_ability=_our_ability_for_damage(bench_tm, species, state.designated_mega),
+            our_item=bench_item,   # consumption-aware switch-in item
+            weather=_assumed_weather(state),
+            only_moves=([locked] if locked else None),
+            opp_ally_faint_count=opp_faints,
+            **_incoming_attacker_mods(opp),
+            **_incoming_defender_mods(state, bench_mon),
+        )
+        if any(t.ohko_with_max_roll for t in threats):
+            return False
+    return True
 
-    Four multiplicative rows:
 
-      1. TEMPO_FACTOR (0.8) — forfeiting this turn + conceding a free hit.
-         Softened from 0.6 → 0.8 in 0.8.3: the old tax made the bot too
-         reluctant to pivot out of a low-value position (it would grind a 15%
-         attack into walls rather than switch), so the cost is now a gentle
-         nudge rather than a near-veto.
-      2. (1 + g) where g = max(0, bench_offense − cur_offense) — offense gain.
-      3. ESCAPE_FACTOR (4.0) — escaping a connecting OHKO into a surviving switch-in.
-      4. DANGER_FACTOR (0.3) — the switch-in is itself OHKO'd by an active opponent.
+def _live_switch_bench(state: "BattleState", action: "Action"):
+    """``(bench_tm, bench_mon, bench_item)`` for a switch *action*, or
+    ``(None, None, None)`` when the bench mon is unknown (leave it neutral).
 
-    A switch the partner already committed to (same bench target) is vetoed (×0).
-
-    Net effect: a switch wins when the incoming mon is meaningfully better than
-    staying — escaping a KO into a healthy threat, or pivoting a walled /
-    Struggling mon.
+    ``bench_item`` is consumption-aware (a berry eaten in an earlier stint must
+    not keep shielding the switch-in), matching the actives' incoming-fact loop.
     """
+    bench_tm = find_member(action.switch_target)
+    if bench_tm is None or not getattr(bench_tm, "stats", None):
+        return None, None, None
+    bench_mon = next(
+        (p for p in state.available_switches
+         if p is not None and p.species == action.switch_target), None)
+    return bench_tm, bench_mon, _our_item(bench_mon)
 
-    name = "switch_eval"
 
-    TEMPO_FACTOR  = 0.8   # switching forfeits this turn + concedes a free hit
-    ESCAPE_FACTOR = 4.0   # escaping a connecting OHKO into a surviving switch-in
-    DANGER_FACTOR = 0.3   # switching into a mon that is itself OHKO'd
+class SwitchTempoModule(ScoringModule):
+    """The flat cost of switching at all: forfeit the turn + concede a free hit.
+
+    ×``TEMPO_FACTOR`` on every switch, unconditionally — so a switch must earn
+    its keep via the offense (#17) / safety (#18) modules to beat staying in.
+    (Softened 0.6→0.8 historically: the old tax made the bot grind weak attacks
+    into walls rather than pivot.)"""
+
+    name = "switch_tempo"
+    TEMPO_FACTOR = 0.8
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
-        mon = state.my_actives[slot] if slot < len(state.my_actives) else None
-        if mon is None:
-            return
+        for action in actions:
+            if action.is_switch:
+                action.weight *= self.TEMPO_FACTOR
+                action.reasons.append(f"{self.name}: tempo -> x{self.TEMPO_FACTOR}")
 
-        # Cross-slot coordination (two slots switching to the *same* bench mon)
-        # is no longer handled here — it is resolved jointly by
-        # DecisionEngine.coordinate (the switch-same-mon veto), which sees both
-        # slots' candidate lists at once rather than relying on scoring order.
+
+class SwitchOffenseModule(ScoringModule):
+    """Reward switching to a *better attacker*: ×(1 + g), where
+    ``g = max(0, switch_in_offense − current_offense)`` is the gain in best
+    damage dealt to the live opponents.  Floored at 0, so a defensive switch to
+    a softer-hitting mon is never penalised here — its value comes from #18.
+    (Struggle is excluded from the current mon's offense — never a reason to
+    stay.)"""
+
+    name = "switch_offense"
+
+    def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         live_switches = [a for a in actions if a.is_switch]
         if not live_switches:
             return
-
-        # ── Current-mon offense (what "staying" threatens) and OHKO threat ────
-        # Struggle is excluded — it is never a real reason to stay.
+        mon = state.my_actives[slot] if slot < len(state.my_actives) else None
+        if mon is None:
+            return
         tm    = find_member(mon.species)
         stats = _our_stats(state, slot)
         cur_moves = [
@@ -1451,126 +1674,62 @@ class SwitchModule(ScoringModule):
             and md.get("move", "").lower() != "struggle"
             and md.get("move", "") not in _PROTECT_MOVES
         ]
-        cur_offense = self._best_offense(
+        cur_offense = _best_offense(
             state, mon.species, stats,
             _our_ability_for_damage(tm, mon.species, state.designated_mega) if tm else None,
-            _our_item(mon), cur_moves,
+            _our_item(mon), cur_moves, mon,   # current mon's own boosts/burn/HP
         )
-
-        # Is the current mon OHKO-threatened by a threat that actually connects?
-        # Precomputed once per turn in TurnContext (shared with IncomingOHKO /
-        # Protect).
-        cur_threatened = _ensure_turn_ctx(state).is_threatened(slot)
-
-        # ── Score each live switch by resulting board value ───────────────────
         for action in live_switches:
-            bench_tm = find_member(action.switch_target)
-            if bench_tm is None or not getattr(bench_tm, "stats", None):
-                continue  # unknown bench mon — leave neutral (×1.0)
-
-            # Live bench item, consumption-aware: a berry eaten during an
-            # earlier field stint must not keep shielding (or arming) the
-            # switch-in — same rule as the actives' incoming fact loop.
-            bench_mon = next(
-                (p for p in state.available_switches
-                 if p is not None and p.species == action.switch_target), None)
-            bench_item = _our_item(bench_mon)
-
+            bench_tm, bench_mon, bench_item = _live_switch_bench(state, action)
+            if bench_tm is None:
+                continue
             bench_moves = [m for m in bench_tm.moves if m not in _PROTECT_MOVES]
-            offense  = self._best_offense(
+            offense = _best_offense(
                 state, action.switch_target, bench_tm.stats,
                 bench_tm.ability, bench_item, bench_moves,
+                bench_mon,   # switch-in's own state (e.g. a persistent burn)
             )
-            survives = self._switch_in_survives(
-                state, action.switch_target, bench_tm, bench_item, bench_mon)
-
-            g      = max(0.0, offense - cur_offense)
-            escape = cur_threatened and survives
-
-            action.weight *= self.TEMPO_FACTOR
-            action.reasons.append(
-                f"{self.name}: tempo -> x{self.TEMPO_FACTOR}"
-            )
+            g = max(0.0, offense - cur_offense)
             action.weight *= (1.0 + g)
             action.reasons.append(
-                f"{self.name}: +{g:.0%} offense gain -> x{1.0 + g:.2f}"
-            )
-            if escape:
+                f"{self.name}: +{g:.0%} offense gain -> x{1.0 + g:.2f}")
+
+
+class SwitchSafetyModule(ScoringModule):
+    """The defensive read on a switch, off one ``_switch_in_survives`` check:
+
+      * **Escape** (×``ESCAPE_FACTOR``) — the current mon is OHKO-threatened by a
+        *connecting* hit and the switch-in survives: bail into safety.
+      * **Danger** (×``DANGER_FACTOR``) — the switch-in is itself OHKO'd by an
+        active opponent: discourage it (a soft discount, not a veto).
+    """
+
+    name = "switch_safety"
+    ESCAPE_FACTOR = 4.0
+    DANGER_FACTOR = 0.3
+
+    def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
+        live_switches = [a for a in actions if a.is_switch]
+        if not live_switches:
+            return
+        mon = state.my_actives[slot] if slot < len(state.my_actives) else None
+        if mon is None:
+            return
+        cur_threatened = _ensure_turn_ctx(state).is_threatened(slot)
+        for action in live_switches:
+            bench_tm, bench_mon, bench_item = _live_switch_bench(state, action)
+            if bench_tm is None:
+                continue
+            survives = _switch_in_survives(
+                state, action.switch_target, bench_tm, bench_item, bench_mon)
+            if cur_threatened and survives:
                 action.weight *= self.ESCAPE_FACTOR
                 action.reasons.append(
-                    f"{self.name}: escapes OHKO -> x{self.ESCAPE_FACTOR}"
-                )
+                    f"{self.name}: escapes OHKO -> x{self.ESCAPE_FACTOR}")
             if not survives:
                 action.weight *= self.DANGER_FACTOR
                 action.reasons.append(
-                    f"{self.name}: switch-in OHKO'd -> x{self.DANGER_FACTOR}"
-                )
-
-    def _best_offense(
-        self, state: "BattleState", species: str,
-        stats: Optional[dict], ability: Optional[str],
-        item: Optional[str], move_names: list[str],
-    ) -> float:
-        """Best average damage fraction *species* deals to any active opponent."""
-        if not stats or not move_names:
-            return 0.0
-        ally_faints = sum(1 for p in state.my_team if p is not None and p.fainted)
-        best = 0.0
-        for opp in state.opp_actives:
-            if opp is None or opp.fainted:
-                continue
-            cur_hp = (opp.hp if (not opp.hp_is_percentage and opp.hp > 0) else None)
-            for mv in move_names:
-                results = outgoing_damage(
-                    our_species=species, our_stats=stats, our_moves=[mv],
-                    our_ability=ability or "", our_item=item,
-                    opp_species=_defense_species(opp), opp_ability=_effective_ability(opp) or "",
-                    opp_item=_opp_item(state, opp), weather=_assumed_weather(state),
-                    ally_faint_count=ally_faints, opp_current_hp=cur_hp,
-                )
-                if results:
-                    best = max(best, results[0].hp_fraction_avg)
-        return best
-
-    def _switch_in_survives(
-        self, state: "BattleState", species: str, bench_tm,
-        bench_item: Optional[str], bench_mon=None,
-    ) -> bool:
-        """True if no active opponent OHKOs the switch-in on its max roll.
-
-        *bench_item* is the consumption-aware item (None once consumed), not
-        the static team.txt item — a spent Chople must not soak the hit.
-
-        *bench_mon* (when known) supplies the switch-in's actual current HP so a
-        chipped bench mon is evaluated at the HP it would arrive with — % of
-        current, consistent with the actives' incoming-fact loop.
-        """
-        at_full = (bench_mon is None
-                   or bench_mon.hp >= getattr(bench_mon, "max_hp", bench_mon.hp)
-                   or (bench_mon.hp_is_percentage and bench_mon.hp >= 99))
-        hp_pct = None if at_full else bench_mon.hp_fraction * 100.0
-        opp_faints = sum(1 for p in state.opp_team if p is not None and p.fainted)
-        for opp in state.opp_actives:
-            if opp is None or opp.fainted:
-                continue
-            threats = incoming_damage(
-                opp_species=_offense_species(opp), our_species=species,
-                our_stats=bench_tm.stats, opp_ability=_effective_ability(opp) or "",
-                opp_item=_opp_item(state, opp),
-                our_ability=_our_ability_for_damage(bench_tm, species, state.designated_mega),
-                our_item=bench_item, weather=_assumed_weather(state),
-                our_screens=getattr(state, "my_screens", None),
-                our_defender_is_full_hp=at_full,
-                our_hp_percent=hp_pct,
-                opp_hp_fraction=opp.hp_fraction,
-                opp_status=opp.status or "",
-                opp_ally_faint_count=opp_faints,
-                opp_times_hit=getattr(opp, "times_hit", 0),
-                opp_flash_fire_active=opp.flash_fire_active,
-            )
-            if any(t.ohko_with_max_roll for t in threats):
-                return False
-        return True
+                    f"{self.name}: switch-in OHKO'd -> x{self.DANGER_FACTOR}")
 
 
 def _other_opp_threatens(
@@ -1973,7 +2132,7 @@ def _tw_setter_has_priority(opp: "Pokemon") -> bool:
 
 
 # ── Shared setup registry ─────────────────────────────────────────────────────
-# Both UrgencyModule (#5) and SetupDenialModule (#6) iterate this one list, so a
+# Both UrgencyModule (#9) and SetupDenialModule (#10) iterate this one list, so a
 # new urgent / deniable opponent setup (screens, etc.) is a single new row here —
 # no module edits.  Registry order is priority: the urgency module fires the
 # first applicable row, and denial breaks target ties in this order.
@@ -2317,39 +2476,28 @@ def make_engine() -> DecisionEngine:
     Return a DecisionEngine pre-loaded with all default modules.
 
     **Phase 1** — per-slot scoring modules, run for each slot in isolation
-    (blind to the partner) over its ``(move, target)`` candidates:
+    (blind to the partner) over its ``(move, target)`` candidates, in the order
+    of docs/DECISION_ARCHITECTURE.md (rows 1–16):
 
-      DamageOutput -> ThreatElimination -> ProtectValue -> TurnOrder ->
-      Urgency -> Setup Denial -> OppProtectRecency ->
-      ConsecutiveProtect -> FakeOut -> FieldCondition -> Redirection ->
-      Switch -> EndgameStall -> Doomed -> PriorityKill -> PriorityBlock
+      DamageOutput -> ThreatElimination -> Doomed -> PriorityKill ->
+      PriorityBlock -> ProtectValue -> EndgameStall -> TurnOrder -> Urgency ->
+      Setup Denial -> OppProtectRecency -> ConsecutiveProtect -> FakeOut ->
+      FieldCondition -> Redirection -> SwitchTempo -> SwitchOffense ->
+      SwitchSafety
 
-    (PriorityKill: a priority move that guarantees a kill -> x3.0, since it
-    removes the foe before it can act.  PriorityBlock: a priority attack -> x0
-    while an opponent has Armor Tail / Queenly Majesty (it can't connect).
-    EndgameStall is a ProtectValue sibling — the 1v1/2v1 "Protect only delays"
-    cancel; Doomed is the ThreatElimination sibling — the "KO'd before we act"
-    attack penalty.  Both placed last since phase-1 multipliers commute, so
-    ordering them here avoids renumbering the others.  The "partner clears the
-    threatener" ×3.0 boost is **phase 2** — :class:`PartnerClearsAdjuster` —
-    because whether a threat is cleared depends on the partner's chosen action.)
+    Each module multiplies the candidate's weight from precomputed TurnContext
+    facts and the candidate itself — none reads the running weight or another
+    module's output — so **phase 1 commutes**: this order is purely for
+    readability (it mirrors the architecture-doc table) and can be changed
+    freely without affecting any result.
 
     **Phase 2** — joint adjusters, applied by :meth:`DecisionEngine.coordinate`
-    over *pairs* of candidates (the only place cross-slot effects live):
+    over *pairs* of candidates (the only place cross-slot effects live), in order:
 
       Doubling -> Coordination -> FakeOut(free) -> SwitchCollision -> PartnerClears
 
-    Damage runs first so KO multipliers compound on the raw damage signal before
-    safety considerations are layered on top.  ThreatEliminationModule answers
-    both kill questions from the precomputed TurnContext: "will I die before I
-    act?" gates the credit off, and otherwise "can I guarantee a kill?" applies
-    ×5 (on the candidate already aimed at the OHKO'd target).  IncomingOHKOModule
-    then asks "can they OHKO me?".  TurnOrderModule rewards faster attackers
-    before disruption bonuses.  Urgency asks "is a stoppable speed-control
-    setter up?" (one boost, Trick Room first); Setup Denial asks "can I kill the
-    setter first?" (per-candidate, Trick Room claim wins).  ConsecutiveProtect
-    precedes Protect; FieldCondition follows Protect so its stall bonus stacks
-    on existing weight.
+    The "partner clears the threatener" ×3.0 boost (PartnerClears) is phase 2
+    because whether a threat is cleared depends on the partner's chosen action.
 
     The phase-2 adjusters subsume what the old greedy + ``recoordinate`` re-pass
     did by hand: the doubling adjuster's confirmed-OHKO near-veto makes the
@@ -2360,22 +2508,24 @@ def make_engine() -> DecisionEngine:
     """
     return DecisionEngine(
         modules=[
-            DamageOutputModule(),         # 1: ×(1+dmg) on each (move,target) candidate
-            ThreatEliminationModule(),    # 2: guarantee a kill? (×5) — gated off when doomed (ctx)
-            ProtectValueModule(),         # 3: boost Protect on OHKO threat + partner-clears rows
-            TurnOrderModule(),            # 4: scale attacks by turn-order position
-            UrgencyModule(),              # 5: stoppable setup (TR/TW/…) up? attack, don't stall
-            SetupDenialModule(),          # 6: confirmed kill on a setter we outspeed?
-            OppProtectRecencyModule(),    # 7: reward attacking a mon that can't Protect again
-            ConsecutiveProtectModule(),   # 8: penalise back-to-back Protect (×0.2)
-            FakeOutModule(),              # 9: discount attacks / boost Protect vs fresh Fake Out users
-            FieldConditionModule(),       # 10: stall on last turn of opp Tailwind / Trick Room
-            RedirectionModule(),          # 11: hedge single-target attacks vs an active redirector
-            SwitchModule(),               # 12: evaluate switch options
-            EndgameStallModule(),         # 13: cancel Protect when it only delays (1v1/2v1)
-            DoomedModule(),               # 14: doomed slot → ×0.2 on attacks (undeliverable)
-            PriorityKillModule(),         # 15: priority move that guarantees a kill → ×3.0
-            PriorityBlockModule(),        # 16: opposing Armor Tail / Queenly Majesty → priority ×0
+            DamageOutputModule(),         # 1:  ×(1+dmg) on each (move,target) candidate
+            ThreatEliminationModule(),    # 2:  guarantee a kill? (×5)
+            DoomedModule(),               # 3:  doomed slot → ×0.2 on undeliverable attacks
+            PriorityKillModule(),         # 4:  priority move that guarantees a kill → ×3.0
+            PriorityBlockModule(),        # 5:  opposing Armor Tail / Queenly Majesty → priority ×0
+            ProtectValueModule(),         # 6:  boost Protect on a connecting OHKO threat
+            EndgameStallModule(),         # 7:  cancel Protect when it only delays (1v1/2v1)
+            TurnOrderModule(),            # 8:  scale attacks by turn-order position
+            UrgencyModule(),              # 9:  stoppable setup (TR/TW/…) up? attack, don't stall
+            SetupDenialModule(),          # 10: confirmed kill on a setter we outspeed?
+            OppProtectRecencyModule(),    # 11: reward attacking a mon that can't Protect again
+            ConsecutiveProtectModule(),   # 12: penalise back-to-back Protect (×0.2)
+            FakeOutModule(),              # 13: discount attacks / boost Protect vs fresh Fake Out
+            FieldConditionModule(),       # 14: stall on last turn of opp Tailwind / Trick Room
+            RedirectionModule(),          # 15: hedge single-target attacks vs an active redirector
+            SwitchTempoModule(),          # 16: flat cost of switching (×0.8)
+            SwitchOffenseModule(),        # 17: switch-in hits harder? ×(1+offense gain)
+            SwitchSafetyModule(),         # 18: escape a connecting OHKO (×4.0) / switch into one (×0.3)
         ],
         joint=[
             DoublingAdjuster(),           # both attack same target: ×0.40–0.70, ×0.05 if overkill

@@ -15,7 +15,7 @@ for fp in files:
         with open(fp, encoding="utf-8") as f: games.append((os.path.basename(fp), json.load(f)))
     except Exception: pass
 
-def is_switch(a): return any("switch_eval" in r for r in a.get("r", []))
+def is_switch(a): return bool(a.get("sw"))   # switch action (robust across log versions)
 def is_ohko(a):   return any("threat_elimination: guaranteed OHKO" in r for r in a.get("r", []))
 def dmg_pct(a):
     for r in a.get("r", []):
