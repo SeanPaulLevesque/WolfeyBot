@@ -1,8 +1,9 @@
 """tools/build_lead_stats.py — Rebuild lead_stats.json from battle data.
 
-Scans every versioned battle-data directory at or above v0.5.0, extracts
+Scans every versioned battle-data directory at or above v0.21.0, extracts
 the opponent's turn-1 actives (= the actual leads) from each recorded
-battle, and writes a cumulative ``lead_stats.json``.
+battle, and writes a cumulative ``lead_stats.json`` (individual ``counts`` +
+co-led ``pairs``).
 
 Run from the project root::
 
@@ -24,7 +25,7 @@ _BATTLE_DATA  = _PROJECT_ROOT / "Battle Data"
 _STATS_OUT    = _BATTLE_DATA  / "lead_stats.json"
 
 # Only include battles from this version onward.
-_MIN_VERSION: tuple[int, ...] = (0, 5, 0)
+_MIN_VERSION: tuple[int, ...] = (0, 21, 0)
 
 
 def _parse_version(name: str) -> tuple[int, ...] | None:
@@ -60,7 +61,10 @@ def main() -> None:
         if ver is None or ver < _MIN_VERSION:
             continue
 
-        battle_files = list(version_dir.glob("*.json"))
+        # Logs are nested under <version>/<team>/<team-version>/*.json (the named-
+        # team A/B layout), so recurse — and skip any stray stats file.
+        battle_files = [f for f in version_dir.rglob("*.json")
+                        if "lead_stats" not in f.name]
         print(f"  v{version_dir.name}  ({len(battle_files)} files)")
 
         for battle_file in battle_files:
