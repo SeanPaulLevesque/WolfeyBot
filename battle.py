@@ -929,9 +929,16 @@ class BattleParser:
         if _side_from_ident(holder) == self.state.my_side:
             return
         mon = self._find_mon(holder)
-        if mon and not mon.item:
+        # Don't re-arm an item that was just consumed: a Sitrus/berry sends
+        # ``-enditem`` (which nulls the item) immediately followed by a
+        # ``-heal … [from] item: <berry>`` naming what it ate.  That heal is the
+        # consumption, not evidence it's still held — re-setting mon.item here
+        # would make a spent berry look held (and Poltergeist think it connects).
+        # Recurring-item heals (Leftovers, Black Sludge) have item_consumed=False.
+        if mon and not mon.item and not mon.item_consumed:
             mon.item = item
-        self._record_item_evidence(holder, confirmed=item)
+        if not (mon and mon.item_consumed):
+            self._record_item_evidence(holder, confirmed=item)
 
 
 # ─── Handler Registry ────────────────────────────────────────────────────────

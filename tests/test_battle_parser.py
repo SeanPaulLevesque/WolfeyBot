@@ -496,6 +496,7 @@ class TestMoveTracking:
 # ── Observation-driven item evidence ──────────────────────────────────────────
 
 from data import CHOICE_ITEMS
+from decision.modules import _opp_has_item
 
 
 class TestItemEvidence:
@@ -550,6 +551,32 @@ class TestItemEvidence:
         run(parser.feed("|switch|p2a: Garchomp|Garchomp, L50, M|175/175"))
         run(parser.feed("|-enditem|p2a: Garchomp|Sitrus Berry"))
         assert parser.state.opp_item_evidence["p2: Garchomp"].consumed is True
+
+    def test_consumed_berry_not_rearmed_by_its_own_heal(self):
+        """Regression: eating a Sitrus sends ``-enditem`` (item nulled) then a
+        ``-heal … [from] item: Sitrus Berry`` naming what it ate.  That heal must
+        NOT re-arm the spent item — otherwise the berry looks held again and
+        Poltergeist would (wrongly) be modelled as connecting."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Incineroar|Incineroar, L50, M|100/100"))
+        run(parser.feed("|-enditem|p2a: Incineroar|Sitrus Berry|[eat]"))
+        run(parser.feed("|-heal|p2a: Incineroar|73/100|[from] item: Sitrus Berry"))
+        mon = next(p for p in parser.state.opp_team if p.ident == "p2: Incineroar")
+        assert not mon.item                                    # not re-armed
+        assert parser.state.opp_item_evidence["p2: Incineroar"].consumed is True
+        assert _opp_has_item(parser.state, mon) is False       # Poltergeist would fail
+
+    def test_recurring_item_heal_keeps_item_held(self):
+        """A Leftovers/Black-Sludge heal (no ``-enditem``) reveals an item that IS
+        still held — it must populate mon.item and read as held."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Incineroar|Incineroar, L50, M|100/100"))
+        run(parser.feed("|-heal|p2a: Incineroar|73/100|[from] item: Leftovers"))
+        mon = next(p for p in parser.state.opp_team if p.ident == "p2: Incineroar")
+        assert mon.item == "Leftovers"
+        assert _opp_has_item(parser.state, mon) is True
 
     def test_item_reveal_confirms_item(self):
         """A |-item| reveal (Trick / Frisk / Knock Off) confirms the held item."""
