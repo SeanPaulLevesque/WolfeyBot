@@ -1,5 +1,34 @@
 # WolfeyBot Changelog
 
+## 0.36.0 — 2026-06-28
+
+### Fixes
+- **Consumed items no longer re-armed by their own heal.** Eating a Sitrus sends
+  `-enditem` (item nulled, consumed) then a `-heal … [from] item: Sitrus Berry`
+  naming what it ate; the heal handler re-set `mon.item`, so a spent berry looked
+  held again and Poltergeist was modelled as connecting against an itemless
+  target (battle 2640366837 T7). Guarded with `item_consumed`; recurring-item
+  heals (Leftovers) still reveal correctly.
+- **Poltergeist removed from `_CONTACT_MOVES`** (data fix, non-contact in canon).
+
+### Team
+- **meta-team v8** — new roster (`teams/meta-team/v8.txt`), `current` → v8.
+
+### Dev automation (fewer approvals, fewer tokens)
+- All of `tools/` is now allowlisted (`.claude/settings.json`) — prefer `tools/`
+  scripts over inline Python heredocs.
+- New investigation trio: `inspect_battle.py` (compact turn-by-turn log summary),
+  `replay_turn.py` (re-run the current engine on a logged board vs what the game
+  chose), `regen_snapshots.py` (regen all turn-1 snapshots + decision-vs-weight
+  diff triage against HEAD).
+
+### Docs
+- The per-action weight table is now a generated SVG
+  (`tools/gen_decision_table_svg.py` → `docs/decision_weights.svg`) — GitHub
+  strips CSS from markdown, so the 12-column HTML table couldn't be kept from
+  horizontally scrolling; the SVG has pixel-exact width/font and honours dark
+  mode. Edit the data in the script and re-run to update.
+
 ## 0.35.0 — 2026-06-27
 
 ### Lead prediction — measuring payoff

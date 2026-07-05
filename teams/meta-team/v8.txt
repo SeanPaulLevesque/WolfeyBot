@@ -37,14 +37,14 @@ Adamant Nature
 - Poltergeist
 - Protect
 
-Floette-Eternal (F) @ Floettite
-Ability: Flower Veil
+Decidueye-Hisui @ Scope Lens
+Ability: Scrappy
 Level: 50
-EVs: 2 HP / 32 SpA / 32 Spe
-Timid Nature
-- Light of Ruin
-- Moonblast
-- Dazzling Gleam
+EVs: 12 HP / 32 Atk / 22 Spe
+Adamant Nature
+- Leaf Blade
+- Triple Arrows
+- Sucker Punch
 - Protect
 
 Aerodactyl @ Aerodactylite
