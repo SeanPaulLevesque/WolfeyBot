@@ -3,31 +3,25 @@
     "allow": [
       "Bash(mkdir *)",
       "Bash(.venv\\Scripts\\pytest*)",
-      "Bash(.venv\\Scripts\\python.exe _gen_turn1_summary.py*)",
       "Bash(./run_tests.bat)",
       "Bash(./run_tests.bat *)",
       "Bash(.venv/Scripts/pytest)",
       "Bash(.venv/Scripts/pytest *)",
       "Bash(.venv/Scripts/python.exe -m pytest)",
       "Bash(.venv/Scripts/python.exe -m pytest *)",
-      "Bash(.venv/Scripts/python.exe _gen_turn1_summary.py)",
       "Bash(.venv/Scripts/python.exe -m py_compile *)",
-      "Bash(.venv/Scripts/python.exe tools/latest_meta_report.py)",
-      "PowerShell(.venv\\Scripts\\python.exe tools/latest_meta_report.py)",
-      "Bash(.venv/Scripts/python.exe tools/commit_push_data.py)",
-      "PowerShell(.venv\\Scripts\\python.exe tools/commit_push_data.py)",
-      "Bash(.venv/Scripts/python.exe tools/run_games.py)",
-      "Bash(.venv/Scripts/python.exe tools/run_games.py *)",
-      "PowerShell(.venv\\Scripts\\python.exe tools/run_games.py)",
-      "PowerShell(.venv\\Scripts\\python.exe tools/run_games.py *)",
+      "Bash(.venv/Scripts/python.exe tools/*)",
+      "Bash(.venv\\Scripts\\python.exe tools/*)",
+      "Bash(.venv/Scripts/python.exe -m tools.*)",
+      "PowerShell(.venv\\Scripts\\python.exe tools/*)",
+      "PowerShell(.venv/Scripts/python.exe tools/*)",
+      "PowerShell(.venv\\Scripts\\python.exe -m tools.*)",
       "PowerShell(.venv\\Scripts\\pytest)",
       "PowerShell(.venv\\Scripts\\pytest *)",
       "PowerShell(.venv\\Scripts\\python.exe -m pytest)",
       "PowerShell(.venv\\Scripts\\python.exe -m pytest *)",
-      "PowerShell(.venv\\Scripts\\python.exe _gen_turn1_summary.py)",
       "PowerShell(Get-Content *)",
-      "PowerShell(Compare-Object *)",
-      "PowerShell(Copy-Item turn1_summary.md _pre.md)"
+      "PowerShell(Compare-Object *)"
     ]
   }
 }
