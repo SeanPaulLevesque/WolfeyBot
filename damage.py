@@ -115,6 +115,15 @@ _WEATHER_BALL_TYPE: dict[str, str] = {
     "rain": "Water", "sun": "Fire", "sand": "Rock", "hail": "Ice",
 }
 
+# Personal-weather abilities (Champions): the holder's own moves are used as if
+# this weather were active — attacker-side only, never the field (no
+# Chlorophyll for allies, no effect on moves aimed AT the holder).  Applied by
+# rebinding full_damage_calc's local ``weather`` for that attacker's calc.
+# Table-driven: the next such ability is one new row.
+_PERSONAL_WEATHER_ABILITIES: dict[str, str] = {
+    "Mega Sol": "sun",     # Meganium-Mega: Solar Beam no-charge, Fire Weather Ball ×1.5
+}
+
 # Foul Play computes damage from the *target's* Attack stat (and the target's
 # Attack stat stages), not the user's.
 _FOUL_PLAY = "Foul Play"
@@ -691,6 +700,16 @@ def full_damage_calc(
     power    = move_data.get("power") or 0
     category = move_data.get("category", "Status")
     raw_type = move_data.get("type", "Normal")
+
+    # Personal weather (Champions): abilities whose holder's MOVES are used as
+    # if a weather were active — e.g. Mega Sol ("…as if the effects of Sunny
+    # Day were active").  Rebinding the local ``weather`` scopes it to exactly
+    # this attacker's calc: its Weather Ball becomes Fire 100 BP, its Fire
+    # moves get the ×1.5 sun boost, Solar-Power-style attacker mods see sun —
+    # while the FIELD weather (and every other mon's calc, incoming or
+    # outgoing) is untouched.  Overrides real field weather for this attacker
+    # (its moves are "used as if" sunny regardless of what's actually up).
+    weather = _PERSONAL_WEATHER_ABILITIES.get(attacker_ability, weather)
 
     # Weather Ball: in weather it changes to the weather's type and doubles its
     # base power (50 → 100).  Without this it scores as a feeble Normal move —

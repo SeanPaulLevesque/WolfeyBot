@@ -464,6 +464,53 @@ class TestMoveMechanics:
         move vs a Flying-type stays immune."""
         assert self._scrappy_eff("Earthquake", ["Flying"], "Scrappy") == 0.0
 
+    # ── Mega Sol (personal sun — Meganium-Mega) ───────────────────────────────
+
+    def _wball(self, ability="", weather=None):
+        with patch("damage.types_of", return_value=["Normal"]):
+            return full_damage_calc("Weather Ball", "Atk", "Def",
+                                    self._DEF, self._DEF,
+                                    attacker_ability=ability, weather=weather)
+
+    def test_mega_sol_weather_ball_is_fire_100_in_clear_weather(self):
+        """Mega Sol: the holder's moves act as if sun were up — its Weather
+        Ball is Fire 100 BP (plus the ×1.5 sun boost on Fire), not Normal 50."""
+        r = self._wball(ability="Mega Sol")
+        assert r.effective_type == "Fire"
+        assert r.power == 100
+        plain = self._wball()
+        assert plain.effective_type == "Normal" and plain.power == 50
+        # Ratio ≈ ×2 power × ×1.5 sun ÷ ×1.5 STAB the plain Normal ball gets
+        # from the Normal-typed test attacker ⇒ ~2.0.  Without the sun boost it
+        # would be only ~1.33, so >1.8 confirms the ×1.5 is applied.
+        assert r.damage_avg > plain.damage_avg * 1.8
+
+    def test_mega_sol_overrides_real_field_weather(self):
+        """Its moves are used as if sunny even in actual rain: the ball stays
+        Fire (and boosted), never Water."""
+        r = self._wball(ability="Mega Sol", weather="rain")
+        assert r.effective_type == "Fire"
+
+    def test_mega_sol_boosts_own_fire_moves_without_field_sun(self):
+        with patch("damage.types_of", return_value=["Normal"]):
+            sol   = full_damage_calc("Flamethrower", "Atk", "Def",
+                                     self._DEF, self._DEF,
+                                     attacker_ability="Mega Sol")
+            plain = full_damage_calc("Flamethrower", "Atk", "Def",
+                                     self._DEF, self._DEF)
+        assert sol.damage_avg / plain.damage_avg == pytest.approx(1.5, rel=0.05)
+
+    def test_mega_sol_is_attacker_side_only(self):
+        """The field is NOT sunny: a move aimed AT the Mega Sol holder is
+        completely unaffected (no sun halving of incoming Water, etc.)."""
+        with patch("damage.types_of", return_value=["Normal"]):
+            vs_sol   = full_damage_calc("Surf", "Atk", "Def",
+                                        self._DEF, self._DEF,
+                                        defender_ability="Mega Sol")
+            vs_plain = full_damage_calc("Surf", "Atk", "Def",
+                                        self._DEF, self._DEF)
+        assert vs_sol.damage_avg == vs_plain.damage_avg
+
     def _rage_fist_power(self, times_hit):
         return full_damage_calc("Rage Fist", "Annihilape", "Def",
                                 self._DEF, self._DEF, times_hit=times_hit).power

@@ -1,5 +1,19 @@
 # WolfeyBot Changelog
 
+## 0.38.1 — 2026-07-06
+
+### Modeling
+- **Mega Sol (Meganium-Mega) — personal sun.** "This Pokemon's moves are used
+  as if the effects of Sunny Day were active": implemented as a table-driven
+  attacker-side weather rebind inside `full_damage_calc`
+  (`_PERSONAL_WEATHER_ABILITIES`), so the holder's Weather Ball becomes Fire
+  100 BP with the ×1.5 sun boost and its calc overrides real field weather —
+  while the field itself (and every move aimed AT the holder, and every other
+  mon's calc) is untouched. The whole inference chain now bites: an unrevealed
+  Meganium resolves to Meganium-Mega/Mega Sol, and its Weather Ball reads as a
+  Fire OHKO threat (111% on Kingambit) instead of a Normal 50 BP poke. Turn-1
+  snapshots unchanged (no Meganium in the fixed opponent leads). +4 tests.
+
 ## 0.38.0 — 2026-07-06
 
 ### Team preview — engine-grounded selection
