@@ -4,8 +4,8 @@ Modules
 -------
 stat_calc    : SP-based stat formula (Champions Level 50).
 species      : Species types + base stats from smogon_champions_slim.json.
-sets         : Per-Pokémon SP spreads, items, moves from sets-*.txt.
-usage        : Metagame archetype priors.
+sets         : Per-Pokémon SP spreads, items, moves from the Smogon moveset dump.
+lead_stats   : Observed opponent-lead stats (+ Smogon ladder lead prior).
 moves        : Champions move data from champions_moves.json.
 items        : Champions item data from champions_items.json.
 abilities    : Champions ability data from champions_abilities.json.
@@ -13,11 +13,13 @@ speed_tiers  : Speed distribution builder + Bayesian updater.
 
 Required data files (place in this directory):
   smogon_champions_slim.json
-  sets-gen9championsvgc2026regma-1760.txt
-  metagame-gen9championsvgc2026regma-1760.txt
+  moves-gen9championsvgc2026regmb-1760.txt   (Smogon moveset dump, 1760 cutoff)
+  leads-gen9championsvgc2026regmb-1760.txt   (Smogon lead usage, 1760 cutoff)
+  sets_supplement.json                       (hand-entered gap-fill; ~empty)
   champions_moves.json
   champions_items.json
   champions_abilities.json
+  champions_megas.json
 
 Quick-access re-exports
 -----------------------
@@ -49,11 +51,6 @@ from .diagnostics import note_gap, drain_gaps
 
 # Per-move property flags (contact / slicing / punch / bite)
 from .move_flags import move_flags, move_has_flag, is_contact
-
-# Metagame
-from .usage import (
-    archetype_usage, all_archetypes,
-)
 
 # Move data
 from .moves import (
@@ -106,8 +103,6 @@ __all__ = [
     "note_gap", "drain_gaps",
     # move flags
     "move_flags", "move_has_flag", "is_contact",
-    # usage
-    "archetype_usage", "all_archetypes",
     # moves
     "get_move", "move_power", "move_type", "move_category",
     "move_priority", "is_priority_move", "is_spread_move",

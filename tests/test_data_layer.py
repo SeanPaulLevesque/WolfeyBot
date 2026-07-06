@@ -7,7 +7,6 @@ pytest can run them automatically alongside the rest of the test suite.
 Covered APIs:
   speed_distribution, prob_faster_than, update_speed_belief,
   update_speed_belief_slower, prob_outspeeds,
-  archetype_usage, all_archetypes,
   teammate_distribution, WEATHER_SPEED_ABILITIES,
   types_of / get_species (form aliases)
 """
@@ -20,8 +19,6 @@ from data import (
     prob_outspeeds,
     update_speed_belief,
     update_speed_belief_slower,
-    archetype_usage,
-    all_archetypes,
     teammate_distribution,
     WEATHER_SPEED_ABILITIES,
     types_of,
@@ -90,12 +87,12 @@ class TestUpdateSpeedBelief:
 
     def test_observation_reduces_number_of_outcomes(self):
         dist = speed_distribution("Garchomp")
-        # Threshold must sit above Garchomp's slowest non-scarfed outcome so the
-        # filter removes at least one.  Under the corrected SP→stat mapping
-        # (0.8.0, 32 SP = 252 EV) Garchomp's speeds rose — its slowest outcome
-        # is now 147 — so the old 140 threshold filtered nothing.  150 sits
-        # between the 147 and 154 outcomes and still exercises the filter.
-        updated = update_speed_belief(dist, observed_faster_than=150)
+        # Threshold must sit above Garchomp's slowest outcome so the filter
+        # removes at least one.  The M-B usage file (0.37.0) lists only
+        # max-speed spreads — two outcomes, Adamant 154 and Jolly 169 — so the
+        # threshold sits between them.  (Same maintenance as 0.8.0, when the
+        # corrected SP→stat mapping moved the outcomes past the old value.)
+        updated = update_speed_belief(dist, observed_faster_than=160)
         assert len(updated) < len(dist)
 
 
@@ -127,32 +124,6 @@ class TestProbOutspeeds:
         p_fast = prob_outspeeds("Sneasler", "Garchomp")
         p_slow = prob_outspeeds("Farigiraf", "Garchomp")
         assert p_fast > p_slow
-
-
-# ── archetype_usage ───────────────────────────────────────────────────────────
-
-class TestArchetypeUsage:
-    def test_trickroom_archetype_is_positive(self):
-        tr = archetype_usage("trickroom")
-        assert tr >= 0
-
-    def test_returns_float(self):
-        tr = archetype_usage("trickroom")
-        assert isinstance(tr, float)
-
-
-# ── all_archetypes ────────────────────────────────────────────────────────────
-
-class TestAllArchetypes:
-    def test_returns_nonempty_dict(self):
-        arcs = all_archetypes()
-        assert isinstance(arcs, dict)
-        assert len(arcs) > 0
-
-    def test_all_values_are_numeric(self):
-        arcs = all_archetypes()
-        for k, v in arcs.items():
-            assert isinstance(v, (int, float)), f"Archetype {k!r} has non-numeric value {v!r}"
 
 
 # ── teammate_distribution ─────────────────────────────────────────────────────
@@ -327,8 +298,9 @@ class TestAssumedForme:
         assert assumed_forme("Aerodactyl") == "Aerodactyl"
 
     def test_marginal_majority_goes_mega(self):
-        """Medicham megas at 51.0% — just over the line."""
-        assert assumed_forme("Medicham") == "Medicham-Mega"
+        """Altaria megas at 50.1% of its M-B population — just over the line.
+        (Was Medicham at 51% in the M-A data; Medicham is base-majority now.)"""
+        assert assumed_forme("Altaria") == "Altaria-Mega"
 
     def test_marginal_minority_stays_base(self):
         """Gyarados megas at 49.0% — just under the line."""
@@ -523,22 +495,24 @@ class TestSetsSupplement:
 
     def test_supplement_fills_gap_and_feeds_accessors(self, monkeypatch, tmp_path):
         """A gap-fill entry feeds item/ability/spread distributions, and a
-        '-Mega' entry whose top item is its stone wires the stone↔forme maps."""
+        '-Mega' entry whose top item is its stone wires the stone↔forme maps.
+        Uses a fictional species so the fixture can never collide with the real
+        usage file (Scolipede-Mega, the old fixture, is in the M-B data now)."""
         S = self._reload_with(monkeypatch, tmp_path, {
             "_README": "ignored",
-            "Scolipede-Mega": {
+            "Testmon-Mega": {
                 "abilities": {"Speed Boost": 100.0},
-                "items": {"Scolipite": 100.0},
+                "items": {"Testmonite": 100.0},
                 "spreads": {"Jolly:0/32/0/0/4/28": 60.0},
                 "moves": {"Megahorn": 97.0, "Protect": 80.0},
                 "raw_count": 1500,
             },
         })
-        assert S.item_distribution("Scolipede-Mega")[0] == ("Scolipite", 100.0)
-        assert S.ability_distribution("Scolipede-Mega")[0] == ("Speed Boost", 100.0)
-        assert S.spread_distribution("Scolipede-Mega")[0][0] == "Jolly:0/32/0/0/4/28"
-        assert S.mega_forme_for_stone("Scolipite") == "Scolipede-Mega"
-        assert "Scolipite" in S.mega_stones()
+        assert S.item_distribution("Testmon-Mega")[0] == ("Testmonite", 100.0)
+        assert S.ability_distribution("Testmon-Mega")[0] == ("Speed Boost", 100.0)
+        assert S.spread_distribution("Testmon-Mega")[0][0] == "Jolly:0/32/0/0/4/28"
+        assert S.mega_forme_for_stone("Testmonite") == "Testmon-Mega"
+        assert "Testmonite" in S.mega_stones()
         assert "_README" not in S._SETS          # documentation keys are skipped
 
     def test_supplement_does_not_override_main_file(self, monkeypatch, tmp_path):
@@ -548,4 +522,4 @@ class TestSetsSupplement:
         })
         items = dict(S.item_distribution("Garchomp"))
         assert "Bogus Item" not in items          # main file wins
-        assert "Choice Scarf" in items            # real M-A data preserved
+        assert "Choice Scarf" in items            # real usage data preserved

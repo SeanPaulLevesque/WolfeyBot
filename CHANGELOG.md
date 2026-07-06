@@ -1,5 +1,36 @@
 # WolfeyBot Changelog
 
+## 0.37.0 — 2026-07-05
+
+### Data: real Reg M-B usage stats (consolidation)
+- **`sets.py` now reads the Smogon M-B moveset dump**
+  (`moves-gen9championsvgc2026regmb-1760.txt`, 275 species) — the M-A file and
+  every stopgap layered on top of it are retired: `sets-…regma-1760.txt`,
+  `pikalytics_regmb_raw.json` + both `seed_supplement_*` tools, and the
+  hand-entered `sets_supplement.json` entries (now slimmed to Watchog, the one
+  M-B-legal species the 1760 file lacks; the gap-fill mechanism stays for the
+  next reg roll). Also deleted: `data/usage.py` + `metagame-…regma` (archetype
+  priors — dead code, never called) and the unwired 1630/stats dumps.
+- **"No Ability" artifact filtered at parse.** 11 new megas had "No Ability" as
+  their top ability (the sim logged them that way until the custom megas were
+  implemented mid-month) — it would have poisoned `_effective_ability`
+  (Pyroar-Mega → Fire Mane and Eelektross-Mega → Eelevate now resolve).
+- **Pure-support mons are no longer "harmless".** Audino/Slurpuff usage
+  movepools are 100% status, so `incoming_damage` returned empty; it now falls
+  back to synthetic STAB when usage moves exist but none deal damage (skipped
+  for a Choice-locked status move, which genuinely threatens nothing).
+- **Ladder lead prior.** `leads-gen9championsvgc2026regmb-1760.txt` feeds
+  `lead_stats.ladder_lead_pct` (megas folded into base names); `predict_pair`
+  tiers 2–3 rank singles by observed count + ladder%/100 — a sub-observation
+  tiebreak, so one real observation still outranks any ladder rate and our
+  observed pair data stays king.
+- **Snapshots: 116 decision changes, 238 weight-only** — coherent new beliefs
+  (M-B Kingambit runs Black Glasses > Chople → Fighting OHKO reads; Glimmora is
+  base-majority now, was 75% mega; new spreads/items throughout). Reviewed and
+  approved. Five M-A-keyed test fixtures updated to M-B equivalents
+  (Medicham→Altaria marginal-mega, Glimmora→Staraptor stone, Garchomp speed
+  threshold, Raichu-mega-aware type fixtures, fictional supplement species).
+
 ## 0.36.0 — 2026-06-28
 
 ### Fixes

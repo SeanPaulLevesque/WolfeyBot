@@ -1089,6 +1089,33 @@ def incoming_damage(
         if result.power > 0:
             results.append(result)
 
+    if not results and not only_moves:
+        # Usage moves exist but are ALL status (pure support mons — Audino,
+        # Slurpuff): the listed set deals zero damage, but the mon may still
+        # carry an attack in the "Other" bucket.  Fall back to synthetic STAB so
+        # no opponent is ever modelled as completely harmless.  (Skipped for
+        # only_moves: a Choice-locked mon stuck on a status move genuinely
+        # threatens nothing until it switches.)
+        for move_name in _synthetic_stab_moves(opp_species, opp_stats):
+            result = full_damage_calc(
+                move_name,
+                attacker_species=opp_species, defender_species=our_species,
+                attacker_stats=opp_stats, defender_stats=our_stats,
+                attacker_ability=opp_ability, defender_ability=our_ability,
+                attacker_item=opp_item, defender_item=our_item,
+                defender_has_item=defender_has_item,
+                weather=weather, defender_screens=our_screens,
+                attacker_boosts=opp_boosts, defender_boosts=our_boosts,
+                defender_is_full_hp=our_defender_is_full_hp,
+                ally_faint_count=opp_ally_faint_count,
+                times_hit=opp_times_hit,
+                attacker_hp_fraction=opp_hp_fraction,
+                attacker_status=opp_status,
+                flash_fire_active=opp_flash_fire_active,
+            )
+            if result.power > 0:
+                results.append(result)
+
     return sorted(results, key=lambda r: -r.damage_avg)
 
 

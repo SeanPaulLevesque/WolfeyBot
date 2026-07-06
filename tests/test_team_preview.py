@@ -205,7 +205,11 @@ class TestDefensiveScore:
     def test_immunity_gives_maximum_contribution(self):
         """Ground-type immunity to Electric → _IMMUNITY_BONUS contribution."""
         def fake_types_of(s):
-            return {"Garchomp": ["Dragon", "Ground"], "Raichu": ["Electric"]}.get(s, ["Normal"])
+            # Prefix-match Raichu so the fixture survives _opp_assumed_form
+            # mapping a top-usage mega (Raichu → Raichu-Mega-Y in M-B data).
+            if s.startswith("Raichu"):
+                return ["Electric"]
+            return {"Garchomp": ["Dragon", "Ground"]}.get(s, ["Normal"])
 
         with patch("team_preview.types_of", side_effect=fake_types_of):
             member = make_member("Garchomp", [])
@@ -216,10 +220,11 @@ class TestDefensiveScore:
     def test_weakness_scores_lower_than_immunity(self):
         """A Water-type weak to Electric scores lower than a Ground-type (immune)."""
         def fake_types_of(s):
+            if s.startswith("Raichu"):              # covers the assumed mega forme
+                return ["Electric"]
             return {
                 "Gyarados":  ["Water", "Flying"],   # Electric ×2.0 (via Flying)
                 "Garchomp":  ["Dragon", "Ground"],  # Electric ×0.0 (immune)
-                "Raichu":    ["Electric"],
             }.get(s, ["Normal"])
 
         with patch("team_preview.types_of", side_effect=fake_types_of):

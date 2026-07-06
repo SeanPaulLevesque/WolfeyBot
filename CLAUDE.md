@@ -5,7 +5,7 @@
 WolfeyBot is a Gen 9 VGC doubles bot that plays on Pokémon Showdown in the
 **Champions format**. The live ladder rolled from Reg M-A to **Reg M-B** on
 2026-06-17 (`BATTLE_FORMAT` in `main.py` is `gen9championsvgc2026regmb`); the
-data/usage layer is still Reg M-A-derived pending M-B usage stats (~July). It
+data/usage layer runs on the real Smogon **M-B** dumps since 0.37.0. It
 connects via WebSocket, parses the battle protocol, and chooses moves using a
 two-phase scoring engine (18 per-slot modules + 5 joint adjusters; see the
 pipeline section below).
@@ -50,7 +50,7 @@ to make green by editing expectations. This is a hard rule:
 | `scenarios/` | Team-agnostic board-state templates; `turn1_openings.py` is the 6-lead × 20-opp turn-1 scenario |
 | `damage.py` | `outgoing_damage()`, `incoming_damage()`, `type_effectiveness()` |
 | `turn_order.py` | `will_outspeed()`, `priority_bracket()`, `Combatant` dataclass |
-| `data/` | `smogon_champions_slim.json` (218 Champions-legal species) + move/type data; `sets_supplement.json` = hand-entered usage stats for species the M-A sets file lacks (new M-B mons/megas), merged into `data/sets.py` at load (gap-fill) |
+| `data/` | Usage: `moves-gen9championsvgc2026regmb-1760.txt` (Smogon M-B moveset dump → `sets.py`; "No Ability"/"Other" filtered at parse) + `leads-gen9championsvgc2026regmb-1760.txt` (ladder lead prior — a sub-observation tiebreak in `lead_stats.predict_pair`, never outranking our observed pair data). Dex: `smogon_champions_slim.json` (species/types/base stats) + `champions_moves/items/abilities/megas.json`. `sets_supplement.json` = hand-entered gap-fill merged at load (~empty; Watchog only) — the escape hatch for the next reg roll |
 | `team_preview.py` | Bring-4 selection logic |
 | `docs/DECISION_ARCHITECTURE.md` | Full narrative of how the engine works, with weight tables |
 | `tools/` | Dev/analysis scripts — **all of `tools/` is allowlisted** (`.venv/Scripts/python.exe tools/...` runs prompt-free), so **prefer adding/using a `tools/` script over inline `python - <<PY` heredocs** (heredocs need approval every time and burn tokens re-deriving the same script). Key scripts: `team_report.py` (logs dir/glob → Markdown roster-perf + prediction-accuracy report; `--team v2`, `--out report.md`), `accuracy_report.py` (prediction accuracy; exposes `compute_prediction(games, slop)` + `_load(version, team_version)`), battle analysis, lead stats, ELO chart, team packing, `gen_snapshot.py`. **Investigation trio (0.36.x):** `inspect_battle.py <id-frag> [--turn N]` = compact turn-by-turn log summary (board, chosen actions + weights, events, faints; `--turn` adds full reasons + wall); `replay_turn.py <id-frag> <turn>` = rebuild a logged board and run the **current** engine on it (ranked actions + coordinate pair vs what the game chose — the "would the fix change this?" tool; caveats printed); `regen_snapshots.py` = regen every turn-1 snapshot + classify the diff vs HEAD (decision-changed vs weight-only). **Zero-arg automation:** `run_games.py [N]` = run N games on latest meta-team version → report → commit+push data (the "kick off N games" one-shot); `latest_meta_report.py` = report on the newest meta-team data; `commit_push_data.py` = commit+push **data artifacts only** (Battle Data/ · elo_log.json · reports/), auto message, never touches code |

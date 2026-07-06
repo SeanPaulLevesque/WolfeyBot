@@ -1,6 +1,8 @@
-"""sets.py — Parses the Smogon usage sets file for Champions VGC 2026 Reg MA.
+"""sets.py — Parses the Smogon usage sets file for Champions VGC 2026 Reg M-B.
 
-Source: ``sets-gen9championsvgc2026regma-1760.txt`` in this directory.
+Source: ``moves-gen9championsvgc2026regmb-1760.txt`` in this directory (the
+Smogon monthly moveset dump at the 1760 rating cutoff — same block format the
+old Reg M-A ``sets-…`` file used).
 
 Per-Pokémon data:
   - raw_count, viability ceiling
@@ -16,11 +18,13 @@ All lists are sorted by pct descending and exclude the "Other" bucket.
 Hand-entered supplement
 -----------------------
 ``sets_supplement.json`` (same directory) lets you add usage data for species
-absent from the main file — the new Reg M-B Pokémon/megas, until Smogon M-B
-stats land.  It is merged into the parsed data at load time and feeds **every**
-accessor below (items, abilities, spreads, moves, teammates, ``assumed_forme``,
-``mega_stones``, ``mega_forme_for_stone``).  Gap-fill only: a species already in
-the main file is never overridden.  See that file's ``_README``/``_schema``.
+absent from the main file.  It is merged into the parsed data at load time and
+feeds **every** accessor below (items, abilities, spreads, moves, teammates,
+``assumed_forme``, ``mega_stones``, ``mega_forme_for_stone``).  Gap-fill only: a
+species already in the main file is never overridden.  With real M-B stats in
+the main file the supplement is nearly empty (Watchog is the one M-B-legal
+species Smogon's 1760 file lacks); it stays as the escape hatch for the next
+regulation roll.  See that file's ``_README``/``_schema``.
 """
 from __future__ import annotations
 import re, json, pathlib
@@ -28,7 +32,7 @@ from typing import Optional
 
 _DATA_FILE = (
     pathlib.Path(__file__).parent
-    / "sets-gen9championsvgc2026regma-1760.txt"
+    / "moves-gen9championsvgc2026regmb-1760.txt"
 )
 _SUPPLEMENT_FILE = pathlib.Path(__file__).parent / "sets_supplement.json"
 
@@ -202,7 +206,11 @@ def _load() -> None:
         # ── Data lines ───────────────────────────────────────────────────────
         if entry is not None and current_section is not None:
             parsed = _parse_pct_line(inner)
-            if parsed and parsed[0].lower() != 'other':
+            # "Other" is the catch-all bucket; "No Ability" is a Smogon data
+            # artifact (the sim logged the new custom megas' abilities as
+            # "No Ability" until they were implemented mid-month) — both would
+            # poison top-usage inference, so neither is real data.
+            if parsed and parsed[0].lower() not in ('other', 'no ability'):
                 entry[current_section].append(parsed)
 
     # Flush final entry
@@ -237,10 +245,10 @@ def _merge_supplement() -> None:
         if name.startswith("_"):          # documentation key — not a species
             continue
         # Gap-fill by default (main usage file wins), EXCEPT entries flagged
-        # ``"override": true`` — used when the M-A main file carries a stale
-        # pre-mega count for a base that Reg M-B made mega-dominant (e.g. base
-        # Raichu's 94720 from before Raichunite existed), so the M-B Pikalytics
-        # split must win for the base-vs-mega forme decision.
+        # ``"override": true`` — for when the main file carries a count that is
+        # stale for the current regulation (e.g. a pre-mega base count from
+        # before its stone existed) and the hand-entered split must win the
+        # base-vs-mega forme decision.
         if name in _SETS and not raw.get("override"):
             continue
         _SETS[name] = {

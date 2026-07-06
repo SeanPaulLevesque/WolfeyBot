@@ -2969,10 +2969,11 @@ class TestEffectiveItem:
         assert _effective_item(mon) == "Focus Sash"
 
     def test_effective_item_mega_holder_assumed_stone_not_sash(self):
-        """Glimmora is 75.5% mega: the assumed item is its stone (damage-inert,
-        not KO-preventing) — NOT the base forme's Focus Sash."""
-        mon = make_mon("Glimmora", item=None)
-        assert _effective_item(mon) == "Glimmoranite"
+        """Staraptor is ~84% mega in M-B: the assumed item is its stone
+        (damage-inert, not KO-preventing) — NOT a base-forme item.  (Was
+        Glimmora in the M-A data; Glimmora is base-majority now.)"""
+        mon = make_mon("Staraptor", item=None)
+        assert _effective_item(mon) == "Staraptite"
 
     # ── _assumed_item with observed rule-outs (fallback always takes next) ────
 

@@ -38,6 +38,8 @@ import itertools
 import json
 import os
 import pathlib
+import re
+from typing import Optional
 
 _PROJECT_ROOT = pathlib.Path(os.path.dirname(os.path.abspath(__file__))).parent
 _STATS_FILE   = _PROJECT_ROOT / "Battle Data" / "lead_stats.json"
@@ -153,6 +155,54 @@ def record_leads(leads: list[str]) -> None:
     _save(data)
 
 
+# ── Ladder-wide lead prior (Smogon leads file) ────────────────────────────────
+
+_LADDER_FILE = pathlib.Path(__file__).parent / "leads-gen9championsvgc2026regmb-1760.txt"
+_LADDER_ROW = re.compile(r"^\s*\|\s*\d+\s*\|\s*(.+?)\s*\|\s*([\d.]+)%")
+
+_LADDER: Optional[dict[str, float]] = None
+
+
+def _load_ladder() -> dict[str, float]:
+    """Parse the Smogon ladder leads file into ``{base_forme: usage_pct}``.
+
+    Mega formes are folded into their base name (preview species are always
+    base names), summing e.g. Charizard + Charizard-Mega-Y.  Missing file →
+    empty dict (the prior just contributes 0)."""
+    global _LADDER
+    if _LADDER is not None:
+        return _LADDER
+    _LADDER = {}
+    if _LADDER_FILE.exists():
+        from .sets import base_forme
+        with open(_LADDER_FILE, encoding="utf-8") as f:
+            for line in f:
+                m = _LADDER_ROW.match(line)
+                if m:
+                    b = base_forme(m.group(1))
+                    _LADDER[b] = _LADDER.get(b, 0.0) + float(m.group(2))
+    return _LADDER
+
+
+def ladder_lead_pct(species: str) -> float:
+    """Ladder-wide lead usage % for *species* (mega formes folded into the base).
+
+    The Smogon leads file is a per-mon prior with no pair information, so it
+    never overrides our *observed* lead data — see :func:`_single_prior`."""
+    from .sets import base_forme
+    return _load_ladder().get(base_forme(species), 0.0)
+
+
+def _single_prior(species: str) -> float:
+    """Observed lead count + ladder prior as a sub-observation tiebreak.
+
+    ``ladder_lead_pct`` tops out well under 100, so ``/100`` keeps the ladder
+    contribution below 1.0 — a single *real* observation always outranks any
+    ladder rate, and the prior only decides between species we've never (or
+    equally rarely) seen lead."""
+    return lead_frequency(species) + ladder_lead_pct(species) / 100.0
+
+
 # ── Prediction ────────────────────────────────────────────────────────────────
 
 def predict_pair(species_list: list[str],
@@ -165,12 +215,16 @@ def predict_pair(species_list: list[str],
        *species_list*) seen led together the most, if that reaches *pair_min*.
        This is what stops two independently-popular-but-rarely-together leads
        (Whimsicott + Farigiraf) from being predicted as a pair.
-    2. **Anchor + real partner** — otherwise anchor on the single most-frequent
+    2. **Anchor + real partner** — otherwise anchor on the strongest single
        lead and pair it with whichever previewed mon it's *actually* co-led with
        most (any positive co-lead count).  Avoids re-pairing two supports.
-    3. **Top-2 singles** — only when we have no co-lead evidence for this team at
-       all, fall back to the two highest individual lead frequencies (the old
-       behaviour).
+    3. **Top-2 singles** — only when we have no co-lead evidence for this team
+       at all, fall back to the two highest individual lead frequencies.
+
+    Singles in tiers 2–3 are ranked by :func:`_single_prior`: our observed
+    counts first, with the Smogon ladder lead rate as a sub-observation
+    tiebreak — so a species we've never faced still ranks sensibly by how often
+    the ladder at large leads it.
 
     Returns up to two species (fewer only if *species_list* has fewer)."""
     species = [s for s in species_list if s]
@@ -188,11 +242,11 @@ def predict_pair(species_list: list[str],
         return best_pair
 
     # 2. Anchor on the strongest individual lead + its most-co-led partner.
-    anchor = max(species, key=lead_frequency)
+    anchor = max(species, key=_single_prior)
     partners = [s for s in species if s != anchor]
     partner = max(partners, key=lambda s: lead_pair_frequency(anchor, s))
     if lead_pair_frequency(anchor, partner) > 0:
         return [anchor, partner]
 
-    # 3. No co-lead evidence: the original top-2 individual frequencies.
-    return sorted(species, key=lead_frequency, reverse=True)[:2]
+    # 3. No co-lead evidence: top-2 singles (observed count, then ladder rate).
+    return sorted(species, key=_single_prior, reverse=True)[:2]
