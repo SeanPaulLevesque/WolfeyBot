@@ -433,6 +433,37 @@ class TestMoveMechanics:
         assert r.damage_avg == 0
         assert not r.is_ohko
 
+    def _scrappy_eff(self, move, def_types, ability=""):
+        with patch("damage.types_of",
+                   side_effect=lambda s: {"Def": def_types}.get(s, ["Normal"])):
+            return full_damage_calc(move, "Atk", "Def", self._ATK, self._DEF,
+                                    attacker_ability=ability).effectiveness
+
+    def test_scrappy_fighting_hits_pure_ghost_neutral(self):
+        assert self._scrappy_eff("Close Combat", ["Ghost"], "Scrappy") == 1.0
+
+    def test_scrappy_only_neutralises_the_ghost_component(self):
+        """Close Combat vs Gengar (Ghost/Poison): Ghost → ×1 but Poison still
+        resists → ×0.5, NOT ×1 (the mistake a flat eff-override would make)."""
+        assert self._scrappy_eff("Close Combat", ["Ghost", "Poison"],
+                                 "Scrappy") == 0.5
+
+    def test_scrappy_keeps_super_effective_component(self):
+        """Fighting vs Ghost/Dark (Spiritomb): Ghost → ×1, Dark ×2 → ×2."""
+        assert self._scrappy_eff("Close Combat", ["Ghost", "Dark"],
+                                 "Scrappy") == 2.0
+
+    def test_scrappy_normal_move_hits_ghost(self):
+        assert self._scrappy_eff("Fake Out", ["Ghost"], "Scrappy") == 1.0
+
+    def test_no_scrappy_ghost_still_immune(self):
+        assert self._scrappy_eff("Close Combat", ["Ghost"]) == 0.0
+
+    def test_scrappy_does_not_bypass_other_immunities(self):
+        """Scrappy is Normal/Fighting-vs-Ghost only: a Scrappy attacker's Ground
+        move vs a Flying-type stays immune."""
+        assert self._scrappy_eff("Earthquake", ["Flying"], "Scrappy") == 0.0
+
     def _rage_fist_power(self, times_hit):
         return full_damage_calc("Rage Fist", "Annihilape", "Def",
                                 self._DEF, self._DEF, times_hit=times_hit).power

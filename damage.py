@@ -782,6 +782,14 @@ def full_damage_calc(
     # (the other type's contribution, if any, is untouched).
     if move_name == "Freeze-Dry" and "Water" in def_types:
         eff *= 4.0
+    # Scrappy: the attacker's Normal/Fighting moves hit Ghost-types — ONLY the
+    # Ghost component is neutralised (treated as ×1); the other type still
+    # applies (Scrappy Close Combat vs Gengar = ×0.5 via Poison, not ×1).
+    # Recomputed rather than divided because the Ghost component is ×0.
+    if (attacker_ability == "Scrappy" and eff_type in ("Normal", "Fighting")
+            and "Ghost" in def_types):
+        eff = type_effectiveness(eff_type,
+                                 [t for t in def_types if t != "Ghost"])
     # Ability-based type immunity (Levitate→Ground, Dry Skin→Water, Flash Fire→
     # Fire, Volt Absorb→Electric, Sap Sipper→Grass, …): the defender's ability
     # nullifies the move entirely.  (Mould Breaker would bypass this, but our
