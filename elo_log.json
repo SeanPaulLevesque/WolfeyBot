@@ -35292,5 +35292,505 @@
     "team": "meta-team",
     "team_version": "v8",
     "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T15:46:21Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644905690",
+    "version": "0.38.0",
+    "elo_before": 1219,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T15:47:25Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644907662",
+    "version": "0.38.0",
+    "elo_before": 1243,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T15:50:34Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644908109-bj4gtyhso3ihy9pts075sg9lqv5dr49pw",
+    "version": "0.38.0",
+    "elo_before": 1262,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T15:55:11Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644909616",
+    "version": "0.38.0",
+    "elo_before": 1287,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:00:35Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644911900",
+    "version": "0.38.0",
+    "elo_before": 1256,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:04:09Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644914474",
+    "version": "0.38.0",
+    "elo_before": 1224,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:08:39Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644916202",
+    "version": "0.38.0",
+    "elo_before": 1193,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:11:05Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644918392-ipi0ibobq9sh0c3e6970k3o418anowlpw",
+    "version": "0.38.0",
+    "elo_before": 1162,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:14:39Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644919546",
+    "version": "0.38.0",
+    "elo_before": 1135,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:15:49Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644921288",
+    "version": "0.38.0",
+    "elo_before": 1110,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:16:29Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644921834",
+    "version": "0.38.0",
+    "elo_before": 1134,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:21:47Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644922160",
+    "version": "0.38.0",
+    "elo_before": 1166,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:25:20Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644924728",
+    "version": "0.38.0",
+    "elo_before": 1142,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:28:20Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644926479",
+    "version": "0.38.0",
+    "elo_before": 1118,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:31:02Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644927930-r25uha88uljkqxiabxtc3egyn8dm0qopw",
+    "version": "0.38.0",
+    "elo_before": 1094,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:33:43Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644929194-6m1deqht3klep3emojs9hs7clobih5vpw",
+    "version": "0.38.0",
+    "elo_before": 1074,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:37:19Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644930506",
+    "version": "0.38.0",
+    "elo_before": 1054,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:39:55Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644932309",
+    "version": "0.38.0",
+    "elo_before": 1037,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:42:21Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644933637",
+    "version": "0.38.0",
+    "elo_before": 1020,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:44:28Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644934849",
+    "version": "0.38.0",
+    "elo_before": 1008,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:46:59Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644935890",
+    "version": "0.38.0",
+    "elo_before": 1000,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:49:33Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644937111",
+    "version": "0.38.0",
+    "elo_before": 1000,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:52:34Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644938379-r8gm65kluxnujy2uvr7y1wxwgsbkwnrpw",
+    "version": "0.38.0",
+    "elo_before": 1000,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:54:26Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644939827-onp6xdbxbi8pw9l1l9o3yipack5a6lopw",
+    "version": "0.38.0",
+    "elo_before": 1000,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:54:55Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644940759",
+    "version": "0.38.0",
+    "elo_before": 1046,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T16:56:46Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644941001",
+    "version": "0.38.0",
+    "elo_before": 1075,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:01:59Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644941926",
+    "version": "0.38.0",
+    "elo_before": 1099,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:06:08Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644944443-iyocnjmdjghgupaywk2mkn6w1bd01sypw",
+    "version": "0.38.0",
+    "elo_before": 1070,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:07:57Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644946439",
+    "version": "0.38.0",
+    "elo_before": 1051,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:10:46Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644947333",
+    "version": "0.38.0",
+    "elo_before": 1092,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:13:34Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644948752",
+    "version": "0.38.0",
+    "elo_before": 1111,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:15:15Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644950167",
+    "version": "0.38.0",
+    "elo_before": 1131,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:20:21Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644950994",
+    "version": "0.38.0",
+    "elo_before": 1156,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:23:40Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644953543",
+    "version": "0.38.0",
+    "elo_before": 1175,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:27:17Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644955280",
+    "version": "0.38.0",
+    "elo_before": 1146,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:31:20Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644957043-y2r2dy641n7q71pwyng0ctox6hisbnhpw",
+    "version": "0.38.0",
+    "elo_before": 1123,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:31:53Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644959127",
+    "version": "0.38.0",
+    "elo_before": 1099,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:34:45Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644959394",
+    "version": "0.38.0",
+    "elo_before": 1125,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:36:13Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644960912",
+    "version": "0.38.0",
+    "elo_before": 1096,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:37:04Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644961675",
+    "version": "0.38.0",
+    "elo_before": 1125,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:40:14Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644962113",
+    "version": "0.38.0",
+    "elo_before": 1145,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:42:25Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644963775",
+    "version": "0.38.0",
+    "elo_before": 1118,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:43:04Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644964913-edrr7v3181hoo935kr08tpif8umy4hepw",
+    "version": "0.38.0",
+    "elo_before": 1097,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:44:09Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644965232-p8gwn80vpyy97nd0lopllnmdfbfhllkpw",
+    "version": "0.38.0",
+    "elo_before": 1118,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:47:37Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644965775",
+    "version": "0.38.0",
+    "elo_before": 1138,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:49:56Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644967548",
+    "version": "0.38.0",
+    "elo_before": 1111,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:51:37Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644968765",
+    "version": "0.38.0",
+    "elo_before": 1087,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T17:57:28Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644969637",
+    "version": "0.38.0",
+    "elo_before": 1062,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T18:00:22Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644972613",
+    "version": "0.38.0",
+    "elo_before": 1048,
+    "outcome": "loss",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
+  },
+  {
+    "timestamp": "2026-07-06T18:01:30Z",
+    "battle_id": "battle-gen9championsvgc2026regmb-2644974014",
+    "version": "0.38.0",
+    "elo_before": 1035,
+    "outcome": "win",
+    "team": "meta-team",
+    "team_version": "v8",
+    "username": "DongQuixote2"
   }
 ]
