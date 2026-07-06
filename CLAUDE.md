@@ -273,20 +273,34 @@ best = ranked[0]                              # Action with .move_name / .switch
 
 **Never prefix shell commands with `cd`.** The tool's working directory is
 already the project root and persists between calls. A compound command like
-`cd C:\...\WolfeyBot && ...` (or `cd ...; ...`) trips Claude Code's
-path-resolution safety check and forces a manual approval every single time.
-Run commands bare with relative paths, exactly as in the block above
+`cd C:\...\WolfeyBot && ...` (or `cd ...; ...`, or a `cd` on its own line of a
+multi-line command) trips Claude Code's path-resolution safety check AND
+defeats the allowlist (entries are prefix matches — the first token must be
+the allowlisted binary), forcing a manual approval every single time. Run
+commands bare with relative paths, exactly as in the block above
 (`.venv\Scripts\pytest -q`, not `cd <repo> && .venv/Scripts/pytest -q`).
+
+**Commits without prompts:** `git add/commit/push` are allowlisted, but a
+commit message via `-m "$(cat <<EOF...)"` contains command substitution, which
+forces approval regardless. Write the message to a scratchpad file with the
+Write tool and use `git commit -F <file>`. Destructive git (checkout --,
+reset, rm) stays manual on purpose.
 
 ---
 
 ## Pending tasks
 
 - **Task #3** — Audit switch-in order logic after a faint
-- **Task #4** — Build lead selection framework. *Done (0.7.7):* `select_team`
-  is one-mega-aware (0.6.9); `select_leads` is pair-based and initiative-aware
-  (0.7.7) — all C(n,2) lead pairs scored as matchup-vs-predicted-leads ×
-  slow-lead/Tailwind-exposure rows, with the slow row waived vs TR rosters.
+- **Task #4** — Build lead selection framework. *Engine-grounded (0.38.0):*
+  `select_leads` scores every C(n,2) lead pair on a real turn-1 `BattleState`
+  vs the predicted opp pair (best phase-1 attack weight per slot, product over
+  the pair; ×0.5 when the engine's best action for a lead is a **switch** —
+  self-refuting lead; TR/undeniable-TW rosters add averaged field variants).
+  `select_team` uses per-member engine damage matchups vs the opp six with
+  native mega demotion (second stone holder re-evaluated as its base form).
+  The old type-chart scoring remains only as the fallback for unresolvable
+  members (synthetic fixtures). `tools/preview_backtest.py` replays logged
+  previews through the current selector for validation.
   *Opponent-lead prediction is co-occurrence-aware (0.34.0):*
   `data.lead_stats.predict_pair` prefers the previewed duo actually **co-led**
   most (a `pairs` map in `lead_stats.json`) over the two highest *individual*

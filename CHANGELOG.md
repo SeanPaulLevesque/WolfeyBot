@@ -1,5 +1,41 @@
 # WolfeyBot Changelog
 
+## 0.38.0 — 2026-07-06
+
+### Team preview — engine-grounded selection
+- **Why:** the v8 report showed correct lead predictions *losing* (36% win,
+  18% ahead-rate over n=11) and the selector's favourite pair (Decidueye-Hisui
+  + Lycanroc-Dusk, 23 games) at 43% while Aerodactyl + Lycanroc-Dusk sat at
+  92% — the type-chart arithmetic can't see real damage, OHKOs, bulk, Fake Out,
+  or true turn order. Several correct-read games also opened with a turn-1
+  switch: the in-battle engine immediately disagreed with the preview layer.
+- **`select_leads`:** every C(n,2) lead pair is scored on a real turn-1
+  `BattleState` vs the predicted opponent pair — slot value = best phase-1
+  **attack** weight (real damage capped at lethal, kill bonuses, true
+  item/ability/TR-aware turn order, doomed, Fake Out), pair = product. A slot
+  whose best action is a **switch** takes ×0.5 (`_SWITCH_WANT_FACTOR`) — the
+  engine's own verdict that the lead is self-refuting. TR / undeniable-TW
+  rosters add field variants (TR-on / opp-TW-on boards, averaged), replacing
+  the hand-tuned ×0.85 initiative rows.
+- **`select_team`:** per-member engine matchups vs the opponent's six (best
+  damage fraction dealt, worst taken; offense×2 + defense×1) replace type
+  multipliers. The one-mega demotion is now *native*: a second stone holder is
+  re-evaluated as its base form (replacing the BST-scaling approximation).
+- The type-chart path remains as the fallback for unresolvable members
+  (synthetic fixtures / missing data). `tools/preview_backtest.py` replays
+  logged previews through the current selector: over the 88 v8 games the
+  DH+LD pick collapses 23 → 2; lead-pair agreement with the old selector is
+  17/88.
+
+### Modeling
+- **Scrappy.** A Scrappy attacker's Normal/Fighting moves hit Ghost-types: the
+  Ghost component of the type product is neutralised (×1) — only that
+  component, so Scrappy Close Combat vs Gengar is ×0.5 via Poison, not ×1.
+  Flows through both outgoing damage and the incoming-threat facts, so a
+  Scrappy Lopunny-Mega now threatens our Ghosts (4 reviewed snapshot cells:
+  e.g. Aegislash King's-Shields the 2× Scrappy High Jump Kick it previously
+  ignored as immune). Scrappy was already in `INTIMIDATE_IMMUNE_ABILITIES`.
+
 ## 0.37.0 — 2026-07-05
 
 ### Data: real Reg M-B usage stats (consolidation)

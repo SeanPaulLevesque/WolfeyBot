@@ -13,6 +13,10 @@
       "Bash(.venv/Scripts/python.exe tools/*)",
       "Bash(.venv\\Scripts\\python.exe tools/*)",
       "Bash(.venv/Scripts/python.exe -m tools.*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push)",
+      "Bash(git push *)",
       "PowerShell(.venv\\Scripts\\python.exe tools/*)",
       "PowerShell(.venv/Scripts/python.exe tools/*)",
       "PowerShell(.venv\\Scripts\\python.exe -m tools.*)",
@@ -20,6 +24,10 @@
       "PowerShell(.venv\\Scripts\\pytest *)",
       "PowerShell(.venv\\Scripts\\python.exe -m pytest)",
       "PowerShell(.venv\\Scripts\\python.exe -m pytest *)",
+      "PowerShell(git add *)",
+      "PowerShell(git commit *)",
+      "PowerShell(git push)",
+      "PowerShell(git push *)",
       "PowerShell(Get-Content *)",
       "PowerShell(Compare-Object *)"
     ]
