@@ -750,3 +750,126 @@ class TestSelectLeadsInitiative:
         assert not {1, 2} <= set(with_tw[:2]), (
             f"undeniable TW must break up the double-slow lead, got {with_tw}"
         )
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Engine-grounded preview evaluation (0.38.0)
+# ══════════════════════════════════════════════════════════════════════════════
+
+from team_preview import (
+    _eval_lead_board, _score_lead_pairs, _engine_matchup_scores,
+    _members_resolvable, _SWITCH_WANT_FACTOR, _ATK_FLOOR,
+)
+from decision.engine import Action
+
+
+class _StubEngine:
+    """scored_actions stub: returns a fixed ranked list per slot."""
+    def __init__(self, per_slot: dict[int, list[Action]]):
+        self.per_slot = per_slot
+
+    def scored_actions(self, state, slot):
+        return self.per_slot.get(slot, [])
+
+
+def _act(move: str = "", weight: float = 1.0, switch: str = "") -> Action:
+    return Action(label=move or f"Switch {switch}", move_name=move,
+                  switch_target=switch, weight=weight)
+
+
+class TestEvalLeadBoard:
+    """The per-board scoring mechanism, with a stubbed engine so the ranked
+    lists (and therefore the math) are fully controlled."""
+
+    def _members(self):
+        a = make_member("MonA", ["Tackle"], stats={"hp": 100})
+        b = make_member("MonB", ["Tackle"], stats={"hp": 100})
+        return a, b
+
+    def test_pair_score_is_product_of_best_attack_weights(self):
+        a, b = self._members()
+        eng = _StubEngine({
+            0: [_act("Tackle", 4.0), _act("Protect", 9.0)],   # Protect ignored for atk
+            1: [_act("Tackle", 3.0)],
+        })
+        score, vals, notes = _eval_lead_board(eng, a, b, [], ["OppA", "OppB"], None)
+        assert score == pytest.approx(12.0)
+        assert vals == [4.0, 3.0]
+        assert notes == []
+
+    def test_switch_want_penalty_applied_when_switch_outranks_stay(self):
+        """The user-observed pathology: correct lead read, engine switches turn
+        1.  A slot whose best action is a SWITCH gets ×_SWITCH_WANT_FACTOR."""
+        a, b = self._members()
+        eng = _StubEngine({
+            0: [_act(switch="Backup", weight=8.0), _act("Tackle", 4.0)],
+            1: [_act("Tackle", 3.0)],
+        })
+        score, vals, notes = _eval_lead_board(eng, a, b, [], ["OppA", "OppB"], None)
+        assert vals[0] == pytest.approx(4.0 * _SWITCH_WANT_FACTOR)
+        assert score == pytest.approx(4.0 * _SWITCH_WANT_FACTOR * 3.0)
+        assert any("prefers switching out" in n for n in notes)
+
+    def test_no_penalty_when_stay_action_beats_switch(self):
+        a, b = self._members()
+        eng = _StubEngine({
+            0: [_act("Protect", 9.0), _act(switch="Backup", weight=8.0),
+                _act("Tackle", 4.0)],   # Protect (stay) outranks the switch
+            1: [_act("Tackle", 3.0)],
+        })
+        score, vals, notes = _eval_lead_board(eng, a, b, [], ["OppA", "OppB"], None)
+        assert vals[0] == pytest.approx(4.0)     # no penalty; atk value used
+        assert notes == []
+
+    def test_attackless_slot_floors_not_zeroes(self):
+        """A slot with no usable attack must not zero the whole pair."""
+        a, b = self._members()
+        eng = _StubEngine({
+            0: [_act("Protect", 2.0)],
+            1: [_act("Tackle", 3.0)],
+        })
+        score, vals, _ = _eval_lead_board(eng, a, b, [], ["OppA", "OppB"], None)
+        assert vals[0] == pytest.approx(_ATK_FLOOR)
+        assert score == pytest.approx(_ATK_FLOOR * 3.0)
+
+
+class TestEnginePreviewIntegration:
+    """The engine path end-to-end on the real (baseline) roster — real data,
+    structural assertions only (decisions move with usage stats)."""
+
+    _OPP = ["Garchomp", "Whimsicott", "Incineroar", "Farigiraf",
+            "Sneasler", "Pelipper"]
+
+    def test_members_resolvable_gates_the_paths(self):
+        from team import get_team
+        assert _members_resolvable(get_team()) is True
+        assert _members_resolvable([make_member("NotARealMon", [])]) is False
+
+    def test_engine_matchup_scores_cover_all_members(self):
+        from team import get_team
+        members = get_team()
+        scores = _engine_matchup_scores(self._OPP, members)
+        assert scores is not None and set(scores) == set(range(1, len(members) + 1))
+        for i, (mega_val, base_val) in scores.items():
+            assert mega_val > 0 and base_val > 0
+            if not members[i - 1].mega_name:
+                assert mega_val == base_val   # non-holders have one form
+
+    def test_select_team_and_leads_run_engine_path(self):
+        from team import get_team
+        members = get_team()
+        slots = select_team(self._OPP, members, n=4)
+        assert len(slots) == 4 and len(set(slots)) == 4
+        ordered = select_leads(slots, members, self._OPP)
+        assert sorted(ordered) == sorted(slots)   # a permutation of the bring
+
+    def test_score_lead_pairs_scores_every_combination(self):
+        from team import get_team
+        members = get_team()
+        slots = select_team(self._OPP, members, n=4)
+        pairs = _score_lead_pairs(slots, members, ["Garchomp", "Whimsicott"],
+                                  self._OPP)
+        assert pairs is not None and len(pairs) == 6   # C(4,2)
+        for (a, b), (score, ordered) in pairs.items():
+            assert score > 0
+            assert set(ordered) == {a, b}

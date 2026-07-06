@@ -310,6 +310,248 @@ class MemberScore:
         return _OFFENSE_WEIGHT * self.offense + _DEFENSE_WEIGHT * self.defense
 
 
+# ── Engine-grounded preview evaluation (0.38.0) ──────────────────────────────
+# The type-chart arithmetic above is a crude parallel model: it can't see real
+# damage (stats/spreads/items/BP), OHKO thresholds, Fake Out pressure, or true
+# turn order — which is how a lead that *looks* good by type multipliers loses
+# on the actual board.  These helpers score preview decisions with the same
+# engine that plays the game: build the turn-1 board and read the phase-1
+# weights / damage facts directly.  The type-chart path below remains as the
+# fallback when a member can't be resolved by the data layer (synthetic test
+# fixtures, missing data).
+
+_SWITCH_WANT_FACTOR = 0.5   # lead slot whose best phase-1 action is a SWITCH:
+                            # the engine itself says this mon shouldn't be here
+                            # (observed live: correct lead reads followed by
+                            # turn-1 switches), so the pair is self-refuting
+_ATK_FLOOR = 0.05           # slot with no usable attack still scores something
+
+
+def _members_resolvable(members: list[TeamMember]) -> bool:
+    """True when every member resolves through team.find_member — the engine
+    scoring path pulls stats through the data layer, so synthetic fixtures
+    (tests) or a stale roster must fall back to the type-chart path."""
+    from team import find_member
+    return all(find_member(m.name) is not None for m in members)
+
+
+def _preview_our_mon(member: TeamMember):
+    """Our mon at full HP for a preview board (pre-mega species — the engine
+    resolves designated-mega stats itself, exactly like a live turn 1)."""
+    from battle import Pokemon
+    hp = (member.stats or {}).get("hp", 100)
+    return Pokemon(
+        ident=f"p1: {member.name}", species=member.name, hp=hp, max_hp=hp,
+        ability=member.ability, item=member.item, moves=list(member.moves),
+    )
+
+
+def _preview_opp_mon(species: str):
+    """Opponent preview mon at 100% — the engine uses typical-spread stats and
+    its usage-based forme/ability/item inference, same as an unrevealed foe."""
+    from battle import Pokemon
+    return Pokemon(
+        ident=f"p2: {species}", species=species,
+        hp=100, max_hp=100, hp_is_percentage=True,
+    )
+
+
+def _preview_state(lead_a: TeamMember, lead_b: TeamMember,
+                   bench: list[TeamMember], opp_pair: list[str],
+                   designated_mega: Optional[str],
+                   *, trick_room: bool = False, opp_tailwind: bool = False):
+    """A turn-1 BattleState for one candidate lead pair vs the predicted
+    opponent leads — the same construction the snapshot scenario uses."""
+    from battle import BattleState
+    s = BattleState(battle_id="preview", my_side="p1")
+    s.my_actives = [_preview_our_mon(lead_a), _preview_our_mon(lead_b)]
+    s.my_team = list(s.my_actives)
+    s.opp_actives = [_preview_opp_mon(o) for o in opp_pair]
+    s.available_switches = [_preview_our_mon(m) for m in bench]
+    s.moves_per_slot = [[{"move": mv} for mv in lead_a.moves],
+                        [{"move": mv} for mv in lead_b.moves]]
+    s.my_last_moves = ["", ""]
+    s.opp_last_moves = ["", ""]
+    s.my_slot_decisions = [None, None]
+    s.my_disabled_moves = [None, None]
+    s.my_encored_moves = [None, None]
+    s.weather = None
+    s.trick_room = trick_room
+    s.trick_room_turns_left = 3 if trick_room else 0
+    s.my_tailwind = False
+    s.opp_tailwind = opp_tailwind
+    s.opp_tailwind_turns_left = 3 if opp_tailwind else 0
+    s.designated_mega = designated_mega
+    return s
+
+
+def _eval_lead_board(engine, lead_a: TeamMember, lead_b: TeamMember,
+                     bench: list[TeamMember], opp_pair: list[str],
+                     designated_mega: Optional[str],
+                     **field) -> tuple[float, list[str]]:
+    """Score one candidate lead pair on one field variant.
+
+    Per slot, from the engine's phase-1 ranked actions:
+
+    * slot value = the best **attack** weight — this already folds in real
+      damage (capped at lethal), guaranteed-kill bonuses, true turn order
+      (item/ability/TR-aware), dying-before-acting, and Fake Out pressure.
+    * ``×_SWITCH_WANT_FACTOR`` when a **switch outweighs every stay action** —
+      the engine's own verdict that this mon doesn't want to be on this board.
+
+    Pair score = slot values multiplied (mirrors the joint engine: one dead
+    slot should sink the pair, not average out).
+    Returns (score, per_slot_values, notes)."""
+    from decision.engine import _PROTECT_MOVES
+    state = _preview_state(lead_a, lead_b, bench, opp_pair,
+                           designated_mega, **field)
+    slot_vals: list[float] = []
+    notes: list[str] = []
+    for slot, member in ((0, lead_a), (1, lead_b)):
+        ranked = engine.scored_actions(state, slot)
+        atk = max((a.weight for a in ranked
+                   if a.is_move and a.move_name not in _PROTECT_MOVES),
+                  default=0.0)
+        stay = max((a.weight for a in ranked if not a.is_switch), default=0.0)
+        sw = max((a.weight for a in ranked if a.is_switch), default=0.0)
+        val = max(atk, _ATK_FLOOR)
+        if sw > stay:
+            val *= _SWITCH_WANT_FACTOR
+            notes.append(f"{member.name}: engine prefers switching out "
+                         f"(sw {sw:.2f} > stay {stay:.2f})")
+        slot_vals.append(val)
+    return slot_vals[0] * slot_vals[1], slot_vals, notes
+
+
+def _preview_mega_for(pair: tuple[TeamMember, TeamMember],
+                      bench: list[TeamMember]) -> Optional[str]:
+    """Which member the eval assumes megas: a stone holder in the lead pair
+    first (it acts turn 1), else the first stone holder on the bench."""
+    for m in (*pair, *bench):
+        if m.mega_name:
+            return m.name
+    return None
+
+
+def _score_lead_pairs(slots: list[int], our_members: list[TeamMember],
+                      predicted: list[str], opp_species_list: list[str],
+                      ) -> Optional[dict[tuple[int, int], float]]:
+    """Engine-grounded score for every C(n,2) lead pair from *slots*.
+
+    Field variants: the base (no-field) board, plus a Trick-Room-on board when
+    the opponent roster has a TR setter and an opponent-Tailwind board when it
+    has an undeniable (priority) TW setter — averaged, so initiative under the
+    opponent's likely game plan is priced by the *real* turn-order model
+    instead of hand-tuned rows.  Returns None when the engine path is
+    unavailable (unresolvable members)."""
+    if not _members_resolvable([our_members[i - 1] for i in slots]):
+        return None
+    try:
+        from decision.modules import (
+            make_engine, _is_tr_setter, _assumed_ability,
+            _TAILWIND_SETTER_SPECIES,
+        )
+    except Exception:
+        return None
+
+    tr_expected = any(_is_tr_setter(_preview_opp_mon(s))
+                      for s in opp_species_list)
+    tw_undeniable = any(
+        s in _TAILWIND_SETTER_SPECIES
+        and (s == "Talonflame" or _assumed_ability(s) == "Prankster")
+        for s in opp_species_list
+    )
+    variants: list[dict] = [{}]
+    if tr_expected:
+        variants.append({"trick_room": True})
+    if tw_undeniable:
+        variants.append({"opp_tailwind": True})
+
+    engine = make_engine()
+    from itertools import combinations
+    scores: dict[tuple[int, int], tuple[float, tuple[int, int]]] = {}
+    for a, b in combinations(sorted(slots), 2):
+        ma, mb = our_members[a - 1], our_members[b - 1]
+        bench = [our_members[i - 1] for i in slots if i not in (a, b)]
+        mega = _preview_mega_for((ma, mb), bench)
+        total = 0.0
+        vals = [0.0, 0.0]
+        all_notes: list[str] = []
+        for field in variants:
+            sc, sv, notes = _eval_lead_board(engine, ma, mb, bench, predicted,
+                                             mega, **field)
+            total += sc
+            vals[0] += sv[0]
+            vals[1] += sv[1]
+            all_notes += notes
+        # Stronger slot value leads first (position is mostly cosmetic, but it
+        # keeps the log readable and matches the old score-ordered convention).
+        ordered = (a, b) if vals[0] >= vals[1] else (b, a)
+        scores[(a, b)] = (total / len(variants), ordered)
+        log.info("  LEAD EVAL  %s+%s  score=%.3f%s",
+                 ma.name, mb.name, total / len(variants),
+                 ("  [" + "; ".join(all_notes) + "]") if all_notes else "")
+    return scores
+
+
+def _engine_matchup_scores(opp_species_list: list[str],
+                           our_members: list[TeamMember],
+                           ) -> Optional[dict[int, tuple[float, float]]]:
+    """Engine-computed (mega_combined, base_combined) per 1-based member slot.
+
+    Per member × opponent: offense = the best damage fraction we deal (capped
+    at 1.0 — an OHKO maxes it), defense = 1 − the worst fraction we take
+    (floored at 0 — being OHKO'd zeroes it), averaged over the opponent's six
+    and combined with the existing offense×2 + defense×1 weights.  A stone
+    holder is scored twice — as its mega and as its base form — so the
+    one-mega-per-battle demotion is *native* (re-evaluated as base, replacing
+    the old BST-scaling approximation).  None → caller falls back."""
+    if not _members_resolvable(our_members):
+        return None
+    try:
+        from damage import outgoing_damage, incoming_damage
+        from data import assumed_forme, ability_of
+        from decision.modules import _assumed_ability, _assumed_item
+    except Exception:
+        return None
+
+    def _one_form(species: str, stats: dict, ability: str, item,
+                  moves: list[str]) -> float:
+        off_total = def_total = 0.0
+        for opp in opp_species_list:
+            opp_form = assumed_forme(opp)
+            opp_ab = _assumed_ability(opp_form) or ""
+            opp_it = _assumed_item(opp_form, frozenset())
+            res = outgoing_damage(
+                our_species=species, our_stats=stats, our_moves=moves,
+                opp_species=opp_form, our_ability=ability or "",
+                our_item=item, opp_ability=opp_ab, opp_item=opp_it,
+            )
+            off_total += min(res[0].hp_fraction_avg, 1.0) if res else 0.0
+            thr = incoming_damage(
+                opp_species=opp_form, our_species=species, our_stats=stats,
+                opp_ability=opp_ab, opp_item=opp_it,
+                our_ability=ability or "", our_item=item,
+            )
+            worst = max((t.hp_fraction_avg for t in thr), default=0.0)
+            def_total += max(0.0, 1.0 - min(worst, 1.0))
+        n = max(len(opp_species_list), 1)
+        return _OFFENSE_WEIGHT * (off_total / n) + _DEFENSE_WEIGHT * (def_total / n)
+
+    out: dict[int, tuple[float, float]] = {}
+    for i, m in enumerate(our_members, start=1):
+        base_stats = m.stats or {}
+        base_val = _one_form(m.name, base_stats, m.ability, m.item, m.moves)
+        if m.mega_name and m.mega_stats:
+            mega_val = _one_form(m.mega_name, m.mega_stats,
+                                 ability_of(m.mega_name) or m.ability,
+                                 m.item, m.moves)
+        else:
+            mega_val = base_val
+        out[i] = (mega_val, base_val)
+    return out
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def score_members(
@@ -384,10 +626,36 @@ def select_team(
     Returns:
         List of *n* 1-based slot indices, leads-first.
     """
-    scored = score_members(opp_species_list, our_members)
     if not opp_species_list:
         # No opponent data — preserve the team-order fallback.
-        return [s.index for s in scored[:n]]
+        return list(range(1, len(our_members) + 1))[:n]
+
+    # ── Engine path (0.38.0): real damage matchups, native mega demotion ──
+    engine_scores = _engine_matchup_scores(opp_species_list, our_members)
+    if engine_scores is not None:
+        remaining = list(engine_scores.keys())
+        picked: list[int] = []
+        mega_claimed = False
+
+        def _value(i: int) -> float:
+            mega_val, base_val = engine_scores[i]
+            holder = bool(our_members[i - 1].mega_name)
+            return base_val if (holder and mega_claimed) else mega_val
+
+        while remaining and len(picked) < n:
+            best = max(remaining, key=_value)
+            picked.append(best)
+            remaining.remove(best)
+            if our_members[best - 1].mega_name and not mega_claimed:
+                mega_claimed = True
+        log.info("TEAM SELECT (engine)  %s",
+                 [(our_members[i - 1].name,
+                   f"{engine_scores[i][0]:.2f}/{engine_scores[i][1]:.2f}")
+                  for i in picked])
+        return picked
+
+    # ── Fallback: type-chart scoring (unresolvable members / no data) ─────
+    scored = score_members(opp_species_list, our_members)
 
     def _base_combined(ms: MemberScore) -> float:
         """Combined score for a stone holder that *cannot* mega this battle.
@@ -555,7 +823,27 @@ def select_leads(
     predicted = predict_pair(opp_species_list)
     log.info("PREDICTED OPP LEADS  %s", predicted)
 
-    # ── Score our bring list against the predicted leads ──────────────────
+    # ── Engine path (0.38.0): score each lead pair on the real board ──────
+    # Build the turn-1 BattleState per candidate pair and read the phase-1
+    # weights (real damage, kills, true turn order, Fake Out, doomed) — plus
+    # the switch-want penalty: if the engine's best action for a lead is to
+    # switch OUT, that lead pair is self-refuting.  TR / undeniable-TW rosters
+    # add field variants instead of hand-tuned rows.
+    if len(predicted) == 2:
+        pair_scores = _score_lead_pairs(slots, our_members, predicted,
+                                        opp_species_list)
+        if pair_scores:
+            (_, ordered) = max(pair_scores.values(), key=lambda v: v[0])
+            leads = list(ordered)
+            back = [s for s in slots if s not in ordered]
+            result = leads + back
+            log.info(
+                "LEAD ORDER  %s  (engine eval: %s vs predicted %s)",
+                result, [our_members[i - 1].name for i in leads], predicted,
+            )
+            return result
+
+    # ── Fallback: type-chart scoring + initiative rows ────────────────────
     all_scores    = score_members(predicted, our_members)
     score_by_slot = {s.index: s.combined for s in all_scores}
 
