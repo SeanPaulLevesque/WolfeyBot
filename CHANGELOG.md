@@ -1,5 +1,31 @@
 # WolfeyBot Changelog
 
+## 0.39.0 — 2026-07-06
+
+### Decision engine — joint setup denial (anti-Tailwind/TR, task #20)
+- **`JointSetupDenialAdjuster` (phase 2).** The combined-kill case no per-slot
+  module could see: neither mon alone guarantee-OHKOs a `_SETUP_TYPES` setter,
+  but the two attacks' summed **min rolls** kill it before it moves (two hits
+  also beat a Focus Sash). Fires only when the setup isn't already up, the
+  setter isn't priority-exempt, neither attack solo-kills (then per-slot
+  SetupDenial + the Overkill redirect own it), and **both** attacks resolve
+  before the setter (priority counts via `priority_bracket`, else the real
+  turn-order check). Effect: doubling tax waived (×1/0.4) + the standard
+  ×`SETUP_DENIAL` (×2).
+- **Why:** vs Swampert+Pelipper rain we were 8-52 lifetime across every roster
+  — we kept winning the raw turn-1 exchange while Pelipper set Tailwind
+  unopposed, because Accelerock (~0.71) + Wave Crash (~0.72) together kill
+  Pelipper pre-move but the ×0.4 doubling tax routed the second attacker onto
+  Swampert every time. Replaying the archetypal loss (2640400465): the engine
+  now converges both attacks on Pelipper.
+- New `TurnContext.min_dmg[(slot, move, opp_slot)]` fact (min-roll fraction of
+  current HP), filled by the existing OHKO loop at zero extra calcs.
+- **Snapshots: 19 decision changes, 0 weight-only** — all setter-convergence
+  (opp Pelipper+Dragonite rows collapse onto Pelipper pre-Tailwind; Farigiraf
+  rows onto the TR setter; one double-priority kill on opp Aerodactyl before
+  its Tailwind). Reviewed and approved. +7 tests. New `tools/turns_vs_lead.py`
+  (all logged turn 1s vs a given opponent lead pair).
+
 ## 0.38.1 — 2026-07-06
 
 ### Modeling

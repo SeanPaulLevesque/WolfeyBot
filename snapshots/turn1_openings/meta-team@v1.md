@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.38.1 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.39.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -64,7 +64,7 @@ Bench: Kingambit, Basculegion-M, Venusaur, Garchomp
 | 2.17 | Charizard | Incineroar | Rock Tomb → Charizard `20.00` | Close Combat → Incineroar `5.65` |
 | 2.18 | Rotom-Wash | Garchomp | Ice Fang → Garchomp `40.00` | Close Combat → Rotom-Wash `3.02` |
 | 2.19 | Glimmora | Incineroar | Switch → Garchomp `8.34` | Close Combat → Incineroar `2.83` |
-| 2.20 | Pelipper | Dragonite | Ice Fang → Dragonite `10.17` | Rock Tomb → Pelipper `6.60` |
+| 2.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `14.10` | Rock Tomb → Pelipper `13.21` |
 
 ---
 
@@ -176,7 +176,7 @@ Bench: Kingambit, Sneasler, Basculegion-M, Venusaur
 | 6.17 | Charizard | Incineroar | Rock Tomb → Charizard `15.00` | Stomping Tantrum → Incineroar `6.26` |
 | 6.18 | Rotom-Wash | Garchomp | Ice Fang → Garchomp `30.00` | Dragon Claw → Rotom-Wash `5.33` |
 | 6.19 | Glimmora | Incineroar | Switch → Basculegion-M `7.37` | Stomping Tantrum → Glimmora `4.00` |
-| 6.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `10.57` | Dragon Claw → Dragonite `8.24` |
+| 6.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `10.57` | Rock Tomb → Pelipper `21.39` |
 
 ---
 
@@ -372,7 +372,7 @@ Bench: Aerodactyl, Kingambit, Basculegion-M, Venusaur
 | 13.17 | Charizard | Incineroar | Close Combat → Incineroar `2.83` | Rock Tomb → Charizard `40.00` |
 | 13.18 | Rotom-Wash | Garchomp | Switch → Venusaur `3.74` | Dragon Claw → Garchomp `7.58` |
 | 13.19 | Glimmora | Incineroar | Close Combat → Incineroar `2.83` | Stomping Tantrum → Glimmora `8.00` |
-| 13.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `6.60` | Dragon Claw → Dragonite `8.24` |
+| 13.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `6.60` | Rock Tomb → Pelipper `21.39` |
 
 ---
 

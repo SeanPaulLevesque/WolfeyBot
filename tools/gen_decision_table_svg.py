@@ -78,6 +78,9 @@ ROWS = [
     ("J2",  "overkill",               ("span6", "×0.05"),             ["—", "—", "—"],
      "one slot already guarantees the OHKO on the shared target → near-veto the other "
      "(wasteful) doubler, so the pair that spreads onto the survivor wins. Composes on top of J1"),
+    ("J2b", "joint setup denial",      ("span6", "×2.5 × ×2.0"),      ["—", "—", "—"],
+     "both attack the same SETTER (TR/TW), neither solo-OHKOs it, but summed min rolls kill it "
+     "and both attacks resolve before it moves → doubling tax waived (×2.5) + setup denial (×2.0)"),
     ("J3",  "attack alongside partner", ("span6", "—"),               ["×0.5", "—", "—"],
      "a gratuitous lone Protect (no real OHKO/stall reason, e.g. only a Fake Out nudge) "
      "beside an attacking partner — favour the double-attack"),

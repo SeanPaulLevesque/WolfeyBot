@@ -42,6 +42,7 @@ from decision.modules import (  # noqa: F401
     _switch_in_survives,
     DoublingAdjuster,
     OverkillAdjuster,
+    JointSetupDenialAdjuster,
     CoordinationAdjuster,
     FakeOutAdjuster,
     SwitchCollisionAdjuster,

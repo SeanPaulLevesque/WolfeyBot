@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.38.1 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.39.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -64,7 +64,7 @@ Bench: Kingambit, Basculegion-M, Venusaur, Garchomp
 | 2.17 | Charizard | Incineroar | Protect → ? `5.00` | Protect → ? `5.00` |
 | 2.18 | Rotom-Wash | Garchomp | Brave Bird → Garchomp `5.30` | Switch → Venusaur `3.74` |
 | 2.19 | Glimmora | Incineroar | Switch → Garchomp `7.90` | Close Combat → Incineroar `2.83` |
-| 2.20 | Pelipper | Dragonite | Brave Bird → Pelipper `13.15` | Switch → Basculegion-M `4.00` |
+| 2.20 | Pelipper | Dragonite | Brave Bird → Pelipper `13.15` | Rock Tomb → Pelipper `13.21` |
 
 ---
 
@@ -176,7 +176,7 @@ Bench: Kingambit, Sneasler, Basculegion-M, Venusaur
 | 6.17 | Charizard | Incineroar | Close Combat → Incineroar `2.20` | Rock Tomb → Charizard `40.00` |
 | 6.18 | Rotom-Wash | Garchomp | Close Combat → Rotom-Wash `3.62` | Dragon Claw → Garchomp `7.58` |
 | 6.19 | Glimmora | Incineroar | Switch → Basculegion-M `6.93` | Stomping Tantrum → Glimmora `4.00` |
-| 6.20 | Pelipper | Dragonite | Brave Bird → Pelipper `9.87` | Dragon Claw → Dragonite `8.24` |
+| 6.20 | Pelipper | Dragonite | Brave Bird → Pelipper `9.87` | Rock Tomb → Pelipper `21.39` |
 
 ---
 
@@ -372,7 +372,7 @@ Bench: Staraptor, Kingambit, Basculegion-M, Venusaur
 | 13.17 | Charizard | Incineroar | Close Combat → Incineroar `2.83` | Rock Tomb → Charizard `40.00` |
 | 13.18 | Rotom-Wash | Garchomp | Switch → Venusaur `3.74` | Dragon Claw → Garchomp `7.58` |
 | 13.19 | Glimmora | Incineroar | Close Combat → Incineroar `2.83` | Stomping Tantrum → Glimmora `8.00` |
-| 13.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `6.60` | Dragon Claw → Dragonite `8.24` |
+| 13.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `6.60` | Rock Tomb → Pelipper `21.39` |
 
 ---
 

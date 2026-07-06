@@ -7,7 +7,7 @@ WolfeyBot is a Gen 9 VGC doubles bot that plays on Pokémon Showdown in the
 2026-06-17 (`BATTLE_FORMAT` in `main.py` is `gen9championsvgc2026regmb`); the
 data/usage layer runs on the real Smogon **M-B** dumps since 0.37.0. It
 connects via WebSocket, parses the battle protocol, and chooses moves using a
-two-phase scoring engine (18 per-slot modules + 5 joint adjusters; see the
+two-phase scoring engine (18 per-slot modules + 7 joint adjusters; see the
 pipeline section below).
 
 ---
@@ -43,7 +43,7 @@ to make green by editing expectations. This is a hard rule:
 | `main.py` | WebSocket client — connects to Showdown, drives the game loop |
 | `battle.py` / `battle_state.py` | `BattleState` and `Pokemon` dataclasses; battle protocol parser |
 | `decision/engine.py` | `Action`, `ScoringModule`, `DecisionEngine`, `_build_actions` |
-| `decision/modules.py` | All 18 per-slot modules + 5 joint adjusters + `make_engine()` factory |
+| `decision/modules.py` | All 18 per-slot modules + 7 joint adjusters + `make_engine()` factory |
 | `team.py` | `find_member(species)` + active-team selector (`set_active_team`, `get_team`, `list_teams`, `validate_team`, `resolve_team_spec`) |
 | `teams/` | Named ladder teams for A/B testing: `teams/<name>/v<n>.txt` pastes + `teams.json` manifest (name → label, account, current version). See `teams/README.md` |
 | `snapshots/` | Decision-snapshot regression subsystem: `baseline_team.txt` (frozen baseline roster, the no-`--team` fallback) + `<scenario>/<team>.md` generated tables |
@@ -124,6 +124,7 @@ turn as: phase-1 score all → `coordinate` → record/mega/emit.
 |---|---|
 | Doubling | Both attack the same target: flat ×0.4 (penalty on the higher slot) — the spread-your-damage tax. Just the base penalty; the overkill near-veto is its own adjuster |
 | Overkill | One slot already guarantees the OHKO on the shared target → ×0.05 near-veto on the *non-killer* (wasteful doubler), so the pair that **spreads** onto the survivor wins (emergent "redirect"). Composes on top of Doubling |
+| JointSetupDenial | Both attack the same `_SETUP_TYPES` **setter**, neither solo-OHKOs it, but the summed **min rolls** kill it and both attacks resolve before it moves → waive the doubling tax (×1/0.4) and apply ×`SETUP_DENIAL` (×2). The combined kill no per-slot module can see (born from the 8-52 Swampert+Pelipper record: two ~0.7 hits kill Pelipper pre-Tailwind, but the doubling tax kept routing the second attacker onto Swampert). Reads `ctx.min_dmg` |
 | Coordination | A **gratuitous** lone Protect (no `incoming_ohko`/`protect:`/`field_condition` reason) beside an attacking partner: ×0.5 on the Protect → favour double-attack; justified Protects and double-Protects untouched |
 | FakeOut (free) | When **either** slot attacks, divide the partner's Fake-Out multiplier back out (attack un-halved, Protect un-boosted; known from `ctx.fake_out` + the action type) — a pair pays the Fake-Out adjustment once, never twice; symmetric since 0.7.2 |
 | SwitchCollision | Both slots switch to the **same** bench mon → ×0 |

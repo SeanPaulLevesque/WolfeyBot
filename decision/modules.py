@@ -1166,6 +1166,11 @@ class TurnContext:
     """
     doomed: dict[int, bool] = field(default_factory=dict)
     ohko:   set = field(default_factory=set)
+    # (slot, move, opp_slot) -> min-roll damage as a fraction of the target's
+    # CURRENT HP (1.0+ = that single move is a guaranteed KO ignoring Sash).
+    # Filled by the same outgoing_damage loop that builds ``ohko`` — no extra
+    # calcs.  Lets phase 2 reason about COMBINED kills (joint setup denial).
+    min_dmg: dict = field(default_factory=dict)
     incoming_ohko:    dict[int, list[int]] = field(default_factory=dict)
     incoming_certain: dict[int, list[int]] = field(default_factory=dict)
     priority_ohko:    dict[int, list[int]] = field(default_factory=dict)
@@ -1406,8 +1411,10 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                     attacker_status=mon.status or "",
                     flash_fire_active=mon.flash_fire_active,
                 )
-                if results and results[0].is_ohko:
-                    ctx.ohko.add((slot, move, opp_slot))
+                if results:
+                    ctx.min_dmg[(slot, move, opp_slot)] = results[0].hp_fraction_min
+                    if results[0].is_ohko:
+                        ctx.ohko.add((slot, move, opp_slot))
 
     # ── 2. Incoming threats (the one incoming_damage fact loop) ───────────────
     fo_live = _fake_out_threatened(state)
@@ -2326,6 +2333,79 @@ class SetupDenialModule(ScoringModule):
                 break   # at most one denial per action — the TR claim wins
 
 
+def _acts_before_setter(state: "BattleState", slot: int, move_name: str,
+                        setter_slot: int) -> bool:
+    """Does our *slot*'s chosen attack resolve before the setter moves?
+
+    A priority attack always does — the setter's setup move is priority 0
+    (+1-priority setters are filtered out upstream by ``priority_exempt``).
+    Otherwise we need the straight speed win on the current field."""
+    if priority_bracket(move_name) > 0:
+        return True
+    ours = _our_combatant(state, slot)
+    setter = _opp_combatant(state, setter_slot)
+    if ours is None or setter is None:
+        return False
+    return will_outspeed(ours, setter, trick_room=state.trick_room) > 0.5
+
+
+class JointSetupDenialAdjuster(JointAdjuster):
+    """**Two chips make a denial.**  Phase-2 companion to SetupDenialModule for
+    the case no per-slot module can see: *neither* mon alone guarantee-OHKOs the
+    setter, but the two attacks **combined** kill it before it moves — so
+    doubling onto it is not wasteful, it's the play that stops the setup.
+
+    Discovered vs Swampert+Pelipper rain (8-52 lifetime): we kept winning turn
+    1 on raw damage while Pelipper set Tailwind unopposed — Accelerock (~0.71)
+    + Wave Crash (~0.72) together kill Pelipper before it acts, but the ×0.4
+    doubling tax pushed the second attacker onto Swampert every time.
+
+    Fires when: both slots attack the same target (``_doubling_target``); the
+    target is a ``_SETUP_TYPES`` setter whose effect is not already up and not
+    priority-exempt; **neither** attack solo-guarantees the kill (then per-slot
+    SetupDenial + the Overkill redirect own the case); the summed **min-roll**
+    damage ≥ the target's current HP (two hits also beat a Focus Sash — it
+    saves only the first); and **both** attacks resolve before the setter.
+
+    Effect: waive the doubling tax (×1/DOUBLING_FACTOR) and apply the standard
+    ×``SETUP_DENIAL`` on top — the same flat denial value the per-slot module
+    uses, so a combined kill is worth what a solo kill is worth.
+    """
+
+    name = "joint_setup_denial"
+
+    def factor(self, state, slot_a, a0, slot_b, a1):
+        target = _doubling_target(state, a0, a1)
+        if target is None:
+            return 1.0, 1.0, None
+        opp = state.opp_actives[target]
+        ctx = _ensure_turn_ctx(state)
+        # A solo guaranteed kill on the setter is the per-slot modules' case
+        # (SetupDenial boosts the killer; Overkill redirects the partner).
+        if any(ctx.guarantees_ohko(sl, a.move_name, target)
+               for sl, a in ((slot_a, a0), (slot_b, a1))):
+            return 1.0, 1.0, None
+        combined = (ctx.min_dmg.get((slot_a, a0.move_name, target), 0.0)
+                    + ctx.min_dmg.get((slot_b, a1.move_name, target), 0.0))
+        if combined < 1.0:
+            return 1.0, 1.0, None
+        for st in _SETUP_TYPES:
+            if st.is_active(state):
+                continue   # effect already up — nothing left to deny
+            if _modeled_forme(opp) not in st.species and st.move not in opp.moves:
+                continue
+            if st.priority_exempt(opp):
+                continue
+            if not (_acts_before_setter(state, slot_a, a0.move_name, target)
+                    and _acts_before_setter(state, slot_b, a1.move_name, target)):
+                continue
+            factor = (1.0 / DoublingAdjuster.DOUBLING_FACTOR) * SETUP_DENIAL
+            return (1.0, factor,
+                    f"{self.name}: combined min rolls KO {opp.species} before it"
+                    f" sets {st.label} -> doubling waived, denial x{SETUP_DENIAL}")
+        return 1.0, 1.0, None
+
+
 class FieldConditionModule(ScoringModule):
     """
     Boosts Protect-family moves to stall out the final turns of opponent
@@ -2552,8 +2632,9 @@ def make_engine() -> DecisionEngine:
             SwitchSafetyModule(),         # 18: escape a connecting OHKO (×4.0) / switch into one (×0.3)
         ],
         joint=[
-            DoublingAdjuster(),           # both attack same target: ×0.40–0.70 (spread your damage)
+            DoublingAdjuster(),           # both attack same target: ×0.4 flat (spread your damage)
             OverkillAdjuster(),           # partner already confirms the OHKO: ×0.05 near-veto on the doubler
+            JointSetupDenialAdjuster(),   # combined min rolls KO a setter before it acts: waive doubling + ×2
             CoordinationAdjuster(),       # gratuitous lone Protect beside an attacker: ×0.5
             FakeOutAdjuster(),            # lower slot absorbs Fake Out → free the partner
             SwitchCollisionAdjuster(),    # both switch to the same mon: ×0

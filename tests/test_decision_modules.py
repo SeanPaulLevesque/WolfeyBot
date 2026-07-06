@@ -30,6 +30,7 @@ from decision import (
     ConsecutiveProtectModule,
     DoublingAdjuster,
     OverkillAdjuster,
+    JointSetupDenialAdjuster,
     CoordinationAdjuster,
     FakeOutAdjuster,
     SwitchCollisionAdjuster,
@@ -1099,6 +1100,92 @@ class TestOverkillAdjuster:
             fa, fb, _ = self.adj.factor(self._state(), 0, a0, 1, a1)
         assert fa == pytest.approx(OverkillAdjuster.FACTOR)
         assert fb == 1.0
+
+
+class TestJointSetupDenialAdjuster:
+    """Phase-2 combined setter kill: neither slot solo-OHKOs the setter, but the
+    two attacks' summed MIN rolls kill it before it moves → waive the doubling
+    tax and apply ×SETUP_DENIAL.  The Swampert+Pelipper rain case: Accelerock
+    (~0.7) + Wave Crash (~0.7) together stop the Tailwind; the ×0.4 doubling tax
+    used to push the second attacker onto Swampert instead."""
+    adj = JointSetupDenialAdjuster()
+
+    EXPECTED = (1.0 / DoublingAdjuster.DOUBLING_FACTOR) * SETUP_DENIAL   # 2.5 × 2
+
+    def _state(self, *, tw_active=False):
+        # Pelipper (Tailwind setter, assumed Drizzle — not priority-exempt) in
+        # opp slot 0; a non-setter in slot 1.  Both our attacks are +1 priority
+        # (Accelerock / Aqua Jet), so they act before the setter with no
+        # combatant machinery needed.
+        return make_state(
+            my_actives=[make_mon("Lycanroc-Dusk"), make_mon("Basculegion")],
+            opp_actives=[make_mon("Pelipper", side="p2"),
+                         make_mon("Swampert", side="p2")],
+            opp_tailwind=tw_active,
+        )
+
+    def _acts(self, target=0):
+        a0 = make_action("Accelerock", "Accelerock", target_slot=target, weight=6.0)
+        a1 = make_action("Aqua Jet", "Aqua Jet", target_slot=target, weight=5.0)
+        return a0, a1
+
+    def _ctx(self, dmg_a=0.7, dmg_b=0.7, ohko=None):
+        return TurnContext(
+            doomed={0: False, 1: False}, ohko=ohko or set(),
+            min_dmg={(0, "Accelerock", 0): dmg_a, (1, "Aqua Jet", 0): dmg_b},
+        )
+
+    def test_combined_kill_on_setter_fires(self):
+        a0, a1 = self._acts()
+        with patch("decision.modules._ensure_turn_ctx", return_value=self._ctx()):
+            fa, fb, reason = self.adj.factor(self._state(), 0, a0, 1, a1)
+        assert fa == 1.0
+        assert fb == pytest.approx(self.EXPECTED)
+        assert "Tailwind" in reason and "Pelipper" in reason
+
+    def test_combined_damage_short_of_kill_inert(self):
+        a0, a1 = self._acts()
+        ctx = self._ctx(dmg_a=0.5, dmg_b=0.4)    # 0.9 < 1.0 — setter survives
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            assert self.adj.factor(self._state(), 0, a0, 1, a1) == (1.0, 1.0, None)
+
+    def test_solo_kill_is_not_this_adjusters_case(self):
+        """A solo guaranteed OHKO → per-slot SetupDenial + Overkill redirect own
+        it; the joint adjuster must stay out."""
+        a0, a1 = self._acts()
+        ctx = self._ctx(dmg_a=1.1, ohko={(0, "Accelerock", 0)})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            assert self.adj.factor(self._state(), 0, a0, 1, a1) == (1.0, 1.0, None)
+
+    def test_effect_already_active_inert(self):
+        a0, a1 = self._acts()
+        with patch("decision.modules._ensure_turn_ctx", return_value=self._ctx()):
+            assert self.adj.factor(self._state(tw_active=True), 0, a0, 1, a1) \
+                == (1.0, 1.0, None)
+
+    def test_non_setter_target_inert(self):
+        a0, a1 = self._acts(target=1)            # doubling onto Swampert
+        ctx = TurnContext(doomed={0: False, 1: False},
+                          min_dmg={(0, "Accelerock", 1): 0.7, (1, "Aqua Jet", 1): 0.7})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            assert self.adj.factor(self._state(), 0, a0, 1, a1) == (1.0, 1.0, None)
+
+    def test_attacker_that_cannot_act_first_inert(self):
+        """A non-priority attack from a synthetic mon (no combatant data) can't
+        be shown to beat the setter → no denial credit."""
+        a0 = make_action("Accelerock", "Accelerock", target_slot=0, weight=6.0)
+        a1 = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
+        ctx = TurnContext(doomed={0: False, 1: False},
+                          min_dmg={(0, "Accelerock", 0): 0.7, (1, "Wave Crash", 0): 0.7})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx), \
+             patch("decision.modules._our_combatant", return_value=None):
+            assert self.adj.factor(self._state(), 0, a0, 1, a1) == (1.0, 1.0, None)
+
+    def test_different_targets_inert(self):
+        a0 = make_action("Accelerock", "Accelerock", target_slot=0, weight=6.0)
+        a1 = make_action("Aqua Jet", "Aqua Jet", target_slot=1, weight=5.0)
+        with patch("decision.modules._ensure_turn_ctx", return_value=self._ctx()):
+            assert self.adj.factor(self._state(), 0, a0, 1, a1) == (1.0, 1.0, None)
 
 
 class TestCoordinationAdjuster:

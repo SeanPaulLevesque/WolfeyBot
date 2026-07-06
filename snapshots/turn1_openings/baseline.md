@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.38.1 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.39.0 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -120,7 +120,7 @@ Bench: Kingambit, Basculegion, Venusaur, Garchomp
 | 4.17 | Charizard | Incineroar | Rock Tomb → Charizard `20.00` | Close Combat → Incineroar `5.65` |
 | 4.18 | Rotom-Wash | Garchomp | Ice Fang → Garchomp `40.00` | Close Combat → Rotom-Wash `3.02` |
 | 4.19 | Glimmora | Incineroar | Switch → Garchomp `8.34` | Close Combat → Incineroar `2.83` |
-| 4.20 | Pelipper | Dragonite | Ice Fang → Dragonite `10.17` | Rock Tomb → Pelipper `6.60` |
+| 4.20 | Pelipper | Dragonite | Rock Tomb → Pelipper `14.10` | Rock Tomb → Pelipper `13.21` |
 
 ---
 
