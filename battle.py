@@ -374,6 +374,18 @@ class BattleParser:
         if pending is not None:
             pending["crit"] = True
 
+    async def _on_hitcount(self, args: list[str]):
+        # |-hitcount|TARGET|NUM — closes a multi-hit move's resolution.  Promote
+        # the cumulative drop (summed across strikes in _apply_hp_update) to the
+        # event's recorded damage, so multi-hit moves log their FULL damage.
+        # Only fires for genuine multi-hit moves, so a stray -damage on the same
+        # target can never inflate a single-hit move's number.
+        pending = getattr(self, "_pending_event", None)
+        if (pending is not None and args
+                and pending.get("_tgt_ident") == _normalize_ident(args[0])
+                and pending.get("_cum") is not None):
+            pending["dmg"] = pending["_cum"]
+
     async def _on_immune(self, args: list[str]):
         """|-immune|TARGET[|[from] ability: X] — the resolving move dealt no
         damage because the target was immune (by type or ability).
@@ -889,10 +901,18 @@ class BattleParser:
                 # matching; a new |move| overwrites the pending event.
                 if drop > 0:
                     mon.times_hit += 1
-                # Record the move's actual damage once, on the first strike (the
-                # offline accuracy instrumentation compares this to prediction).
+                # Record the move's damage on the first strike, and separately
+                # keep the CUMULATIVE drop from the pre-move HP (``hp0`` is
+                # anchored at the |move| line).  A real multi-hit move always
+                # ends with ``|-hitcount|``, whose handler promotes the
+                # cumulative total to ``dmg`` — so Dual Wingbeat / Population
+                # Bomb record their FULL damage (the old first-strike-only
+                # value halved every 2-hit move's logged ``d`` and undercounted
+                # their KOs), while a stray untagged -damage on the same target
+                # (no -hitcount) still can't overwrite the move's number.
                 if pending.get("dmg") is None:
                     pending["dmg"] = round(max(drop, 0.0), 3)
+                pending["_cum"] = round(max(drop, 0.0), 3)
 
     # ── Opponent item-evidence helpers ────────────────────────────────────────
 
@@ -952,6 +972,7 @@ _HANDLERS = {
     "swap":           BattleParser._on_swap,        # Ally Switch — slot exchange
     "move":           BattleParser._on_move,
     "-crit":          BattleParser._on_crit,
+    "-hitcount":      BattleParser._on_hitcount,
     "-immune":        BattleParser._on_immune,
     "-miss":          BattleParser._on_miss,
     "-damage":        BattleParser._on_damage,

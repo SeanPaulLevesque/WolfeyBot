@@ -307,6 +307,28 @@ class TestMoveInstrumentation:
         assert parser.state.turn_events == []
         assert 2 not in parser.state.events_log
 
+    def test_multi_hit_move_records_cumulative_damage(self):
+        """Regression: a 2-hit move (Dual Wingbeat) emits one |-damage| per
+        strike; the event's `dmg` must be the FULL drop from the pre-move HP,
+        not just the first strike (which halved every multi-hit move's logged
+        damage and undercounted their KOs in the reports)."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p1a: Aerodactyl|Aerodactyl, L50, M|157/157"))
+        run(parser.feed("|switch|p2a: Whimsicott|Whimsicott, L50, F|100/100"))
+        run(parser.feed("|turn|1"))
+        run(parser.feed("|move|p1a: Aerodactyl|Dual Wingbeat|p2a: Whimsicott"))
+        run(parser.feed("|-damage|p2a: Whimsicott|66/100"))   # strike 1: 34%
+        run(parser.feed("|-damage|p2a: Whimsicott|31/100"))   # strike 2: 35%
+        run(parser.feed("|-hitcount|p2a: Whimsicott|2"))      # closes the multi-hit
+        run(parser.feed("|turn|2"))
+        ev = parser.state.events_log[1]
+        assert ev[0]["mv"] == "Dual Wingbeat"
+        assert ev[0]["dmg"] == pytest.approx(0.69, abs=0.01)  # 100% -> 31%, both strikes
+        # per-strike hit counting (Rage Fist) is unchanged: 2 strikes = 2 hits
+        whimsi = next(p for p in parser.state.opp_team if "Whimsicott" in p.ident)
+        assert whimsi.times_hit == 2
+
     def test_win_flushes_final_turn(self):
         parser = self._battle()
         run(parser.feed("|win|TestBot"))   # no |turn| follows the last turn
