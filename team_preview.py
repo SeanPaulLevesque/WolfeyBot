@@ -481,6 +481,17 @@ def _score_lead_pairs(slots: list[int], our_members: list[TeamMember],
         variants.append({"opp_tailwind": True})
 
     engine = make_engine()
+    # Empirical pair prior: the board eval is a turn-1 model and can favour
+    # pairs that don't convert; multiply in each pair's smoothed observed win
+    # rate for THIS team version (unseen pair = ×1.0 — see data/our_leads.py).
+    try:
+        from data.our_leads import pair_factor
+        from team import active_team, active_team_version
+        _t, _v = active_team(), active_team_version()
+        team_spec = f"{_t}@{_v}" if _t and _v else None
+    except Exception:
+        team_spec = None
+
     from itertools import combinations
     scores: dict[tuple[int, int], tuple[float, tuple[int, int]]] = {}
     for a, b in combinations(sorted(slots), 2):
@@ -497,12 +508,18 @@ def _score_lead_pairs(slots: list[int], our_members: list[TeamMember],
             vals[0] += sv[0]
             vals[1] += sv[1]
             all_notes += notes
+        score = total / len(variants)
+        if team_spec is not None:
+            prior = pair_factor(team_spec, ma.name, mb.name)
+            if prior != 1.0:
+                score *= prior
+                all_notes.append(f"pair prior x{prior:.2f}")
         # Stronger slot value leads first (position is mostly cosmetic, but it
         # keeps the log readable and matches the old score-ordered convention).
         ordered = (a, b) if vals[0] >= vals[1] else (b, a)
-        scores[(a, b)] = (total / len(variants), ordered)
+        scores[(a, b)] = (score, ordered)
         log.info("  LEAD EVAL  %s+%s  score=%.3f%s",
-                 ma.name, mb.name, total / len(variants),
+                 ma.name, mb.name, score,
                  ("  [" + "; ".join(all_notes) + "]") if all_notes else "")
     return scores
 

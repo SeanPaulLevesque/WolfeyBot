@@ -1,0 +1,410 @@
+{
+  "meta-team@v2": {
+    "Sneasler|Venusaur": {
+      "w": 1,
+      "g": 1
+    }
+  },
+  "meta-team@v3": {
+    "Garchomp|Venusaur": {
+      "w": 4,
+      "g": 12
+    },
+    "Gholdengo|Kingambit": {
+      "w": 3,
+      "g": 4
+    },
+    "Kingambit|Venusaur": {
+      "w": 2,
+      "g": 3
+    },
+    "Basculegion|Garchomp": {
+      "w": 3,
+      "g": 8
+    },
+    "Gholdengo|Venusaur": {
+      "w": 2,
+      "g": 2
+    },
+    "Garchomp|Gholdengo": {
+      "w": 5,
+      "g": 8
+    },
+    "Basculegion|Gholdengo": {
+      "w": 3,
+      "g": 3
+    },
+    "Garchomp|Kingambit": {
+      "w": 2,
+      "g": 6
+    },
+    "Kingambit|Staraptor": {
+      "w": 1,
+      "g": 2
+    },
+    "Basculegion|Venusaur": {
+      "w": 1,
+      "g": 2
+    },
+    "Garchomp|Staraptor": {
+      "w": 0,
+      "g": 1
+    }
+  },
+  "meta-team@v4": {
+    "Garchomp|Raichu": {
+      "w": 1,
+      "g": 6
+    },
+    "Garchomp|Gholdengo": {
+      "w": 1,
+      "g": 2
+    },
+    "Gholdengo|Kingambit": {
+      "w": 5,
+      "g": 8
+    },
+    "Garchomp|Venusaur": {
+      "w": 5,
+      "g": 12
+    },
+    "Gholdengo|Venusaur": {
+      "w": 2,
+      "g": 2
+    },
+    "Basculegion|Kingambit": {
+      "w": 0,
+      "g": 1
+    },
+    "Gholdengo|Raichu": {
+      "w": 4,
+      "g": 7
+    },
+    "Basculegion|Garchomp": {
+      "w": 0,
+      "g": 3
+    },
+    "Garchomp|Kingambit": {
+      "w": 0,
+      "g": 3
+    },
+    "Basculegion|Gholdengo": {
+      "w": 1,
+      "g": 2
+    },
+    "Basculegion|Venusaur": {
+      "w": 0,
+      "g": 1
+    },
+    "Kingambit|Venusaur": {
+      "w": 2,
+      "g": 2
+    },
+    "Kingambit|Raichu": {
+      "w": 1,
+      "g": 1
+    }
+  },
+  "meta-team@v5": {
+    "Garchomp|Metagross": {
+      "w": 49,
+      "g": 92
+    },
+    "Kingambit|Raichu": {
+      "w": 19,
+      "g": 32
+    },
+    "Garchomp|Kingambit": {
+      "w": 38,
+      "g": 74
+    },
+    "Basculegion|Metagross": {
+      "w": 19,
+      "g": 40
+    },
+    "Garchomp|Raichu": {
+      "w": 41,
+      "g": 120
+    },
+    "Basculegion|Garchomp": {
+      "w": 6,
+      "g": 18
+    },
+    "Kingambit|Metagross": {
+      "w": 21,
+      "g": 36
+    },
+    "Arcanine-Hisui|Garchomp": {
+      "w": 50,
+      "g": 84
+    },
+    "Arcanine-Hisui|Metagross": {
+      "w": 5,
+      "g": 7
+    },
+    "Arcanine-Hisui|Kingambit": {
+      "w": 20,
+      "g": 35
+    },
+    "Basculegion|Kingambit": {
+      "w": 4,
+      "g": 8
+    },
+    "Metagross|Raichu": {
+      "w": 1,
+      "g": 2
+    },
+    "Arcanine-Hisui|Raichu": {
+      "w": 6,
+      "g": 9
+    },
+    "Basculegion|Raichu": {
+      "w": 0,
+      "g": 4
+    },
+    "Arcanine-Hisui|Basculegion": {
+      "w": 3,
+      "g": 5
+    }
+  },
+  "meta-team@v6": {
+    "Sneasler|Venusaur": {
+      "w": 18,
+      "g": 30
+    },
+    "Garchomp|Venusaur": {
+      "w": 31,
+      "g": 70
+    },
+    "Arcanine-Hisui|Basculegion": {
+      "w": 3,
+      "g": 5
+    },
+    "Arcanine-Hisui|Garchomp": {
+      "w": 11,
+      "g": 31
+    },
+    "Arcanine-Hisui|Sneasler": {
+      "w": 6,
+      "g": 8
+    },
+    "Garchomp|Metagross": {
+      "w": 11,
+      "g": 20
+    },
+    "Arcanine-Hisui|Metagross": {
+      "w": 2,
+      "g": 5
+    },
+    "Metagross|Venusaur": {
+      "w": 1,
+      "g": 5
+    },
+    "Basculegion|Garchomp": {
+      "w": 5,
+      "g": 8
+    },
+    "Garchomp|Sneasler": {
+      "w": 8,
+      "g": 29
+    },
+    "Arcanine-Hisui|Venusaur": {
+      "w": 12,
+      "g": 25
+    },
+    "Basculegion|Venusaur": {
+      "w": 4,
+      "g": 5
+    },
+    "Metagross|Sneasler": {
+      "w": 6,
+      "g": 12
+    },
+    "Basculegion|Metagross": {
+      "w": 0,
+      "g": 1
+    },
+    "Basculegion|Sneasler": {
+      "w": 1,
+      "g": 1
+    }
+  },
+  "meta-team@v7": {
+    "Kingambit|Lycanroc-Dusk": {
+      "w": 28,
+      "g": 59
+    },
+    "Floette-Eternal|Kingambit": {
+      "w": 1,
+      "g": 3
+    },
+    "Aerodactyl|Ceruledge": {
+      "w": 15,
+      "g": 34
+    },
+    "Ceruledge|Kingambit": {
+      "w": 6,
+      "g": 18
+    },
+    "Floette-Eternal|Lycanroc-Dusk": {
+      "w": 3,
+      "g": 5
+    },
+    "Aerodactyl|Lycanroc-Dusk": {
+      "w": 24,
+      "g": 47
+    },
+    "Ceruledge|Lycanroc-Dusk": {
+      "w": 3,
+      "g": 6
+    },
+    "Basculegion|Kingambit": {
+      "w": 8,
+      "g": 19
+    },
+    "Aerodactyl|Kingambit": {
+      "w": 17,
+      "g": 32
+    },
+    "Basculegion|Lycanroc-Dusk": {
+      "w": 7,
+      "g": 17
+    },
+    "Basculegion|Ceruledge": {
+      "w": 2,
+      "g": 3
+    },
+    "Aerodactyl|Basculegion": {
+      "w": 6,
+      "g": 12
+    },
+    "Aerodactyl|Floette-Eternal": {
+      "w": 0,
+      "g": 4
+    }
+  },
+  "meta-team@v8": {
+    "Decidueye-Hisui|Kingambit": {
+      "w": 3,
+      "g": 9
+    },
+    "Decidueye-Hisui|Lycanroc-Dusk": {
+      "w": 11,
+      "g": 24
+    },
+    "Aerodactyl|Lycanroc-Dusk": {
+      "w": 16,
+      "g": 21
+    },
+    "Ceruledge|Kingambit": {
+      "w": 6,
+      "g": 15
+    },
+    "Aerodactyl|Ceruledge": {
+      "w": 3,
+      "g": 6
+    },
+    "Ceruledge|Decidueye-Hisui": {
+      "w": 1,
+      "g": 4
+    },
+    "Basculegion|Kingambit": {
+      "w": 3,
+      "g": 8
+    },
+    "Aerodactyl|Kingambit": {
+      "w": 3,
+      "g": 11
+    },
+    "Ceruledge|Lycanroc-Dusk": {
+      "w": 4,
+      "g": 5
+    },
+    "Aerodactyl|Basculegion": {
+      "w": 8,
+      "g": 26
+    },
+    "Kingambit|Lycanroc-Dusk": {
+      "w": 1,
+      "g": 4
+    },
+    "Basculegion|Lycanroc-Dusk": {
+      "w": 4,
+      "g": 7
+    },
+    "Basculegion|Ceruledge": {
+      "w": 3,
+      "g": 4
+    },
+    "Basculegion|Decidueye-Hisui": {
+      "w": 3,
+      "g": 5
+    },
+    "Aerodactyl|Decidueye-Hisui": {
+      "w": 2,
+      "g": 4
+    }
+  },
+  "meta-team@v9": {
+    "Aerodactyl|Basculegion": {
+      "w": 139,
+      "g": 281
+    },
+    "Basculegion|Lycanroc-Dusk": {
+      "w": 50,
+      "g": 97
+    },
+    "Aerodactyl|Kingambit": {
+      "w": 25,
+      "g": 48
+    },
+    "Decidueye-Hisui|Lycanroc-Dusk": {
+      "w": 9,
+      "g": 13
+    },
+    "Chandelure|Lycanroc-Dusk": {
+      "w": 2,
+      "g": 7
+    },
+    "Chandelure|Kingambit": {
+      "w": 14,
+      "g": 30
+    },
+    "Basculegion|Decidueye-Hisui": {
+      "w": 29,
+      "g": 49
+    },
+    "Chandelure|Decidueye-Hisui": {
+      "w": 18,
+      "g": 52
+    },
+    "Basculegion|Kingambit": {
+      "w": 20,
+      "g": 50
+    },
+    "Aerodactyl|Chandelure": {
+      "w": 14,
+      "g": 23
+    },
+    "Basculegion|Chandelure": {
+      "w": 21,
+      "g": 37
+    },
+    "Aerodactyl|Decidueye-Hisui": {
+      "w": 7,
+      "g": 10
+    },
+    "Decidueye-Hisui|Kingambit": {
+      "w": 11,
+      "g": 26
+    },
+    "Kingambit|Lycanroc-Dusk": {
+      "w": 10,
+      "g": 11
+    },
+    "Aerodactyl|Lycanroc-Dusk": {
+      "w": 15,
+      "g": 29
+    }
+  }
+}

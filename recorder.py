@@ -401,6 +401,19 @@ class BattleRecorder:
         except Exception:
             pass  # never let stat recording block the battle save
 
+        # ── Record OUR lead-pair result (the empirical pair prior) ────────
+        try:
+            t1 = self._turns.get(1)
+            if t1 and t1.get("snap") and self.team and self.team_version:
+                my = [m["species"] for m in t1["snap"].get("my_actives", [])
+                      if m is not None]
+                if len(my) == 2:
+                    from data.our_leads import record_result
+                    record_result(f"{self.team}@{self.team_version}",
+                                  my[0], my[1], won)
+        except Exception:
+            pass  # never let stat recording block the battle save
+
         self._save()
 
     # ── Internal ──────────────────────────────────────────────────────────────
