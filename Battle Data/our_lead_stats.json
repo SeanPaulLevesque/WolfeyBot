@@ -347,20 +347,20 @@
   },
   "meta-team@v9": {
     "Aerodactyl|Basculegion": {
-      "w": 139,
-      "g": 281
+      "w": 150,
+      "g": 307
     },
     "Basculegion|Lycanroc-Dusk": {
-      "w": 50,
-      "g": 97
+      "w": 52,
+      "g": 101
     },
     "Aerodactyl|Kingambit": {
-      "w": 25,
-      "g": 48
+      "w": 27,
+      "g": 50
     },
     "Decidueye-Hisui|Lycanroc-Dusk": {
       "w": 9,
-      "g": 13
+      "g": 14
     },
     "Chandelure|Lycanroc-Dusk": {
       "w": 2,
@@ -371,8 +371,8 @@
       "g": 30
     },
     "Basculegion|Decidueye-Hisui": {
-      "w": 29,
-      "g": 49
+      "w": 31,
+      "g": 52
     },
     "Chandelure|Decidueye-Hisui": {
       "w": 18,
@@ -380,31 +380,31 @@
     },
     "Basculegion|Kingambit": {
       "w": 20,
-      "g": 50
+      "g": 52
     },
     "Aerodactyl|Chandelure": {
-      "w": 14,
-      "g": 23
+      "w": 15,
+      "g": 25
     },
     "Basculegion|Chandelure": {
-      "w": 21,
-      "g": 37
+      "w": 22,
+      "g": 40
     },
     "Aerodactyl|Decidueye-Hisui": {
-      "w": 7,
-      "g": 10
+      "w": 8,
+      "g": 12
     },
     "Decidueye-Hisui|Kingambit": {
       "w": 11,
-      "g": 26
+      "g": 27
     },
     "Kingambit|Lycanroc-Dusk": {
-      "w": 10,
-      "g": 11
+      "w": 11,
+      "g": 12
     },
     "Aerodactyl|Lycanroc-Dusk": {
       "w": 15,
-      "g": 29
+      "g": 30
     }
   }
 }
