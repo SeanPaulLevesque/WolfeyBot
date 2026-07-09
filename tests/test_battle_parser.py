@@ -6,7 +6,7 @@ All tests are synchronous wrappers around async coroutines via asyncio.run().
 import asyncio
 import json
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from battle import BattleParser, BattleState, Pokemon
 
@@ -1149,3 +1149,77 @@ class TestDisableEncore:
         run(parser.feed("|switch|p1a: Kingambit|Kingambit, L50|165/165"))
         assert parser.state.my_encored_moves[0] is None
 
+
+
+class TestIllusionInference:
+    """Zoroark Illusion detection: a duplicate species on the field, or a move
+    outside the species' movepool, while a Zoroark line was previewed → the
+    mon is flagged and the engine models it as the Zoroark forme."""
+
+    def _parser(self, preview_zoroark=True):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        if preview_zoroark:
+            parser.state.opp_preview_team = ["Milotic", "Zoroark-Hisui",
+                                             "Dragonite"]
+        else:
+            parser.state.opp_preview_team = ["Milotic", "Dragonite"]
+        return parser
+
+    def test_duplicate_species_flags_the_newcomer(self):
+        parser = self._parser()
+        run(parser.feed("|switch|p2a: Milotic|Milotic, L50|100/100"))
+        run(parser.feed("|switch|p2b: Milotic|Milotic, L50|100/100"))
+        real, fake = parser.state.opp_actives[0], parser.state.opp_actives[1]
+        assert real.suspected_illusion is None
+        assert fake.suspected_illusion == "Zoroark-Hisui"
+        assert fake is not real                      # own object, no merge
+        assert fake.ident != real.ident              # own evidence identity
+
+    def test_no_zoroark_previewed_no_flag(self):
+        parser = self._parser(preview_zoroark=False)
+        run(parser.feed("|switch|p2a: Milotic|Milotic, L50|100/100"))
+        run(parser.feed("|switch|p2b: Milotic|Milotic, L50|100/100"))
+        assert parser.state.opp_actives[1].suspected_illusion is None
+
+    def test_impossible_move_flags_the_actor(self):
+        """'Milotic' using a move absent from Milotic's entire usage movepool
+        (the live catch: Flamethrower) is the disguised Zoroark."""
+        parser = self._parser()
+        run(parser.feed("|switch|p2a: Milotic|Milotic, L50|100/100"))
+        with patch("battle.move_distribution",
+                   side_effect=lambda s: [("Icy Wind", 50.0), ("Recover", 40.0)]
+                   if s == "Milotic" else []):
+            run(parser.feed("|move|p2a: Milotic|Flamethrower|p1a: X"))
+        assert parser.state.opp_actives[0].suspected_illusion == "Zoroark-Hisui"
+
+    def test_move_in_pool_no_flag(self):
+        parser = self._parser()
+        run(parser.feed("|switch|p2a: Milotic|Milotic, L50|100/100"))
+        with patch("battle.move_distribution",
+                   side_effect=lambda s: [("Icy Wind", 50.0)]
+                   if s == "Milotic" else []):
+            run(parser.feed("|move|p2a: Milotic|Icy Wind|p1a: X"))
+        assert parser.state.opp_actives[0].suspected_illusion is None
+
+    def test_fresh_switch_in_clears_suspicion(self):
+        """After the illusion resolves (|replace| → real Zoroark takes the
+        slot), the REAL mon switching back in later must start clean."""
+        parser = self._parser()
+        run(parser.feed("|switch|p2a: Milotic|Milotic, L50|100/100"))
+        with patch("battle.move_distribution",
+                   side_effect=lambda s: [("Icy Wind", 50.0)]
+                   if s == "Milotic" else []):
+            run(parser.feed("|move|p2a: Milotic|Flamethrower|p1a: X"))
+        assert parser.state.opp_actives[0].suspected_illusion
+        run(parser.feed("|replace|p2a: Zoroark-Hisui|Zoroark-Hisui, L50|80/100"))
+        run(parser.feed("|switch|p2a: Milotic|Milotic, L50|100/100"))
+        assert parser.state.opp_actives[0].suspected_illusion is None
+
+    def test_assumed_species_models_the_zoroark(self):
+        from decision.modules import _assumed_species
+        from battle import Pokemon
+        fake = Pokemon(ident="p2: Milotic (illusion)", species="Milotic",
+                       hp=100, max_hp=100, hp_is_percentage=True,
+                       suspected_illusion="Zoroark-Hisui")
+        assert _assumed_species(fake) == "Zoroark-Hisui"

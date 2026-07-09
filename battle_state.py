@@ -59,6 +59,13 @@ class Pokemon:
     # Cleared automatically when a Pokémon switches out (new Pokemon object created).
     # Used by turn_order to apply the Unburden speed doubling.
     item_consumed: bool = False
+    # Illusion belief (0.41.0): the Zoroark forme we suspect this opponent
+    # "mon" really is (duplicate species on the field, or a move outside its
+    # movepool, while a Zoroark line was previewed).  When set, the engine's
+    # forme resolution (_assumed_species) models the mon as that Zoroark —
+    # types/stats/ability/moves all follow.  Cleared on a fresh switch-in of
+    # the same ident and when the illusion resolves (|replace|).
+    suspected_illusion: Optional[str] = None
     # True once this mon has absorbed a Fire move via Flash Fire this field stint
     # (Showdown reports it as |-start|…|ability: Flash Fire).  Cleared on switch
     # (new Pokemon object).  Drives Flash Fire's +50% Fire-move boost in damage.py.

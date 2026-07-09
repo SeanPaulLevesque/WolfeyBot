@@ -265,7 +265,14 @@ def _assumed_species(mon: "Pokemon") -> str:
     ``mon.item is None``, and a mon that popped a berry/Sash was never a
     stone holder — its forme assumption simply stays population-weighted,
     an acceptable approximation.)
+
+    **Illusion (0.41.0):** a mon the parser has flagged as a suspected
+    disguised Zoroark (duplicate species on field / move outside its
+    movepool) is modelled as that Zoroark forme — types, stats, ability and
+    movepool all follow through this one resolver.
     """
+    if getattr(mon, "suspected_illusion", None):
+        return mon.suspected_illusion
     if "-Mega" in mon.species:
         return mon.species
     if mon.item:

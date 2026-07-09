@@ -6,7 +6,8 @@ import logging
 import re
 
 from battle_state import BattleState, Pokemon, ItemEvidence, _parse_hp, _parse_status  # noqa: F401
-from data import CHOICE_ITEMS, item_name_from_id, ability_name_from_id
+from data import (CHOICE_ITEMS, item_name_from_id, ability_name_from_id,
+                  base_forme, move_distribution)
 
 _log = logging.getLogger(__name__)
 
@@ -273,7 +274,31 @@ class BattleParser:
             self.state.my_disabled_moves[slot] = None
             self.state.my_encored_moves[slot] = None
         else:
-            updated = _update_or_add(self.state.opp_team, mon)
+            # ── Illusion detection (duplicate species) ────────────────────
+            # Species clause forbids real duplicates, so the same species
+            # appearing in BOTH opponent slots means the newcomer is a
+            # disguised Zoroark (it copies the last healthy party member).
+            # Give the fake its OWN object + ident so it never merges with —
+            # or contaminates the item evidence of — the real mon.
+            zoro = self._previewed_zoroark()
+            dup = any(
+                o is not None and not o.fainted and i != slot
+                and base_forme(o.species) == base_forme(species)
+                for i, o in enumerate(self.state.opp_actives)
+            )
+            if zoro and dup and base_forme(species) != base_forme(zoro):
+                mon.ident = f"{mon.ident} (illusion)"
+                mon.suspected_illusion = zoro
+                updated = mon
+                self.state.opp_team.append(mon)
+                _log.info("ILLUSION suspected: duplicate %s on field -> "
+                          "modeling as %s", species, zoro)
+            else:
+                updated = _update_or_add(self.state.opp_team, mon)
+                # Fresh field stint = fresh identity: clear any illusion
+                # suspicion left on this ident by an earlier stint (also how
+                # flags reset after a |replace| resolves the real Zoroark).
+                updated.suspected_illusion = None
             while len(self.state.opp_actives) <= slot:
                 self.state.opp_actives.append(None)
             self.state.opp_actives[slot] = updated
@@ -314,6 +339,13 @@ class BattleParser:
         for arr in arrays:
             if len(arr) >= 2:
                 arr[0], arr[1] = arr[1], arr[0]
+
+    def _previewed_zoroark(self) -> Optional[str]:
+        """The Zoroark forme in the opponent's previewed six, or None — the
+        gate for every Illusion inference (no Zoroark previewed → a duplicate
+        or an odd move is just noise, never an illusion)."""
+        return next((s for s in self.state.opp_preview_team
+                     if s.startswith("Zoroark")), None)
 
     async def _on_move(self, args: list[str]):
         # |move|SOURCE|MOVENAME|TARGET
@@ -357,6 +389,22 @@ class BattleParser:
         while len(self.state.opp_last_moves) <= slot:
             self.state.opp_last_moves.append("")
         self.state.opp_last_moves[slot] = move_name
+
+        # Illusion detection (impossible move): with a Zoroark previewed, an
+        # opponent using a move completely absent from its species' usage
+        # movepool is most likely the disguised Zoroark (caught live: "Milotic"
+        # using Flamethrower — Zoroark-Hisui, Normal/Ghost, ate three Last
+        # Respects as "immune" while we modelled a Water-type).
+        zoro = self._previewed_zoroark()
+        if (zoro and mon is not None and not mon.suspected_illusion
+                and move_name and move_name != "Struggle"
+                and base_forme(mon.species) != base_forme(zoro)):
+            pool = move_distribution(mon.species)
+            if pool and move_name not in {mv for mv, _ in pool}:
+                mon.suspected_illusion = zoro
+                _log.info("ILLUSION suspected: %s used %s (not in its "
+                          "movepool) -> modeling as %s",
+                          mon.species, move_name, zoro)
 
         # Item inference: ≥2 distinct moves within one field stint rules out all
         # Choice items (a Choice lock frees only on switch — stint_moves resets
@@ -874,6 +922,19 @@ class BattleParser:
     def _find_mon(self, ident: str) -> Optional[Pokemon]:
         normalized = _normalize_ident(ident)
         side = _side_from_ident(ident)
+        # The raw ident's slot letter names the CURRENT occupant of that slot —
+        # resolve actives positionally first.  This is what routes protocol
+        # lines to an Illusion fake, whose disambiguated ident ("… (illusion)")
+        # no longer string-matches; the prefix check guards stale slot state.
+        m = re.match(r"^p\d([a-z]):", ident)
+        if m:
+            actives = (self.state.my_actives if side == self.state.my_side
+                       else self.state.opp_actives)
+            slot = ord(m.group(1)) - ord("a")
+            if slot < len(actives) and actives[slot] is not None:
+                active = actives[slot]
+                if active.ident == normalized or active.ident.startswith(normalized + " "):
+                    return active
         team = self.state.my_team if side == self.state.my_side else self.state.opp_team
         return next((p for p in team if p.ident == normalized), None)
 
