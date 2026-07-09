@@ -36,6 +36,7 @@ score order so that the two highest-scoring mons occupy the lead slots.
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass
 from typing import Optional
 
@@ -449,20 +450,29 @@ def _preview_mega_for(pair: tuple[TeamMember, TeamMember],
 
 
 def _score_lead_pairs(slots: list[int], our_members: list[TeamMember],
-                      predicted: list[str], opp_species_list: list[str],
+                      predicted, opp_species_list: list[str],
                       ) -> Optional[dict[tuple[int, int], float]]:
     """Engine-grounded score for every C(n,2) lead pair from *slots*.
 
-    Field variants: the base (no-field) board, plus a Trick-Room-on board when
-    the **predicted lead pair** contains a TR setter and an opponent-Tailwind
-    board when it contains a TW setter — averaged, so initiative under the
-    opponent's imminent game plan is priced by the *real* turn-order model
-    instead of hand-tuned rows.  Variants are keyed on the predicted PAIR, not
-    the whole roster: a benched setter's field is turns away — long after our
-    leads have acted — and averaging it in let a speculative TR board drown
-    the base reality (a doubly-doomed pair scored 2401 because "under TR
-    they'd act first").  Returns None when the engine path is unavailable
-    (unresolvable members)."""
+    *predicted* is either one opponent pair (``["Swampert", "Pelipper"]``) or
+    the **hedged** form: a list of ``(pair, weight)`` from
+    ``lead_stats.predict_pairs``.  Each of our candidate pairs is scored
+    against every predicted opponent pair and combined as the **weighted
+    geometric mean** — board scores are multiplicative kill-stacks spanning
+    orders of magnitude, so an arithmetic mean would let a low-probability
+    jackpot board outvote a likely disaster (observed: a doubly-doomed pair
+    won the argmax on a 0.09-weight blowout).  Log-space averaging keeps the
+    likely board decisive while still crediting a lead that's merely doomed
+    against one read (correct single-pair predictions were LOSING 43% vs 52%
+    over the v9 batch).
+
+    Field variants (per opponent pair): the base board, plus a Trick-Room-on
+    board when that pair contains a TR setter and an opponent-Tailwind board
+    when it contains a TW setter — averaged, so initiative under the imminent
+    game plan is priced by the *real* turn-order model.  Variants are keyed on
+    the pair, not the roster: a benched setter's field is turns away, and
+    averaging it in let a speculative TR board drown the base reality.
+    Returns None when the engine path is unavailable (unresolvable members)."""
     if not _members_resolvable([our_members[i - 1] for i in slots]):
         return None
     try:
@@ -472,13 +482,21 @@ def _score_lead_pairs(slots: list[int], our_members: list[TeamMember],
     except Exception:
         return None
 
-    tr_imminent = any(_is_tr_setter(_preview_opp_mon(s)) for s in predicted)
-    tw_imminent = any(_is_tw_setter(_preview_opp_mon(s)) for s in predicted)
-    variants: list[dict] = [{}]
-    if tr_imminent:
-        variants.append({"trick_room": True})
-    if tw_imminent:
-        variants.append({"opp_tailwind": True})
+    # Normalize: a flat species pair means "one prediction, full weight".
+    if predicted and isinstance(predicted[0], str):
+        hedge: list[tuple[list, float]] = [(list(predicted), 1.0)]
+    else:
+        hedge = list(predicted)
+    if not hedge:
+        return None
+
+    def _variants_for(opp_pair) -> list[dict]:
+        out: list[dict] = [{}]
+        if any(_is_tr_setter(_preview_opp_mon(s)) for s in opp_pair):
+            out.append({"trick_room": True})
+        if any(_is_tw_setter(_preview_opp_mon(s)) for s in opp_pair):
+            out.append({"opp_tailwind": True})
+        return out
 
     engine = make_engine()
     # Empirical pair prior: the board eval is a turn-1 model and can favour
@@ -498,17 +516,21 @@ def _score_lead_pairs(slots: list[int], our_members: list[TeamMember],
         ma, mb = our_members[a - 1], our_members[b - 1]
         bench = [our_members[i - 1] for i in slots if i not in (a, b)]
         mega = _preview_mega_for((ma, mb), bench)
-        total = 0.0
+        log_score = 0.0
         vals = [0.0, 0.0]
         all_notes: list[str] = []
-        for field in variants:
-            sc, sv, notes = _eval_lead_board(engine, ma, mb, bench, predicted,
-                                             mega, **field)
-            total += sc
-            vals[0] += sv[0]
-            vals[1] += sv[1]
-            all_notes += notes
-        score = total / len(variants)
+        for opp_pair, weight in hedge:
+            variants = _variants_for(opp_pair)
+            total = 0.0
+            for field in variants:
+                sc, sv, notes = _eval_lead_board(engine, ma, mb, bench,
+                                                 opp_pair, mega, **field)
+                total += sc
+                vals[0] += weight * sv[0]
+                vals[1] += weight * sv[1]
+                all_notes += notes
+            log_score += weight * math.log(max(total / len(variants), 1e-6))
+        score = math.exp(log_score)
         if team_spec is not None:
             prior = pair_factor(team_spec, ma.name, mb.name)
             if prior != 1.0:
@@ -518,9 +540,11 @@ def _score_lead_pairs(slots: list[int], our_members: list[TeamMember],
         # keeps the log readable and matches the old score-ordered convention).
         ordered = (a, b) if vals[0] >= vals[1] else (b, a)
         scores[(a, b)] = (score, ordered)
+        # De-duplicate notes (the same note can fire on several boards).
+        uniq = list(dict.fromkeys(all_notes))
         log.info("  LEAD EVAL  %s+%s  score=%.3f%s",
                  ma.name, mb.name, score,
-                 ("  [" + "; ".join(all_notes) + "]") if all_notes else "")
+                 ("  [" + "; ".join(uniq) + "]") if uniq else "")
     return scores
 
 
@@ -857,10 +881,20 @@ def select_leads(
     # Build the turn-1 BattleState per candidate pair and read the phase-1
     # weights (real damage, kills, true turn order, Fake Out, doomed) — plus
     # the switch-want penalty: if the engine's best action for a lead is to
-    # switch OUT, that lead pair is self-refuting.  TR / undeniable-TW rosters
-    # add field variants instead of hand-tuned rows.
-    if len(predicted) == 2:
-        pair_scores = _score_lead_pairs(slots, our_members, predicted,
+    # switch OUT, that lead pair is self-refuting.  Since 0.40.0 the eval is
+    # HEDGED: each candidate is scored against the top-K likely opponent
+    # pairs weighted by co-lead evidence (predict_pairs), not a single
+    # committed read — over-committing to one pair is how correct predictions
+    # were still losing.  TR/TW field variants apply per opponent pair.
+    try:
+        from data.lead_stats import predict_pairs
+        hedge = predict_pairs(opp_species_list)
+    except Exception:
+        hedge = [(predicted, 1.0)] if len(predicted) == 2 else []
+    if hedge:
+        log.info("HEDGED OPP PAIRS  %s",
+                 [(" + ".join(p), round(w, 2)) for p, w in hedge])
+        pair_scores = _score_lead_pairs(slots, our_members, hedge,
                                         opp_species_list)
         if pair_scores:
             (_, ordered) = max(pair_scores.values(), key=lambda v: v[0])

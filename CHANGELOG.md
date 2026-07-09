@@ -1,5 +1,40 @@
 # WolfeyBot Changelog
 
+## 0.40.0 — 2026-07-09
+
+Four improvements from the 758-game v9 batch autopsy (50% WR; rain 33%;
+correct lead predictions losing 43% vs 52%).
+
+### Instrumentation
+- **Multi-hit moves record full damage.** `ev.d` was written once on the first
+  strike, halving every multi-hit move's logged damage (782 Dual Wingbeats)
+  and undercounting their KOs in reports. The cumulative drop is now promoted
+  by the new `-hitcount` handler (only real multi-hit moves emit it), so stray
+  untagged damage still can't inflate a single-hit move's number.
+
+### Team preview
+- **Doomed-lead penalty (×0.25).** A lead the board facts say is KO'd before
+  acting concedes the slot — the in-battle ×0.2 move discount still let big
+  kill-stacks win the pair argmax (Chandelure led into rain on a doomed
+  overkill read; 3-15 vs Swampert+Pelipper). With the penalty, rain leads flip
+  to Basculegion+Kingambit and the 0.39.0 joint setup denial finally gets
+  boards it can fire on (both attacks converge on Pelipper pre-Tailwind).
+- **Field variants keyed on the predicted pair, not the roster.** A benched
+  setter's TR/TW is turns away; averaging it in let a speculative TR board
+  drown the base reality (a doubly-doomed pair scored 2401).
+- **Empirical lead-pair prior** (`data/our_leads.py`, seeded from 2,098 logged
+  games, recorded live per team@version): pair score × Beta-smoothed observed
+  win rate (k=10; unseen ×1.0, 10-1 → ×1.43, 18-34 → ×0.74). The eval's
+  favourite Aero+Basculegion sat at 49% over 281 games while 10-1 pairs went
+  unpicked; Chandelure+DH (35%, 52 picks) collapses to 7 in backtest.
+- **Hedged opponent prediction** (`lead_stats.predict_pairs`): candidate leads
+  are scored against the top-3 likely opponent pairs weighted by co-lead
+  evidence (Swampert+Pelipper ≈ 0.66 on rain rosters) and combined as the
+  weighted **geometric mean** — board scores are multiplicative kill-stacks,
+  and an arithmetic mean let a 0.09-weight jackpot board outvote the likely
+  disaster. Over-committing to a single read is how correct predictions were
+  still losing; the recorded `pred` stays the single best guess.
+
 ## 0.39.1 — 2026-07-09
 
 ### Fixes

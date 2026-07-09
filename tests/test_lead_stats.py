@@ -6,6 +6,8 @@ Farigiraf) that are rarely led *together*; it prefers the duo actually co-led.
 """
 from unittest.mock import patch
 
+import pytest
+
 import data.lead_stats as L
 
 
@@ -98,3 +100,41 @@ class TestPredictPair:
     def test_single_species_returned_as_is(self):
         with patch("data.lead_stats.lead_frequency", return_value=1):
             assert L.predict_pair(["OnlyOne"]) == ["OnlyOne"]
+
+
+class TestPredictPairs:
+    """Hedged prediction: top-K pairs weighted by co-lead evidence + a
+    singles-shaped pseudo-count; weights sum to 1."""
+
+    @staticmethod
+    def _patch(singles, pairs):
+        return (
+            patch("data.lead_stats.lead_frequency",
+                  side_effect=lambda s: singles.get(s, 0)),
+            patch("data.lead_stats.ladder_lead_pct", return_value=0.0),
+            patch("data.lead_stats.lead_pair_frequency",
+                  side_effect=lambda a, b: pairs.get(L.pair_key(a, b), 0)),
+        )
+
+    def test_dominant_pair_data_dominates_weights(self):
+        singles = {"Swampert": 100, "Pelipper": 120, "Archaludon": 60, "X": 10}
+        pairs = {L.pair_key("Swampert", "Pelipper"): 51,
+                 L.pair_key("Pelipper", "Archaludon"): 23}
+        p1, p2, p3 = self._patch(singles, pairs)
+        with p1, p2, p3:
+            out = L.predict_pairs(["Swampert", "Pelipper", "Archaludon", "X"])
+        assert sorted(out[0][0]) == ["Pelipper", "Swampert"]
+        assert out[0][1] > 0.6                       # ~51/(51+23+eps)
+        assert sum(w for _, w in out) == pytest.approx(1.0)
+        assert len(out) == 3                          # default k
+
+    def test_no_pair_data_falls_back_to_singles_shape(self):
+        singles = {"A": 100, "B": 50, "C": 10, "D": 1}
+        p1, p2, p3 = self._patch(singles, {})
+        with p1, p2, p3:
+            out = L.predict_pairs(["A", "B", "C", "D"])
+        assert sorted(out[0][0]) == ["A", "B"]        # top singles product
+        assert sum(w for _, w in out) == pytest.approx(1.0)
+
+    def test_fewer_than_two_species(self):
+        assert L.predict_pairs(["Solo"]) == []

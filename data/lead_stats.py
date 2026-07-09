@@ -250,3 +250,32 @@ def predict_pair(species_list: list[str],
 
     # 3. No co-lead evidence: top-2 singles (observed count, then ladder rate).
     return sorted(species, key=_single_prior, reverse=True)[:2]
+
+
+def predict_pairs(species_list: list[str], *, k: int = 3,
+                  pseudo: float = 2.0) -> list[tuple[list[str], float]]:
+    """Top-*k* candidate opponent lead pairs with normalized weights — the
+    **hedged** prediction.
+
+    ``predict_pair`` commits to one pair; over-committing to it is how correct
+    reads still lose (the counter-pick collapses when the read is the less
+    likely branch).  Each candidate pair is weighted by its observed co-lead
+    count plus *pseudo* observations distributed by the singles prior
+    (:func:`_single_prior` products, normalized) — so strong pair data
+    dominates (Swampert+Pelipper at 51 co-leads ≈ 0.66 weight) while a team
+    we've never charted falls back to a singles-shaped spread.  Weights over
+    the returned pairs sum to 1."""
+    species = [s for s in species_list if s]
+    if len(species) < 2:
+        return []
+    prods: dict[tuple[str, str], float] = {}
+    for a, b in itertools.combinations(species, 2):
+        prods[(a, b)] = ((_single_prior(a) + 0.01)
+                         * (_single_prior(b) + 0.01))
+    tot_prod = sum(prods.values()) or 1.0
+    cands = [((a, b), lead_pair_frequency(a, b) + pseudo * p / tot_prod)
+             for (a, b), p in prods.items()]
+    cands.sort(key=lambda cw: -cw[1])
+    top = cands[:k]
+    tot = sum(w for _, w in top) or 1.0
+    return [([a, b], w / tot) for (a, b), w in top]
