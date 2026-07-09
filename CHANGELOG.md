@@ -1,5 +1,18 @@
 # WolfeyBot Changelog
 
+## 0.39.1 — 2026-07-09
+
+### Fixes
+- **TYPE_CHART omissions: Ice→Fire and Bug→Poison were missing** (both ×0.5).
+  TYPE_CHART silently defaults absent entries to ×1.0, so every Ice move into
+  every Fire-type was over-predicted 2× since the beginning (caught live: Ice
+  Fang read 103% on a Camerupt-Mega, dealt half), and Bug into Poison likewise.
+  Added `TestTypeChartAudit`: the full canonical chart transcribed
+  independently and diffed against `TYPE_CHART` in both directions, so wrong
+  values *and* silent omissions can never recur. Turn-1 snapshot decisions
+  unchanged. (Note: the 766-game v9 batch was played WITH this fix in the
+  working tree.)
+
 ## 0.39.0 — 2026-07-06
 
 ### Decision engine — joint setup denial (anti-Tailwind/TR, task #20)

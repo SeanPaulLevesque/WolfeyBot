@@ -806,6 +806,80 @@ class TestAlwaysCritMoves:
 
 # ── type_effectiveness ────────────────────────────────────────────────────────
 
+# The full canonical Gen 6+ type chart, transcribed independently as the audit
+# reference — only non-neutral (≠1.0) entries.  Regression guard for omission
+# bugs: TYPE_CHART silently defaults missing entries to ×1.0, which is how
+# "Ice vs Fire = 0.5" went missing for 39 releases (every Ice move into every
+# Fire-type over-predicted 2× — caught live: Ice Fang read 103% on a
+# Camerupt-Mega and dealt half that).
+_CANON: dict[str, dict[str, float]] = {
+    "Normal":   {"Rock": 0.5, "Steel": 0.5, "Ghost": 0.0},
+    "Fire":     {"Fire": 0.5, "Water": 0.5, "Rock": 0.5, "Dragon": 0.5,
+                 "Grass": 2.0, "Ice": 2.0, "Bug": 2.0, "Steel": 2.0},
+    "Water":    {"Water": 0.5, "Grass": 0.5, "Dragon": 0.5,
+                 "Fire": 2.0, "Rock": 2.0, "Ground": 2.0},
+    "Electric": {"Electric": 0.5, "Grass": 0.5, "Dragon": 0.5, "Ground": 0.0,
+                 "Water": 2.0, "Flying": 2.0},
+    "Grass":    {"Fire": 0.5, "Poison": 0.5, "Flying": 0.5, "Bug": 0.5,
+                 "Dragon": 0.5, "Steel": 0.5, "Grass": 0.5,
+                 "Water": 2.0, "Ground": 2.0, "Rock": 2.0},
+    "Ice":      {"Fire": 0.5, "Water": 0.5, "Ice": 0.5, "Steel": 0.5,
+                 "Grass": 2.0, "Ground": 2.0, "Flying": 2.0, "Dragon": 2.0},
+    "Fighting": {"Ghost": 0.0, "Poison": 0.5, "Bug": 0.5, "Psychic": 0.5,
+                 "Flying": 0.5, "Fairy": 0.5,
+                 "Normal": 2.0, "Ice": 2.0, "Rock": 2.0, "Dark": 2.0, "Steel": 2.0},
+    "Poison":   {"Poison": 0.5, "Ground": 0.5, "Rock": 0.5, "Ghost": 0.5,
+                 "Steel": 0.0, "Grass": 2.0, "Fairy": 2.0},
+    "Ground":   {"Flying": 0.0, "Grass": 0.5, "Bug": 0.5,
+                 "Fire": 2.0, "Electric": 2.0, "Poison": 2.0,
+                 "Rock": 2.0, "Steel": 2.0},
+    "Flying":   {"Electric": 0.5, "Rock": 0.5, "Steel": 0.5,
+                 "Grass": 2.0, "Fighting": 2.0, "Bug": 2.0},
+    "Psychic":  {"Psychic": 0.5, "Steel": 0.5, "Dark": 0.0,
+                 "Fighting": 2.0, "Poison": 2.0},
+    "Bug":      {"Fire": 0.5, "Fighting": 0.5, "Flying": 0.5, "Ghost": 0.5,
+                 "Steel": 0.5, "Fairy": 0.5, "Poison": 0.5,
+                 "Grass": 2.0, "Psychic": 2.0, "Dark": 2.0},
+    "Rock":     {"Fighting": 0.5, "Ground": 0.5, "Steel": 0.5,
+                 "Fire": 2.0, "Ice": 2.0, "Flying": 2.0, "Bug": 2.0},
+    "Ghost":    {"Normal": 0.0, "Dark": 0.5, "Ghost": 2.0, "Psychic": 2.0},
+    "Dragon":   {"Steel": 0.5, "Fairy": 0.0, "Dragon": 2.0},
+    "Dark":     {"Fighting": 0.5, "Dark": 0.5, "Fairy": 0.5,
+                 "Ghost": 2.0, "Psychic": 2.0},
+    "Steel":    {"Steel": 0.5, "Fire": 0.5, "Water": 0.5, "Electric": 0.5,
+                 "Ice": 2.0, "Rock": 2.0, "Fairy": 2.0},
+    "Fairy":    {"Fire": 0.5, "Poison": 0.5, "Steel": 0.5,
+                 "Fighting": 2.0, "Dragon": 2.0, "Dark": 2.0},
+}
+
+
+class TestTypeChartAudit:
+    """Every (attacker, defender) pair in damage.TYPE_CHART must match the
+    independently transcribed canonical chart — in BOTH directions, so both
+    wrong values and silent omissions (the ×1.0 default) are caught."""
+
+    _ALL_TYPES = list(_CANON.keys())
+
+    def test_full_chart_matches_canon(self):
+        from damage import TYPE_CHART
+        errors = []
+        for atk in self._ALL_TYPES:
+            for dfn in self._ALL_TYPES:
+                have = TYPE_CHART.get(atk, {}).get(dfn, 1.0)
+                want = _CANON[atk].get(dfn, 1.0)
+                if have != want:
+                    errors.append(f"{atk} vs {dfn}: chart={have} canon={want}")
+        assert not errors, "TYPE_CHART deviates from canon:\n  " + "\n  ".join(errors)
+
+    def test_no_unknown_types_in_chart(self):
+        from damage import TYPE_CHART
+        known = set(self._ALL_TYPES)
+        for atk, row in TYPE_CHART.items():
+            assert atk in known, f"unknown attacking type {atk!r}"
+            unknown = set(row) - known
+            assert not unknown, f"{atk} row has unknown defender types {unknown}"
+
+
 class TestTypeEffectiveness:
     def test_super_effective_2x(self):
         assert type_effectiveness("Water", ["Fire"]) == 2.0
