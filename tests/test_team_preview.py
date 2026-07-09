@@ -873,3 +873,74 @@ class TestEnginePreviewIntegration:
         for (a, b), (score, ordered) in pairs.items():
             assert score > 0
             assert set(ordered) == {a, b}
+
+
+class TestDoomedLeadPenalty:
+    """A lead slot the board facts say is KO'd before acting takes
+    ×_DOOMED_LEAD_FACTOR — at preview we can simply not start that mon.
+    (v9 audit: Chandelure led into rain on a ×0.2-doomed overkill, 3-15.)"""
+
+    def _members(self):
+        a = make_member("MonA", ["Tackle"], stats={"hp": 100})
+        b = make_member("MonB", ["Tackle"], stats={"hp": 100})
+        return a, b
+
+    def test_doomed_slot_penalised(self):
+        from team_preview import _DOOMED_LEAD_FACTOR
+        from decision.modules import TurnContext
+        a, b = self._members()
+        eng = _StubEngine({0: [_act("Tackle", 8.0)], 1: [_act("Tackle", 4.0)]})
+        ctx = TurnContext(doomed={0: True, 1: False})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            score, vals, notes = _eval_lead_board(eng, a, b, [], ["OppA", "OppB"], None)
+        assert vals[0] == pytest.approx(8.0 * _DOOMED_LEAD_FACTOR)
+        assert vals[1] == pytest.approx(4.0)
+        assert any("doomed" in n for n in notes)
+
+    def test_undoomed_board_unpenalised(self):
+        from decision.modules import TurnContext
+        a, b = self._members()
+        eng = _StubEngine({0: [_act("Tackle", 8.0)], 1: [_act("Tackle", 4.0)]})
+        ctx = TurnContext(doomed={0: False, 1: False})
+        with patch("decision.modules._ensure_turn_ctx", return_value=ctx):
+            score, vals, notes = _eval_lead_board(eng, a, b, [], ["OppA", "OppB"], None)
+        assert vals == [8.0, 4.0] and notes == []
+
+
+class TestFieldVariantGating:
+    """TR/TW field variants apply only when the PREDICTED PAIR contains the
+    setter — a benched setter's field is turns away, and averaging it in let a
+    speculative TR board drown the base reality (2401-score doomed pair)."""
+
+    _OPP6 = ["Garchomp", "Whimsicott", "Incineroar", "Farigiraf",
+             "Sneasler", "Pelipper"]
+
+    def _count_variants(self, predicted):
+        from team import get_team
+        import team_preview as tp
+        members = get_team()
+        slots = [1, 2, 3, 4]
+        calls = []
+        real = tp._eval_lead_board
+        def spy(engine, a, b, bench, opp_pair, mega, **field):
+            calls.append(dict(field))
+            return real(engine, a, b, bench, opp_pair, mega, **field)
+        with patch("team_preview._eval_lead_board", side_effect=spy):
+            tp._score_lead_pairs(slots, members, predicted, self._OPP6)
+        # variants per pair = total calls / C(4,2)
+        return len(calls) // 6, calls
+
+    def test_no_setter_in_predicted_pair_base_board_only(self):
+        n, calls = self._count_variants(["Garchomp", "Incineroar"])
+        assert n == 1
+        assert all(c == {} for c in calls)
+
+    def test_tw_setter_in_predicted_pair_adds_tailwind_variant(self):
+        n, calls = self._count_variants(["Garchomp", "Pelipper"])
+        assert n == 2
+        assert any(c.get("opp_tailwind") for c in calls)
+
+    def test_tr_setter_in_predicted_pair_adds_tr_variant(self):
+        n, calls = self._count_variants(["Garchomp", "Farigiraf"])
+        assert n == 2
+        assert any(c.get("trick_room") for c in calls)

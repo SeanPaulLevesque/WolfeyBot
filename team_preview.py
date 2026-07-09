@@ -324,6 +324,12 @@ _SWITCH_WANT_FACTOR = 0.5   # lead slot whose best phase-1 action is a SWITCH:
                             # the engine itself says this mon shouldn't be here
                             # (observed live: correct lead reads followed by
                             # turn-1 switches), so the pair is self-refuting
+_DOOMED_LEAD_FACTOR = 0.25  # lead slot the board facts say is KO'd before it
+                            # acts (ctx.doomed): in battle that's a ×0.2 move
+                            # discount, but at preview we can simply not START
+                            # the mon — a doomed lead concedes the slot.  (v9
+                            # audit: Chandelure led into rain on a ×0.2-doomed
+                            # overkill read and went 3-15 vs Swampert+Pelipper.)
 _ATK_FLOOR = 0.05           # slot with no usable attack still scores something
 
 
@@ -396,6 +402,10 @@ def _eval_lead_board(engine, lead_a: TeamMember, lead_b: TeamMember,
     * slot value = the best **attack** weight — this already folds in real
       damage (capped at lethal), guaranteed-kill bonuses, true turn order
       (item/ability/TR-aware), dying-before-acting, and Fake Out pressure.
+    * ``×_DOOMED_LEAD_FACTOR`` when the board facts say the slot is **KO'd
+      before it acts** (``ctx.doomed``) — the in-battle ×0.2 move discount
+      still lets a big kill-stack win the pair argmax, but a lead that dies
+      before moving concedes the slot, so preview punishes it much harder.
     * ``×_SWITCH_WANT_FACTOR`` when a **switch outweighs every stay action** —
       the engine's own verdict that this mon doesn't want to be on this board.
 
@@ -403,6 +413,7 @@ def _eval_lead_board(engine, lead_a: TeamMember, lead_b: TeamMember,
     slot should sink the pair, not average out).
     Returns (score, per_slot_values, notes)."""
     from decision.engine import _PROTECT_MOVES
+    from decision.modules import _ensure_turn_ctx
     state = _preview_state(lead_a, lead_b, bench, opp_pair,
                            designated_mega, **field)
     slot_vals: list[float] = []
@@ -415,6 +426,10 @@ def _eval_lead_board(engine, lead_a: TeamMember, lead_b: TeamMember,
         stay = max((a.weight for a in ranked if not a.is_switch), default=0.0)
         sw = max((a.weight for a in ranked if a.is_switch), default=0.0)
         val = max(atk, _ATK_FLOOR)
+        if _ensure_turn_ctx(state).is_doomed(slot):
+            val *= _DOOMED_LEAD_FACTOR
+            notes.append(f"{member.name}: doomed on this board "
+                         f"(KO'd before acting)")
         if sw > stay:
             val *= _SWITCH_WANT_FACTOR
             notes.append(f"{member.name}: engine prefers switching out "
@@ -439,32 +454,30 @@ def _score_lead_pairs(slots: list[int], our_members: list[TeamMember],
     """Engine-grounded score for every C(n,2) lead pair from *slots*.
 
     Field variants: the base (no-field) board, plus a Trick-Room-on board when
-    the opponent roster has a TR setter and an opponent-Tailwind board when it
-    has an undeniable (priority) TW setter — averaged, so initiative under the
-    opponent's likely game plan is priced by the *real* turn-order model
-    instead of hand-tuned rows.  Returns None when the engine path is
-    unavailable (unresolvable members)."""
+    the **predicted lead pair** contains a TR setter and an opponent-Tailwind
+    board when it contains a TW setter — averaged, so initiative under the
+    opponent's imminent game plan is priced by the *real* turn-order model
+    instead of hand-tuned rows.  Variants are keyed on the predicted PAIR, not
+    the whole roster: a benched setter's field is turns away — long after our
+    leads have acted — and averaging it in let a speculative TR board drown
+    the base reality (a doubly-doomed pair scored 2401 because "under TR
+    they'd act first").  Returns None when the engine path is unavailable
+    (unresolvable members)."""
     if not _members_resolvable([our_members[i - 1] for i in slots]):
         return None
     try:
         from decision.modules import (
-            make_engine, _is_tr_setter, _assumed_ability,
-            _TAILWIND_SETTER_SPECIES,
+            make_engine, _is_tr_setter, _is_tw_setter,
         )
     except Exception:
         return None
 
-    tr_expected = any(_is_tr_setter(_preview_opp_mon(s))
-                      for s in opp_species_list)
-    tw_undeniable = any(
-        s in _TAILWIND_SETTER_SPECIES
-        and (s == "Talonflame" or _assumed_ability(s) == "Prankster")
-        for s in opp_species_list
-    )
+    tr_imminent = any(_is_tr_setter(_preview_opp_mon(s)) for s in predicted)
+    tw_imminent = any(_is_tw_setter(_preview_opp_mon(s)) for s in predicted)
     variants: list[dict] = [{}]
-    if tr_expected:
+    if tr_imminent:
         variants.append({"trick_room": True})
-    if tw_undeniable:
+    if tw_imminent:
         variants.append({"opp_tailwind": True})
 
     engine = make_engine()
