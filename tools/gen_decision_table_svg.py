@@ -72,6 +72,9 @@ ROWS = [
      "g = the switch-in's best-damage gain over the mon staying in (floored at 0)"),
     ("18",  "Switch safety",          ("span6", "—"),                 ["—", "×4.0 / ×0.3", "×4.0 / ×0.3"],
      "×4.0 escape a connecting OHKO into a surviving switch-in; ×0.3 if the switch-in is itself OHKO'd"),
+    ("19",  "Boosted target",         ("span6", "×(1 + 0.4×stages)"), ["—", "—", "—"],
+     "attacks into a stat-boosted opponent, per positive stage on the target — 1 stage ×1.4, "
+     "2 ×1.8; punish the snowball before it rolls"),
     (SECTION, "Phase 2 — joint adjusters (applied to the chosen pair)", None, None, None),
     ("J1",  "doubling up",            ("span6", "×0.4"),              ["—", "—", "—"],
      "flat penalty when both slots attack the same target — the spread-your-damage tax"),

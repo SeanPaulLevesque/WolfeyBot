@@ -3578,3 +3578,54 @@ class TestPsychicTerrainPriorityBlock:
     def test_no_terrain_no_block(self):
         act = self._score("Garchomp", terrain=None)
         assert act.weight == 4.0
+
+
+class TestBoostedTargetModule:
+    """Attacks into a boosted target ×(1 + 0.4 × Σ positive stages): one stage
+    ×1.4, two ×1.8 — the endgame-autopsy counter (opp boosted in 61% of late
+    loss-turns; the snowball must become the priority target)."""
+
+    def _run(self, boosts_a=None, boosts_b=None, actions=None):
+        from decision.modules import BoostedTargetModule
+        state = make_state(
+            my_actives=[make_mon("Lycanroc-Dusk")],
+            opp_actives=[make_mon("Garchomp", side="p2", boosts=boosts_a),
+                         make_mon("Incineroar", side="p2", boosts=boosts_b)],
+        )
+        acts = actions or [
+            make_action("Close Combat", "Close Combat", target_slot=0, weight=2.0),
+            make_action("Close Combat", "Close Combat", target_slot=1, weight=2.0),
+            make_action("Protect", "Protect", weight=2.0),
+            make_action("Switch Kingambit", switch_target="Kingambit", weight=2.0),
+        ]
+        BoostedTargetModule().score(state, 0, acts)
+        return acts
+
+    def test_one_stage_gives_1_4(self):
+        acts = self._run(boosts_a={"atk": 1})
+        assert acts[0].weight == pytest.approx(2.0 * 1.4)   # into the boosted mon
+        assert acts[1].weight == 2.0                        # other target untouched
+
+    def test_two_stages_give_1_8(self):
+        acts = self._run(boosts_a={"atk": 1, "def": 1})     # Bulk Up
+        assert acts[0].weight == pytest.approx(2.0 * 1.8)
+
+    def test_negative_stages_do_not_offset(self):
+        acts = self._run(boosts_a={"def": 2, "spd": -1})    # Moody roll
+        assert acts[0].weight == pytest.approx(2.0 * 1.8)
+
+    def test_protect_and_switch_untouched(self):
+        acts = self._run(boosts_a={"atk": 2})
+        assert acts[2].weight == 2.0
+        assert acts[3].weight == 2.0
+
+    def test_no_boosts_module_inert(self):
+        acts = self._run()
+        assert [a.weight for a in acts] == [2.0, 2.0, 2.0, 2.0]
+
+    def test_spread_move_takes_most_boosted_foe(self):
+        acts = self._run(
+            boosts_b={"spa": 2},
+            actions=[make_action("Rock Slide", "Rock Slide", weight=2.0)],
+        )
+        assert acts[0].weight == pytest.approx(2.0 * 1.8)

@@ -1,5 +1,17 @@
 # WolfeyBot Changelog
 
+## 0.42.0 — 2026-07-09
+
+### Decision engine
+- **BoostedTargetModule (#19) — punish the snowball.** Attacks aimed at a
+  stat-boosted opponent are up-weighted ×(1 + 0.4 × Σ positive stages): one
+  stage ×1.4, two ×1.8, a double Bulk Up ×2.6. The endgame autopsy made the
+  case: the opponent held a positive boost in 61% of late loss-turns vs 38%
+  in wins, while DamageOutput actually *discounts* attacking into raised
+  defenses. Positive stages only (accuracy/evasion count); spread attacks take
+  the most-boosted live foe; Protect/switches untouched. Turn-1 snapshots
+  unchanged (no boosts at turn 1). +6 tests.
+
 ## 0.41.0 — 2026-07-09
 
 ### Modeling

@@ -30,6 +30,7 @@ from decision.modules import (  # noqa: F401
     TurnOrderModule,
     UrgencyModule,
     SetupDenialModule,
+    BoostedTargetModule,
     SetupType,
     _SETUP_TYPES,
     SETUP_URGENCY,

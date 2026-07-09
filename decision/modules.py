@@ -2320,6 +2320,57 @@ class UrgencyModule(ScoringModule):
             return   # one urgency boost per turn (registry order = priority)
 
 
+BOOST_TARGET_FACTOR = 0.4   # per positive stat stage on the target
+
+
+class BoostedTargetModule(ScoringModule):
+    """**Punish the snowball.**  Attacks aimed at a stat-boosted opponent are
+    up-weighted by ``×(1 + BOOST_TARGET_FACTOR × Σ positive stages)`` — one
+    stage ×1.4 (slight favour), two ×1.8 (significant), a double Bulk Up (+2/+2)
+    ×2.6.
+
+    The endgame autopsy made the case: the opponent held a positive boost in
+    **61%** of late loss-turns vs 38% in wins — boosted mons snowball while the
+    per-slot weights kept treating them as ordinary targets (DamageOutput even
+    *discounts* attacking into their raised defenses).  This module makes the
+    boosted mon the priority target so the snowball dies before it rolls.
+
+    Counts the sum of **positive** stages across all stats (accuracy/evasion
+    included — an evasion boost compounds like any other); negative stages
+    neither offset nor contribute.  Spread / untargeted attacks take the best
+    (most-boosted) live foe, mirroring DamageOutput's convention — they hit the
+    boosted mon too.  Protect and switches are untouched.
+    """
+
+    name = "boosted_target"
+
+    @staticmethod
+    def _stages(opp) -> int:
+        return sum(v for v in (getattr(opp, "boosts", None) or {}).values()
+                   if v > 0)
+
+    def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
+        stages = {
+            i: self._stages(o)
+            for i, o in enumerate(state.opp_actives)
+            if o is not None and not o.fainted
+        }
+        if not any(stages.values()):
+            return
+        for action in actions:
+            if (action.is_switch or not action.is_move
+                    or action.move_name in _PROTECT_MOVES):
+                continue
+            ts = action.target_slot
+            n = stages.get(ts, 0) if ts is not None else max(stages.values())
+            if n <= 0:
+                continue
+            factor = 1.0 + BOOST_TARGET_FACTOR * n
+            action.weight *= factor
+            action.reasons.append(
+                f"{self.name}: target has +{n} stage(s) -> x{factor:.1f}")
+
+
 class SetupDenialModule(ScoringModule):
     """
     "Can I kill the setter before its effect lands?"
@@ -2688,6 +2739,7 @@ def make_engine() -> DecisionEngine:
             SwitchTempoModule(),          # 16: flat cost of switching (×0.8)
             SwitchOffenseModule(),        # 17: switch-in hits harder? ×(1+offense gain)
             SwitchSafetyModule(),         # 18: escape a connecting OHKO (×4.0) / switch into one (×0.3)
+            BoostedTargetModule(),        # 19: prioritise boosted targets ×(1 + 0.4×stages)
         ],
         joint=[
             DoublingAdjuster(),           # both attack same target: ×0.4 flat (spread your damage)
