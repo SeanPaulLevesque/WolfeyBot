@@ -3521,3 +3521,60 @@ class TestRedirectionModule:
         RedirectionModule().score(s, 0, acts)
         assert not any("redirection" in r for r in acts[0].reasons)
         assert acts[0].weight == 1.0
+
+
+class TestAssumedTerrain:
+    """_assumed_terrain: observed terrain wins; otherwise an active surge
+    ability implies its terrain (a pre-mega Raichu -> Mega-X -> Electric Surge
+    when that forme is assumed)."""
+
+    def test_observed_terrain_wins(self):
+        state = make_state(opp_actives=[make_mon("Garchomp", side="p2")])
+        state.terrain = "grassy"
+        from decision.modules import _assumed_terrain
+        assert _assumed_terrain(state) == "grassy"
+
+    def test_surge_ability_implies_terrain(self):
+        from decision.modules import _assumed_terrain
+        opp = make_mon("Raichu", side="p2")
+        state = make_state(opp_actives=[opp])
+        state.terrain = None
+        with patch("decision.modules._effective_ability",
+                   return_value="Electric Surge"):
+            assert _assumed_terrain(state) == "electric"
+
+    def test_no_setter_no_terrain(self):
+        from decision.modules import _assumed_terrain
+        state = make_state(opp_actives=[make_mon("Garchomp", side="p2")])
+        state.terrain = None
+        assert _assumed_terrain(state) is None
+
+
+class TestPsychicTerrainPriorityBlock:
+    """Psychic Terrain blocks priority into GROUNDED targets only — per-target,
+    unlike Armor Tail / Queenly Majesty which shield the whole side."""
+
+    def _score(self, target_species, terrain="psychic"):
+        from decision.modules import PriorityBlockModule
+        state = make_state(
+            my_actives=[make_mon("Lycanroc-Dusk")],
+            opp_actives=[make_mon(target_species, side="p2")],
+        )
+        state.terrain = terrain
+        act = make_action("Accelerock", "Accelerock", target_slot=0, weight=4.0)
+        with patch("decision.modules._effective_ability", return_value="Torrent"):
+            PriorityBlockModule().score(state, 0, [act])
+        return act
+
+    def test_priority_blocked_into_grounded_target(self):
+        act = self._score("Garchomp")
+        assert act.weight == 0.0
+        assert any("Psychic Terrain" in r for r in act.reasons)
+
+    def test_priority_fine_into_airborne_target(self):
+        act = self._score("Talonflame")          # Flying: not grounded
+        assert act.weight == 4.0
+
+    def test_no_terrain_no_block(self):
+        act = self._score("Garchomp", terrain=None)
+        assert act.weight == 4.0

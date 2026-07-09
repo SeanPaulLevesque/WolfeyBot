@@ -1,5 +1,26 @@
 # WolfeyBot Changelog
 
+## 0.41.0 — 2026-07-09
+
+### Modeling
+- **Zoroark Illusion inference.** With a Zoroark line in the opponent's
+  preview, a duplicate species among their actives or a move completely absent
+  from the species' usage movepool flags the mon as the disguised Zoroark; the
+  fake gets its own object + ident (never contaminating the real mon's item
+  evidence) and `_assumed_species` models it as the Zoroark forme —
+  types/stats/ability/moves all follow. `_find_mon` is now slot-aware, routing
+  protocol lines to the current slot occupant. (Caught live: two "Milotic"s on
+  field, one using Flamethrower, eating three Last Respects as "immune".)
+- **Terrain.** Parser normalises `|-fieldstart|` terrain to canonical keys;
+  `_assumed_terrain` (twin of `_assumed_weather`) infers terrain from active
+  surge abilities (assumed Raichu-Mega-X → Electric Surge). Damage effects,
+  all grounded-gated: ×1.3 same-type boost (Electric/Grassy/Psychic), Rising
+  Voltage power double (the 42%→100% Jolteon under-read), Expanding Force
+  ×1.5, Misty Dragon halving, Grassy Earthquake/Bulldoze halving.
+  PriorityBlockModule additionally zeroes priority attacks into grounded
+  targets under Psychic Terrain (per-target, unlike Armor Tail). Turn-1
+  snapshots unchanged. +16 tests.
+
 ## 0.40.0 — 2026-07-09
 
 Four improvements from the 758-game v9 batch autopsy (50% WR; rain 33%;

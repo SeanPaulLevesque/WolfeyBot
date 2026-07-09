@@ -124,6 +124,51 @@ _PERSONAL_WEATHER_ABILITIES: dict[str, str] = {
     "Mega Sol": "sun",     # Meganium-Mega: Solar Beam no-charge, Fire Weather Ball ×1.5
 }
 
+
+# ── Terrain (0.41.0) ──────────────────────────────────────────────────────────
+# Canonical short keys ("electric" / "grassy" / "psychic" / "misty"), set by
+# the parser from |-fieldstart| and assumed from surge abilities (Raichu-Mega-X
+# = Electric Surge) by decision.modules._assumed_terrain.  All terrain effects
+# apply to GROUNDED mons only.
+
+def is_grounded(species: str, ability: str = "", item: Optional[str] = None) -> bool:
+    """Grounded = touches the terrain: not Flying-type, no Ground-immunity
+    ability (Levitate / Eelevate), no Air Balloon."""
+    if "Flying" in (types_of(species) or []):
+        return False
+    if _ABILITY_TYPE_IMMUNITY.get(ability) == "Ground":
+        return False
+    if item == "Air Balloon":
+        return False
+    return True
+
+
+# Moves halved by Grassy Terrain's protective canopy (vs grounded targets).
+_GRASSY_HALVED_MOVES = frozenset({"Earthquake", "Bulldoze", "Magnitude"})
+
+
+def terrain_modifier(move_name: str, eff_type: str, terrain: Optional[str],
+                     atk_grounded: bool, def_grounded: bool) -> float:
+    """Combined terrain damage multiplier (×1.0 when no terrain applies).
+
+    * Electric/Grassy/Psychic: the matching move type ×1.3 from a GROUNDED
+      attacker.
+    * Misty: Dragon moves ×0.5 into a grounded target.
+    * Grassy: Earthquake/Bulldoze/Magnitude ×0.5 into a grounded target.
+    """
+    if not terrain:
+        return 1.0
+    mult = 1.0
+    boost = {"electric": "Electric", "grassy": "Grass", "psychic": "Psychic"}
+    if atk_grounded and boost.get(terrain) == eff_type:
+        mult *= 1.3
+    if def_grounded:
+        if terrain == "misty" and eff_type == "Dragon":
+            mult *= 0.5
+        if terrain == "grassy" and move_name in _GRASSY_HALVED_MOVES:
+            mult *= 0.5
+    return mult
+
 # Foul Play computes damage from the *target's* Attack stat (and the target's
 # Attack stat stages), not the user's.
 _FOUL_PLAY = "Foul Play"
@@ -666,6 +711,7 @@ def full_damage_calc(
         attacker_boosts: Optional[dict[str, int]] = None,
         defender_boosts: Optional[dict[str, int]] = None,
         weather: Optional[str] = None,
+        terrain: Optional[str] = None,
         crit: bool = False,
         defender_is_full_hp: bool = True,
         ally_faint_count: int = 0,
@@ -717,6 +763,17 @@ def full_damage_calc(
     if move_name == "Weather Ball" and weather in _WEATHER_BALL_TYPE:
         raw_type = _WEATHER_BALL_TYPE[weather]
         power = 100
+
+    # Terrain-powered moves (grounded-gated below via terrain_modifier for the
+    # ×1.3; these change BASE POWER).  Rising Voltage doubles vs a grounded
+    # target on Electric Terrain (the 42%→100% Jolteon under-read); Expanding
+    # Force is ×1.5 from a grounded user on Psychic Terrain.
+    atk_grounded = is_grounded(attacker_species, attacker_ability, attacker_item)
+    def_grounded = is_grounded(defender_species, defender_ability, defender_item)
+    if move_name == "Rising Voltage" and terrain == "electric" and def_grounded:
+        power *= 2
+    if move_name == "Expanding Force" and terrain == "psychic" and atk_grounded:
+        power = int(power * 1.5)
 
     # Moves that always land as critical hits regardless of the opponent's
     # stat stages (Gen 6+ rules).  Battle Armor / Shell Armor immunity is not
@@ -816,6 +873,8 @@ def full_damage_calc(
     if eff > 0 and _ABILITY_TYPE_IMMUNITY.get(defender_ability) == eff_type:
         eff = 0.0
     wthr  = weather_modifier(eff_type, weather)
+    wthr *= terrain_modifier(move_name, eff_type, terrain,
+                             atk_grounded, def_grounded)
     is_spread = is_spread_move(move_name)
 
     atk_m = atk_modifier(attacker_ability, attacker_item,
@@ -1016,6 +1075,7 @@ def incoming_damage(
         our_item: Optional[str] = None,
         defender_has_item: bool = True,
         weather: Optional[str] = None,
+        terrain: Optional[str] = None,
         our_defender_is_full_hp: bool = True,
         our_current_hp: Optional[int] = None,
         our_hp_percent: Optional[float] = None,
@@ -1103,6 +1163,7 @@ def incoming_damage(
             defender_item=our_item,
             defender_has_item=defender_has_item,
             weather=weather,
+            terrain=terrain,
             defender_screens=our_screens,
             attacker_boosts=opp_boosts,
             defender_boosts=our_boosts,
@@ -1131,7 +1192,8 @@ def incoming_damage(
                 attacker_ability=opp_ability, defender_ability=our_ability,
                 attacker_item=opp_item, defender_item=our_item,
                 defender_has_item=defender_has_item,
-                weather=weather, defender_screens=our_screens,
+                weather=weather,
+            terrain=terrain, defender_screens=our_screens,
                 attacker_boosts=opp_boosts, defender_boosts=our_boosts,
                 defender_is_full_hp=our_defender_is_full_hp,
                 ally_faint_count=opp_ally_faint_count,
@@ -1158,6 +1220,7 @@ def outgoing_damage(
         opp_item: Optional[str] = None,
         defender_has_item: bool = True,
         weather: Optional[str] = None,
+        terrain: Optional[str] = None,
         opp_is_full_hp: bool = True,
         ally_faint_count: int = 0,
         times_hit: int = 0,
@@ -1225,6 +1288,7 @@ def outgoing_damage(
             defender_item=opp_item,
             defender_has_item=defender_has_item,
             weather=weather,
+            terrain=terrain,
             defender_is_full_hp=opp_is_full_hp,
             ally_faint_count=ally_faint_count,
             times_hit=times_hit,

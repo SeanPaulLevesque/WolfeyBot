@@ -582,7 +582,11 @@ class BattleParser:
             self.state.trick_room = True
             self.state.trick_room_turns_left = 5
         else:
-            self.state.terrain = clean
+            # Canonical short keys, mirroring the weather normalisation — the
+            # damage calc's terrain effects key off these.
+            aliases = {"electric terrain": "electric", "grassy terrain": "grassy",
+                       "psychic terrain": "psychic", "misty terrain": "misty"}
+            self.state.terrain = aliases.get(clean.lower(), clean)
 
     async def _on_fieldend(self, args: list[str]):
         condition = args[0] if args else ""

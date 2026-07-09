@@ -661,7 +661,9 @@ class TestTrickRoom:
         parser, _ = make_parser()
         run(parser.feed("|-fieldstart|move: Electric Terrain"))
         assert parser.state.trick_room is False
-        assert parser.state.terrain == "Electric Terrain"
+        # 0.41.0: terrain is normalised to the canonical short key the damage
+        # layer's terrain effects consume (mirrors the weather normalisation).
+        assert parser.state.terrain == "electric"
 
 
 # ── Tailwind ─────────────────────────────────────────────────────────────────

@@ -1286,3 +1286,63 @@ class TestHeatCrashPower:
 
     def test_zero_target_weight_guard(self):
         assert _heat_crash_power(200.0, 0.0) == 40
+
+
+class TestTerrain:
+    """Terrain effects (0.41.0): grounded-gated type boosts, terrain-powered
+    moves, and the defensive halvings.  Caught live: Jolteon Rising Voltage
+    predicted 42%, dealt 100% (Electric Terrain unmodeled)."""
+
+    _S = {"atk": 100, "def": 100, "spa": 100, "spd": 100, "spe": 100, "hp": 150}
+
+    def _calc(self, move, terrain=None, atk_types=None, def_types=None,
+              atk_ability="", def_ability=""):
+        def fake_types(s):
+            return {"Atk": atk_types or ["Normal"],
+                    "Def": def_types or ["Normal"]}.get(s, ["Normal"])
+        with patch("damage.types_of", side_effect=fake_types):
+            return full_damage_calc(move, "Atk", "Def", self._S, self._S,
+                                    attacker_ability=atk_ability,
+                                    defender_ability=def_ability,
+                                    terrain=terrain)
+
+    def test_rising_voltage_doubles_on_electric_terrain(self):
+        base = self._calc("Rising Voltage")
+        boosted = self._calc("Rising Voltage", terrain="electric")
+        # 2x power AND the x1.3 grounded Electric boost => ~2.6x
+        assert boosted.power == base.power * 2
+        assert boosted.damage_avg / base.damage_avg == pytest.approx(2.6, rel=0.05)
+
+    def test_rising_voltage_not_doubled_vs_airborne_target(self):
+        base = self._calc("Rising Voltage", def_types=["Normal", "Flying"])
+        t = self._calc("Rising Voltage", terrain="electric",
+                       def_types=["Normal", "Flying"])
+        assert t.power == base.power        # target not grounded: no double
+        assert t.damage_avg / base.damage_avg == pytest.approx(1.3, rel=0.05)
+
+    def test_grounded_boost_requires_grounded_attacker(self):
+        grounded = self._calc("Thunderbolt", terrain="electric")
+        airborne = self._calc("Thunderbolt", terrain="electric",
+                              atk_ability="Levitate")
+        assert grounded.damage_avg / airborne.damage_avg == pytest.approx(1.3, rel=0.05)
+
+    def test_grassy_terrain_halves_earthquake_into_grounded(self):
+        base = self._calc("Earthquake")
+        halved = self._calc("Earthquake", terrain="grassy")
+        # x0.5 EQ halving vs grounded target (attacker Normal: no Grass boost)
+        assert halved.damage_avg / base.damage_avg == pytest.approx(0.5, rel=0.05)
+
+    def test_misty_terrain_halves_dragon_into_grounded(self):
+        base = self._calc("Dragon Pulse")
+        halved = self._calc("Dragon Pulse", terrain="misty")
+        assert halved.damage_avg / base.damage_avg == pytest.approx(0.5, rel=0.05)
+
+    def test_expanding_force_boosted_on_psychic_terrain(self):
+        base = self._calc("Expanding Force")
+        boosted = self._calc("Expanding Force", terrain="psychic")
+        # x1.5 power and x1.3 grounded Psychic boost => ~1.95x
+        assert boosted.damage_avg / base.damage_avg == pytest.approx(1.95, rel=0.06)
+
+    def test_no_terrain_no_change(self):
+        assert self._calc("Thunderbolt").damage_avg == \
+            self._calc("Thunderbolt", terrain=None).damage_avg

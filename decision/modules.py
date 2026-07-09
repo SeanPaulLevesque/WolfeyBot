@@ -36,7 +36,7 @@ from data import (
     note_gap as _note_gap,
 )
 from team import find_member
-from damage import outgoing_damage, incoming_damage
+from damage import outgoing_damage, incoming_damage, is_grounded
 from turn_order import Combatant, will_outspeed, priority_bracket
 
 from decision.engine import (
@@ -445,6 +445,42 @@ _WEATHER_SETTING_ABILITIES = {
     "Sand Stream": "sand", "Snow Warning": "snow",
 }
 
+# Terrain-setting (surge) abilities → the terrain they put up on switch-in.
+# Champions-relevant: Raichu-Mega-X = Electric Surge (the 42%→100% Rising
+# Voltage under-read from the v9 batch).
+_TERRAIN_SETTING_ABILITIES = {
+    "Electric Surge": "electric", "Grassy Surge": "grassy",
+    "Psychic Surge": "psychic", "Misty Surge": "misty",
+}
+
+
+def _assumed_terrain(state: "BattleState") -> Optional[str]:
+    """Effective terrain for the turn's facts — the terrain twin of
+    :func:`_assumed_weather`.  Observed terrain (``|-fieldstart|``) wins;
+    otherwise assume the terrain an **active** surge ability will bring, keyed
+    off the assumed forme (a pre-mega Raichu → Mega-X → Electric Surge implies
+    Electric Terrain before its ``|detailschange|`` arrives).  Drives the
+    grounded ×1.3 same-type boost, Rising Voltage / Expanding Force power, the
+    Misty Dragon halving and the Grassy Earthquake halving in ``damage.py``,
+    plus the Psychic-Terrain priority block in PriorityBlockModule.  When two
+    active setters collide, entry abilities fire fastest-first, so the
+    **slowest** setter's terrain sticks."""
+    if state.terrain:
+        return state.terrain
+    setters: list[tuple[int, str]] = []
+    for actives, ours in ((state.my_actives, True), (state.opp_actives, False)):
+        for mon in actives:
+            if mon is None or mon.fainted:
+                continue
+            ability = (mon.ability if ours else _effective_ability(mon)) or ""
+            terr = _TERRAIN_SETTING_ABILITIES.get(ability)
+            if terr:
+                species = mon.species if ours else _assumed_species(mon)
+                setters.append((_base_spe(species) or 0, terr))
+    if not setters:
+        return None
+    return min(setters, key=lambda t: t[0])[1]
+
 # Abilities that block incoming priority moves against the holder *and its ally*.
 # Champions-legal carriers: Armor Tail (Farigiraf), Queenly Majesty (Tsareena).
 # (Dazzling is the same mechanic but has no Champions-legal user.)
@@ -557,7 +593,7 @@ class DamageOutputModule(ScoringModule):
                 our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega),
                 our_item=_our_item(mon),
                 opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
-                weather=_assumed_weather(state), ally_faint_count=ally_faints,
+                weather=_assumed_weather(state), terrain=_assumed_terrain(state), ally_faint_count=ally_faints,
                 **_outgoing_attacker_mods(mon),
                 **_outgoing_defender_mods(state, opp),
             )
@@ -756,20 +792,35 @@ class PriorityBlockModule(ScoringModule):
     BLOCK_FACTOR = 0.0
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
-        if not any(
+        ability_block = any(
             o is not None and not o.fainted
             and _effective_ability(o) in _PRIORITY_BLOCK_ABILITIES
             for o in state.opp_actives
-        ):
+        )
+        # Psychic Terrain (0.41.0): priority moves can't target GROUNDED mons.
+        # Per-target, unlike the abilities (which shield the whole side): a
+        # priority hit on a non-grounded foe (Flying / Levitate) still works.
+        terrain_psychic = _assumed_terrain(state) == "psychic"
+        if not ability_block and not terrain_psychic:
             return
         for action in actions:
             if not action.is_move or action.is_switch or action.move_name in _PROTECT_MOVES:
                 continue
             if priority_bracket(action.move_name) <= 0:
                 continue   # only priority attacks
+            if not ability_block:
+                ts = action.target_slot
+                opp = (state.opp_actives[ts]
+                       if ts is not None and ts < len(state.opp_actives) else None)
+                if opp is None or not is_grounded(
+                        _defense_species(opp), _effective_ability(opp) or "",
+                        _opp_item(state, opp)):
+                    continue   # airborne target — Psychic Terrain doesn't shield it
             action.weight *= self.BLOCK_FACTOR
             action.reasons.append(
                 f"{self.name}: opposing priority-block ability -> x{self.BLOCK_FACTOR:g}"
+                if ability_block else
+                f"{self.name}: Psychic Terrain blocks priority -> x{self.BLOCK_FACTOR:g}"
             )
 
 
@@ -1409,7 +1460,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                     opp_species=_defense_species(opp), our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega), our_item=_our_item(mon),
                     opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
                     defender_has_item=_opp_has_item(state, opp),
-                    weather=_assumed_weather(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
+                    weather=_assumed_weather(state), terrain=_assumed_terrain(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
                     opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
                     opp_is_full_hp=opp_at_full,
                     opp_screens=getattr(state, "opp_screens", None),
@@ -1455,7 +1506,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 opp_item=_opp_item(state, opp),
                 our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega),
                 our_item=our_item,
-                weather=_assumed_weather(state),
+                weather=_assumed_weather(state), terrain=_assumed_terrain(state),
                 only_moves=([locked] if locked else None),
                 opp_ally_faint_count=opp_faints,
                 **_incoming_attacker_mods(opp),
@@ -1626,7 +1677,7 @@ def _best_offense(
                 our_species=species, our_stats=stats, our_moves=[mv],
                 our_ability=ability or "", our_item=item,
                 opp_species=_defense_species(opp), opp_ability=_effective_ability(opp) or "",
-                opp_item=_opp_item(state, opp), weather=_assumed_weather(state),
+                opp_item=_opp_item(state, opp), weather=_assumed_weather(state), terrain=_assumed_terrain(state),
                 ally_faint_count=ally_faints,
                 **atk_mods, **def_mods,
             )
@@ -1657,7 +1708,7 @@ def _switch_in_survives(
             opp_item=_opp_item(state, opp),
             our_ability=_our_ability_for_damage(bench_tm, species, state.designated_mega),
             our_item=bench_item,   # consumption-aware switch-in item
-            weather=_assumed_weather(state),
+            weather=_assumed_weather(state), terrain=_assumed_terrain(state),
             only_moves=([locked] if locked else None),
             opp_ally_faint_count=opp_faints,
             **_incoming_attacker_mods(opp),
@@ -2556,7 +2607,7 @@ class RedirectionModule(ScoringModule):
                 opp_species=_defense_species(redir),
                 our_ability=our_ability, our_item=our_item,
                 opp_ability=_effective_ability(redir) or "", opp_item=_opp_item(state, redir),
-                weather=_assumed_weather(state), ally_faint_count=ally_faints,
+                weather=_assumed_weather(state), terrain=_assumed_terrain(state), ally_faint_count=ally_faints,
                 opp_current_hp=cur_hp,
                 opp_hp_percent=(redir.hp if (redir.hp_is_percentage and 0 < redir.hp < 100) else None),
                 opp_screens=getattr(state, "opp_screens", None),
