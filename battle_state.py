@@ -59,6 +59,13 @@ class Pokemon:
     # Cleared automatically when a Pokémon switches out (new Pokemon object created).
     # Used by turn_order to apply the Unburden speed doubling.
     item_consumed: bool = False
+    # Current in-battle types when changed from the species' base typing —
+    # set by the parser from |-start|IDENT|typechange|TYPE (Protean committing
+    # its once-per-switch-in change, Soak, …).  None = base types.  Drives
+    # both defensive effectiveness and STAB via the damage layer's
+    # attacker_types/defender_types overrides; resets naturally on switch
+    # (fresh Pokemon object per stint).
+    types_override: Optional[list[str]] = None
     # Illusion belief (0.41.0): the Zoroark forme we suspect this opponent
     # "mon" really is (duplicate species on the field, or a move outside its
     # movepool, while a Zoroark line was previewed).  When set, the engine's

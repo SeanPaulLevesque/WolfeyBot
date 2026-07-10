@@ -127,6 +127,12 @@ _PERSONAL_WEATHER_ABILITIES: dict[str, str] = {
     "Mega Sol": "sun",     # Meganium-Mega: Solar Beam no-charge, Fire Weather Ball ×1.5
 }
 
+# Abilities whose holder's type changes to the FIRST move it uses after
+# entering the field (once per switch-in) — so an unspent holder gets STAB on
+# everything, and after the change its current types (parser-tracked
+# ``types_override``) drive both STAB and defense.  Greninja-Mega = Protean.
+_PROTEAN_ABILITIES: frozenset[str] = frozenset({"Protean", "Libero"})
+
 
 # ── Terrain (0.41.0) ──────────────────────────────────────────────────────────
 # Canonical short keys ("electric" / "grassy" / "psychic" / "misty"), set by
@@ -715,6 +721,8 @@ def full_damage_calc(
         defender_boosts: Optional[dict[str, int]] = None,
         weather: Optional[str] = None,
         terrain: Optional[str] = None,
+        attacker_types: Optional[list[str]] = None,
+        defender_types: Optional[list[str]] = None,
         crit: bool = False,
         defender_is_full_hp: bool = True,
         ally_faint_count: int = 0,
@@ -843,8 +851,13 @@ def full_damage_calc(
     eff_type = effective_move_type(raw_type, attacker_ability)
 
     # ── Types ─────────────────────────────────────────────────────────────────
-    atk_types = types_of(attacker_species) or []
-    def_types  = types_of(defender_species) or []
+    # *attacker_types* / *defender_types* override the species' base typing —
+    # the in-battle current types after a Protean typechange (or Soak etc.),
+    # tracked by the parser on ``mon.types_override``.
+    atk_types = (attacker_types if attacker_types is not None
+                 else types_of(attacker_species) or [])
+    def_types = (defender_types if defender_types is not None
+                 else types_of(defender_species) or [])
     # Missing types make every matchup neutral (×1.0) — the Aegislash-Blade
     # class of bug.  Flag it so the battle log surfaces the gap.
     if not atk_types:
@@ -854,6 +867,15 @@ def full_damage_calc(
 
     # ── Multipliers ───────────────────────────────────────────────────────────
     stab  = stab_multiplier(eff_type, atk_types, attacker_ability)
+    # Protean / Libero (Greninja-Mega): the FIRST move after entering changes
+    # the user's type to the move's type — so while the change is unspent
+    # (no ``attacker_types`` override recorded yet), EVERY candidate move is
+    # effectively STAB: choosing it makes it match.  Once the parser has seen
+    # the |-start|typechange| (override passed in), normal STAB vs the new
+    # typing applies — a second off-type move gets nothing.
+    if (stab == 1.0 and attacker_types is None
+            and attacker_ability in _PROTEAN_ABILITIES):
+        stab = 1.5
     eff   = type_effectiveness(eff_type, def_types)
     # Freeze-Dry is super-effective (2×) against Water instead of the usual ×0.5.
     # type_effectiveness has no move context, so patch the Water component here:
@@ -1079,6 +1101,8 @@ def incoming_damage(
         defender_has_item: bool = True,
         weather: Optional[str] = None,
         terrain: Optional[str] = None,
+        opp_types: Optional[list[str]] = None,
+        our_types: Optional[list[str]] = None,
         our_defender_is_full_hp: bool = True,
         our_current_hp: Optional[int] = None,
         our_hp_percent: Optional[float] = None,
@@ -1167,6 +1191,7 @@ def incoming_damage(
             defender_has_item=defender_has_item,
             weather=weather,
             terrain=terrain,
+            attacker_types=opp_types, defender_types=our_types,
             defender_screens=our_screens,
             attacker_boosts=opp_boosts,
             defender_boosts=our_boosts,
@@ -1196,7 +1221,8 @@ def incoming_damage(
                 attacker_item=opp_item, defender_item=our_item,
                 defender_has_item=defender_has_item,
                 weather=weather,
-            terrain=terrain, defender_screens=our_screens,
+                terrain=terrain, defender_screens=our_screens,
+                attacker_types=opp_types, defender_types=our_types,
                 attacker_boosts=opp_boosts, defender_boosts=our_boosts,
                 defender_is_full_hp=our_defender_is_full_hp,
                 ally_faint_count=opp_ally_faint_count,
@@ -1224,6 +1250,8 @@ def outgoing_damage(
         defender_has_item: bool = True,
         weather: Optional[str] = None,
         terrain: Optional[str] = None,
+        our_types: Optional[list[str]] = None,
+        opp_types: Optional[list[str]] = None,
         opp_is_full_hp: bool = True,
         ally_faint_count: int = 0,
         times_hit: int = 0,
@@ -1292,6 +1320,7 @@ def outgoing_damage(
             defender_has_item=defender_has_item,
             weather=weather,
             terrain=terrain,
+            attacker_types=our_types, defender_types=opp_types,
             defender_is_full_hp=opp_is_full_hp,
             ally_faint_count=ally_faint_count,
             times_hit=times_hit,

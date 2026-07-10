@@ -799,6 +799,16 @@ class BattleParser:
             if mon:
                 mon.flash_fire_active = True
             return
+        # |-start|IDENT|typechange|TYPE — Protean committing its
+        # once-per-switch-in change (or Soak etc.).  TYPE may be
+        # slash-separated ("Water/Flying").  From here this mon's current
+        # types drive STAB + defense (mon.types_override), and the damage
+        # layer stops granting the unspent-Protean universal STAB.
+        if effect.lower() == "typechange" and len(args) >= 3:
+            mon = self._find_mon(ident)
+            if mon and args[2]:
+                mon.types_override = [t.strip() for t in args[2].split("/")]
+            return
         if _side_from_ident(ident) != self.state.my_side:
             return
         if "encore" not in effect.lower():

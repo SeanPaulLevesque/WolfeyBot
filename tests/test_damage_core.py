@@ -939,6 +939,57 @@ class TestEffectiveMoveType:
         assert effective_move_type("Water", "Dragonize") == "Water"
 
 
+class TestProtean:
+    """Protean / Libero (Greninja-Mega): the FIRST move after entering changes
+    the user's type to the move's type — unspent = every move is effectively
+    STAB; once changed (types passed as attacker_types), normal STAB vs the
+    NEW typing, and defense uses the new typing too."""
+
+    _S = {"hp": 147, "atk": 145, "def": 97, "spa": 178, "spd": 101, "spe": 162}
+
+    def _calc(self, move, atk_types=None, def_types=None, ability="Protean"):
+        def fake_types(s):
+            return {"Greninja-Mega": ["Water", "Dark"],
+                    "Garchomp": ["Dragon", "Ground"]}.get(s, ["Normal"])
+        with patch("damage.types_of", side_effect=fake_types):
+            return full_damage_calc(move, "Greninja-Mega", "Garchomp",
+                                    self._S, self._S,
+                                    attacker_ability=ability,
+                                    defender_ability="",
+                                    attacker_types=atk_types,
+                                    defender_types=def_types)
+
+    def test_unspent_protean_gets_stab_on_off_type_move(self):
+        assert self._calc("Ice Beam").stab == 1.5      # Ice from Water/Dark
+
+    def test_native_type_move_stab_unchanged(self):
+        assert self._calc("Dark Pulse").stab == 1.5
+
+    def test_no_protean_no_free_stab(self):
+        assert self._calc("Ice Beam", ability="Torrent").stab == 1.0
+
+    def test_after_typechange_only_new_type_has_stab(self):
+        # committed to Ice: Ice Beam keeps STAB, Dark Pulse loses it
+        assert self._calc("Ice Beam", atk_types=["Ice"]).stab == 1.5
+        assert self._calc("Dark Pulse", atk_types=["Ice"]).stab == 1.0
+
+    def test_defender_type_override_changes_effectiveness(self):
+        # A typechanged (now-Ice) defender takes Fighting super-effectively
+        # where base Water/Dark Greninja would too — use Bug instead:
+        # Bug vs Water/Dark = 2.0 (Dark); Bug vs Ice = 1.0
+        def fake_types(s):
+            return {"Chandelure": ["Ghost", "Fire"],
+                    "Greninja-Mega": ["Water", "Dark"]}.get(s, ["Normal"])
+        with patch("damage.types_of", side_effect=fake_types):
+            base = full_damage_calc("Lunge", "Chandelure", "Greninja-Mega",
+                                    self._S, self._S)
+            changed = full_damage_calc("Lunge", "Chandelure", "Greninja-Mega",
+                                       self._S, self._S,
+                                       defender_types=["Ice"])
+        assert base.effectiveness == 2.0
+        assert changed.effectiveness == 1.0
+
+
 class TestDragonize:
     """The live miss (game 2646693615 t2): Feraligatr-Mega Double-Edge into
     Basculegion (Water/Ghost) predicted 0% — Normal vs Ghost immune — and

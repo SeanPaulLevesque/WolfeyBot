@@ -1153,6 +1153,28 @@ class TestDisableEncore:
 
 
 
+class TestTypechange:
+    """|-start|IDENT|typechange|TYPE (Protean committing, Soak, …) sets the
+    mon's current types; a fresh switch-in resets to base typing."""
+
+    def test_typechange_sets_override(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p1a: Greninja|Greninja, L50, M|147/147"))
+        run(parser.feed("|-start|p1a: Greninja|typechange|Ice"))
+        assert parser.state.my_actives[0].types_override == ["Ice"]
+
+    def test_multi_type_and_reset_on_switch(self):
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        run(parser.feed("|switch|p2a: Greninja|Greninja, L50, M|100/100"))
+        run(parser.feed("|-start|p2a: Greninja|typechange|Water/Flying"))
+        assert parser.state.opp_actives[0].types_override == ["Water", "Flying"]
+        run(parser.feed("|switch|p2a: Incineroar|Incineroar, L50|100/100"))
+        run(parser.feed("|switch|p2a: Greninja|Greninja, L50, M|100/100"))
+        assert parser.state.opp_actives[0].types_override is None
+
+
 class TestIllusionInference:
     """Zoroark Illusion detection: a duplicate species on the field, or a move
     outside the species' movepool, while a Zoroark line was previewed → the

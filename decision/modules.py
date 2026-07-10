@@ -594,6 +594,7 @@ class DamageOutputModule(ScoringModule):
                 our_item=_our_item(mon),
                 opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
                 weather=_assumed_weather(state), terrain=_assumed_terrain(state), ally_faint_count=ally_faints,
+                our_types=mon.types_override, opp_types=opp.types_override,
                 **_outgoing_attacker_mods(mon),
                 **_outgoing_defender_mods(state, opp),
             )
@@ -1461,6 +1462,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                     opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
                     defender_has_item=_opp_has_item(state, opp),
                     weather=_assumed_weather(state), terrain=_assumed_terrain(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
+                    our_types=mon.types_override, opp_types=opp.types_override,
                     opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
                     opp_is_full_hp=opp_at_full,
                     opp_screens=getattr(state, "opp_screens", None),
@@ -1507,6 +1509,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega),
                 our_item=our_item,
                 weather=_assumed_weather(state), terrain=_assumed_terrain(state),
+                opp_types=opp.types_override, our_types=mon.types_override,
                 only_moves=([locked] if locked else None),
                 opp_ally_faint_count=opp_faints,
                 **_incoming_attacker_mods(opp),
@@ -1678,6 +1681,7 @@ def _best_offense(
                 our_ability=ability or "", our_item=item,
                 opp_species=_defense_species(opp), opp_ability=_effective_ability(opp) or "",
                 opp_item=_opp_item(state, opp), weather=_assumed_weather(state), terrain=_assumed_terrain(state),
+                opp_types=opp.types_override,
                 ally_faint_count=ally_faints,
                 **atk_mods, **def_mods,
             )
@@ -1709,6 +1713,7 @@ def _switch_in_survives(
             our_ability=_our_ability_for_damage(bench_tm, species, state.designated_mega),
             our_item=bench_item,   # consumption-aware switch-in item
             weather=_assumed_weather(state), terrain=_assumed_terrain(state),
+            opp_types=opp.types_override,   # switch-in is fresh: base types
             only_moves=([locked] if locked else None),
             opp_ally_faint_count=opp_faints,
             **_incoming_attacker_mods(opp),
@@ -2659,6 +2664,7 @@ class RedirectionModule(ScoringModule):
                 our_ability=our_ability, our_item=our_item,
                 opp_ability=_effective_ability(redir) or "", opp_item=_opp_item(state, redir),
                 weather=_assumed_weather(state), terrain=_assumed_terrain(state), ally_faint_count=ally_faints,
+                our_types=mon.types_override, opp_types=redir.types_override,
                 opp_current_hp=cur_hp,
                 opp_hp_percent=(redir.hp if (redir.hp_is_percentage and 0 < redir.hp < 100) else None),
                 opp_screens=getattr(state, "opp_screens", None),

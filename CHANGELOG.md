@@ -1,5 +1,26 @@
 # WolfeyBot Changelog
 
+## 0.43.0 — 2026-07-10
+
+### Modeling — Protean / Libero (Greninja-Mega, meta-team v10)
+- **Unspent Protean = STAB on everything.** The first move after entering
+  changes the user's type to the move's type (once per switch-in), so while
+  the change is unspent every candidate move is effectively STAB — the damage
+  layer now grants ×1.5 to any move from a Protean/Libero attacker with no
+  recorded type override. Without this the engine would undervalue its own
+  mega's Ice Beam / Grass Knot by 1.5× (verified: Ice Beam → Garchomp 212%,
+  Grass Knot → Swampert 161% through the real path).
+- **The committed change is tracked.** New parser hook for
+  `|-start|IDENT|typechange|TYPE` records the mon's current types
+  (`Pokemon.types_override`, slash-separated types supported, resets each
+  stint); `full_damage_calc` takes `attacker_types` / `defender_types`
+  overrides threaded through `outgoing_damage` / `incoming_damage` and all six
+  engine call sites — so a committed (now mono-typed) Protean user is modeled
+  correctly on BOTH sides: its second off-type move gets no STAB, and its new
+  defensive typing drives effectiveness (a now-Ice Greninja no longer takes
+  2× from Bug, etc.). Works for opponent Greninja identically via the
+  assumed-forme ability (Greninja-Mega → Protean). +7 tests.
+
 ## 0.42.1 — 2026-07-10
 
 ### Modeling
