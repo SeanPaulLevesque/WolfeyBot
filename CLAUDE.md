@@ -53,7 +53,7 @@ to make green by editing expectations. This is a hard rule:
 | `data/` | Usage: `moves-gen9championsvgc2026regmb-1760.txt` (Smogon M-B moveset dump → `sets.py`; "No Ability"/"Other" filtered at parse) + `leads-gen9championsvgc2026regmb-1760.txt` (ladder lead prior — a sub-observation tiebreak in `lead_stats.predict_pair`, never outranking our observed pair data). Dex: `smogon_champions_slim.json` (species/types/base stats) + `champions_moves/items/abilities/megas.json`. `sets_supplement.json` = hand-entered gap-fill merged at load (~empty; Watchog only) — the escape hatch for the next reg roll |
 | `team_preview.py` | Bring-4 selection logic |
 | `docs/DECISION_ARCHITECTURE.md` | Full narrative of how the engine works, with weight tables |
-| `tools/` | Dev/analysis scripts — **all of `tools/` is allowlisted** (`.venv/Scripts/python.exe tools/...` runs prompt-free), so **prefer adding/using a `tools/` script over inline `python - <<PY` heredocs** (heredocs need approval every time and burn tokens re-deriving the same script). Key scripts: `team_report.py` (logs dir/glob → Markdown roster-perf + prediction-accuracy report; `--team v2`, `--out report.md`), `accuracy_report.py` (prediction accuracy; exposes `compute_prediction(games, slop)` + `_load(version, team_version)`), battle analysis, lead stats, ELO chart, team packing, `gen_snapshot.py`. **Investigation trio (0.36.x):** `inspect_battle.py <id-frag> [--turn N]` = compact turn-by-turn log summary (board, chosen actions + weights, events, faints; `--turn` adds full reasons + wall); `replay_turn.py <id-frag> <turn>` = rebuild a logged board and run the **current** engine on it (ranked actions + coordinate pair vs what the game chose — the "would the fix change this?" tool; caveats printed); `regen_snapshots.py` = regen every turn-1 snapshot + classify the diff vs HEAD (decision-changed vs weight-only). **Zero-arg automation:** `run_games.py [N]` = run N games on latest meta-team version → report → commit+push data (the "kick off N games" one-shot); `latest_meta_report.py` = report on the newest meta-team data; `commit_push_data.py` = commit+push **data artifacts only** (Battle Data/ · elo_log.json · reports/), auto message, never touches code |
+| `tools/` | Dev/analysis scripts — **all of `tools/` is allowlisted** (`.venv/Scripts/python.exe tools/...` runs prompt-free), so **prefer adding/using a `tools/` script over inline `python - <<PY` heredocs** (heredocs need approval every time and burn tokens re-deriving the same script). Key scripts: `team_report.py` (logs dir/glob → Markdown roster-perf + prediction-accuracy report; `--team v2`, `--out report.md`), `accuracy_report.py` (prediction accuracy; exposes `compute_prediction(games, slop)` + `_load(version, team_version)`), battle analysis, lead stats, ELO chart, team packing, `gen_snapshot.py`. **Investigation trio (0.36.x):** `inspect_battle.py <id-frag> [--turn N]` = compact turn-by-turn log summary (board, chosen actions + weights, events, faints; `--turn` adds full reasons + wall); `replay_turn.py <id-frag> <turn>` = rebuild a logged board and run the **current** engine on it (ranked actions + coordinate pair vs what the game chose — the "would the fix change this?" tool; caveats printed); `regen_snapshots.py` = regen every turn-1 snapshot + classify the diff vs HEAD (decision-changed vs weight-only). **Zero-arg automation:** `run_games.py [N]` = run N games on latest meta-team version → report → commit+push data (the "kick off N games" one-shot); `latest_meta_report.py` = report on the newest meta-team data; `commit_push_data.py` = commit+push **data artifacts only** (Battle Data/ · elo_log.json · reports/), auto message, never touches code; `release.py <ver> --notes <file>` = version bump + CHANGELOG prepend + snapshot regen + full suite in one call. **`scratch.py` = the designated gitignored slot for ad-hoc analysis snippets** — Write it, run it prompt-free, overwrite next time (never a heredoc) |
 | `CHANGELOG.md` | Per-version bug fixes — always check before investigating a bug |
 | `snapshots/turn1_openings/baseline.md` | Generated first-turn decision table (6 our leads × 20 opp leads) for the baseline roster |
 | `tests/` | pytest suite — run with `.venv\Scripts\pytest` |
@@ -273,14 +273,26 @@ best = ranked[0]                              # Action with .move_name / .switch
 .venv\Scripts\python.exe tools/gen_snapshot.py --scenario turn1_openings --team baseline
 ```
 
-**Never prefix shell commands with `cd`.** The tool's working directory is
-already the project root and persists between calls. A compound command like
-`cd C:\...\WolfeyBot && ...` (or `cd ...; ...`, or a `cd` on its own line of a
-multi-line command) trips Claude Code's path-resolution safety check AND
-defeats the allowlist (entries are prefix matches — the first token must be
-the allowlisted binary), forcing a manual approval every single time. Run
-commands bare with relative paths, exactly as in the block above
-(`.venv\Scripts\pytest -q`, not `cd <repo> && .venv/Scripts/pytest -q`).
+**Never prefix shell commands with `cd` — or `timeout`, or anything else.**
+The tool's working directory is already the project root and persists between
+calls. Allowlist entries are **prefix matches** (the first token must be the
+allowlisted binary), so ANY prefix — `cd <repo> && ...`, `timeout 100
+.venv/Scripts/pytest -q` — defeats them and forces a manual approval every
+single time. Run commands bare with relative paths (`.venv\Scripts\pytest
+-q`); if a command might hang, use the Bash tool's own `timeout` parameter,
+never a shell `timeout` prefix.
+
+**No heredocs, no `cat >> file` appends.** `python - <<PY` and `cat >> x
+<<EOF` are arbitrary-code/write prompts that can never be safely allowlisted.
+Instead:
+- **File changes** (code, tests, docs) → the Edit/Write tools, always.
+- **Ad-hoc analysis** → Write the snippet to **`tools/scratch.py`** (the
+  designated gitignored scratch slot) and run it — `tools/*` is allowlisted,
+  so this is prompt-free; overwrite it freely per investigation.
+- **Releases** → `tools/release.py <version> --notes <file>` does the whole
+  chore (version bump + CHANGELOG prepend from the notes file + snapshot
+  regen + full suite) in one allowlisted call. Write the notes body with the
+  Write tool first.
 
 **Commits without prompts:** `git add/commit/push` are allowlisted, but a
 commit message via `-m "$(cat <<EOF...)"` contains command substitution, which

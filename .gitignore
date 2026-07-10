@@ -22,3 +22,6 @@ bot.log
 .DS_Store
 Thumbs.db
 .idea/
+
+# Ad-hoc analysis scratch slot (see CLAUDE.md tools row) -- never committed
+tools/scratch.py
