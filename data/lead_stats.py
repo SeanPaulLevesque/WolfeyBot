@@ -95,25 +95,6 @@ def lead_pair_frequency(a: str, b: str) -> int:
     return _load().get("pairs", {}).get(pair_key(a, b), 0)
 
 
-def pair_partner_counts(species: str) -> dict[str, int]:
-    """``{partner: co-led count}`` for every species *species* has been led with,
-    sorted by count descending."""
-    out: dict[str, int] = {}
-    for key, count in _load().get("pairs", {}).items():
-        a, b = key.split(_PAIR_SEP, 1)
-        if a == species:
-            out[b] = count
-        elif b == species:
-            out[a] = count
-    return dict(sorted(out.items(), key=lambda x: -x[1]))
-
-
-def all_lead_pairs() -> dict[str, int]:
-    """Return ``{"A|B": count}`` for all co-led pairs, sorted by count descending."""
-    data = _load()
-    return dict(sorted(data.get("pairs", {}).items(), key=lambda x: -x[1]))
-
-
 def total_battles() -> int:
     """Total number of battles recorded in the lead stats."""
     return _load().get("total_battles", 0)
@@ -125,8 +106,8 @@ def reset() -> None:
     """Clear all accumulated lead stats (writes a blank structure).
 
     Used to drop a stale prior — e.g. the Reg M-A-derived counts when the
-    ladder rolls to M-B — before reseeding from recent battles
-    (``tools/seed_lead_stats.py``).
+    ladder rolls to M-B — before rebuilding from recent battles
+    (``tools/build_lead_stats.py``).
     """
     _save({"total_battles": 0, "counts": {}, "pairs": {}})
 

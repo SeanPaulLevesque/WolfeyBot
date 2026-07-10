@@ -33,22 +33,22 @@ class TestRecordLeads:
         assert L.lead_pair_frequency("Whimsicott", "Garchomp") == 1
         assert L.lead_pair_frequency("Garchomp", "Whimsicott") == 1
 
-    def test_accumulates_and_partner_counts(self, monkeypatch, tmp_path):
+    def test_accumulates_across_games(self, monkeypatch, tmp_path):
         self._isolate(monkeypatch, tmp_path)
         L.reset()
         for _ in range(3):
             L.record_leads(["Whimsicott", "Garchomp"])
         L.record_leads(["Whimsicott", "Staraptor"])
         assert L.lead_pair_frequency("Whimsicott", "Garchomp") == 3
-        partners = L.pair_partner_counts("Whimsicott")
-        assert partners == {"Garchomp": 3, "Staraptor": 1}   # sorted desc
+        assert L.lead_pair_frequency("Whimsicott", "Staraptor") == 1
 
     def test_blank_leads_skipped(self, monkeypatch, tmp_path):
         self._isolate(monkeypatch, tmp_path)
         L.reset()
         L.record_leads(["Garchomp", ""])     # one blank slot
         assert L.lead_frequency("Garchomp") == 1
-        assert L.all_lead_pairs() == {}      # no pair from a single real lead
+        # no pair recorded from a single real lead
+        assert L.lead_pair_frequency("Garchomp", "") == 0
 
 
 # ── Prediction: co-occurrence-aware with graceful fallback ────────────────────
