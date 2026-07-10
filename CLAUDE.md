@@ -282,6 +282,13 @@ single time. Run commands bare with relative paths (`.venv\Scripts\pytest
 -q`); if a command might hang, use the Bash tool's own `timeout` parameter,
 never a shell `timeout` prefix.
 
+**No `$(...)` command substitution, no `>`/`>>` shell writes — anywhere, ever.**
+`$()` nests arbitrary commands, so it forces approval no matter what it wraps
+— `sed -n "$(grep -n 'X' f),+10p" f` (the code-reading one-liner) burned ~6
+approvals in one sitting. Locate code with the **Grep tool** (`-n`, `-A/-B/-C`
+context) and read it with the **Read tool** (offset/limit) — both prompt-free.
+Shell writes (`printf ... >> file`) are the Edit/Write tools' job.
+
 **No heredocs, no `cat >> file` appends.** `python - <<PY` and `cat >> x
 <<EOF` are arbitrary-code/write prompts that can never be safely allowlisted.
 Instead:
