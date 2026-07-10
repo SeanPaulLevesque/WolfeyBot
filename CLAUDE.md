@@ -301,11 +301,18 @@ Instead:
   regen + full suite) in one allowlisted call. Write the notes body with the
   Write tool first.
 
-**Commits without prompts:** `git add/commit/push` are allowlisted, but a
-commit message via `-m "$(cat <<EOF...)"` contains command substitution, which
-forces approval regardless. Write the message to a scratchpad file with the
-Write tool and use `git commit -F <file>`. Destructive git (checkout --,
-reset, rm) stays manual on purpose.
+**The automation IS the interface (user directive, 2026-07-10).** Prefer the
+project's own scripts over composed shell for every routine operation, and
+when a script falls short, **extend the script** rather than working around
+it in bash. One bare allowlisted command per Bash call — no pipes, chains,
+substitutions, or redirects. The full set:
+- tests → `.venv\Scripts\pytest -q` (or `./run_tests.bat`), bare
+- code commits → `tools/commit_code.py -F <msgfile> <paths...>` (stage +
+  commit + push in one call; explicit paths only, never resets)
+- data commits → `tools/commit_push_data.py`
+- releases → `tools/release.py <ver> --notes <file>`
+- games → `tools/run_games.py [N]`; analysis → `tools/scratch.py`
+Destructive git (checkout --, reset, rm) stays manual on purpose.
 
 ---
 
