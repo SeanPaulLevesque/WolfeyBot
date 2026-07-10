@@ -592,9 +592,8 @@ class DamageOutputModule(ScoringModule):
                 opp_species=_defense_species(opp),
                 our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega),
                 our_item=_our_item(mon),
-                opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
-                weather=_assumed_weather(state), terrain=_assumed_terrain(state), ally_faint_count=ally_faints,
-                our_types=mon.types_override, opp_types=opp.types_override,
+                ally_faint_count=ally_faints,
+                **_field_kwargs(state),
                 **_outgoing_attacker_mods(mon),
                 **_outgoing_defender_mods(state, opp),
             )
@@ -1454,22 +1453,15 @@ def build_turn_context(state: "BattleState") -> TurnContext:
             for opp_slot, opp in enumerate(state.opp_actives):
                 if opp is None or opp.fainted:
                     continue
-                cur_hp = (opp.hp if (not opp.hp_is_percentage and opp.hp > 0) else None)
-                opp_at_full = (opp.hp >= opp.max_hp) or (opp.hp_is_percentage and opp.hp >= 100)
                 results = outgoing_damage(
                     our_species=mon.species, our_stats=stats, our_moves=[move],
-                    opp_species=_defense_species(opp), our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega), our_item=_our_item(mon),
-                    opp_ability=_effective_ability(opp) or "", opp_item=_opp_item(state, opp),
-                    defender_has_item=_opp_has_item(state, opp),
-                    weather=_assumed_weather(state), terrain=_assumed_terrain(state), ally_faint_count=ally_faints, opp_current_hp=cur_hp,
-                    our_types=mon.types_override, opp_types=opp.types_override,
-                    opp_hp_percent=(opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
-                    opp_is_full_hp=opp_at_full,
-                    opp_screens=getattr(state, "opp_screens", None),
-                    attacker_boosts=mon.boosts, defender_boosts=opp.boosts,
-                    attacker_hp_fraction=mon.hp_fraction,
-                    attacker_status=mon.status or "",
-                    flash_fire_active=mon.flash_fire_active,
+                    opp_species=_defense_species(opp),
+                    our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega),
+                    our_item=_our_item(mon),
+                    ally_faint_count=ally_faints,
+                    **_field_kwargs(state),
+                    **_outgoing_attacker_mods(mon),
+                    **_outgoing_defender_mods(state, opp),
                 )
                 if results:
                     ctx.min_dmg[(slot, move, opp_slot)] = results[0].hp_fraction_min
@@ -1504,15 +1496,12 @@ def build_turn_context(state: "BattleState") -> TurnContext:
                 opp_species=_offense_species(opp),
                 our_species=mon.species,
                 our_stats=stats,
-                opp_ability=_effective_ability(opp) or "",
-                opp_item=_opp_item(state, opp),
                 our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega),
                 our_item=our_item,
-                weather=_assumed_weather(state), terrain=_assumed_terrain(state),
-                opp_types=opp.types_override, our_types=mon.types_override,
                 only_moves=([locked] if locked else None),
                 opp_ally_faint_count=opp_faints,
-                **_incoming_attacker_mods(opp),
+                **_field_kwargs(state),
+                **_incoming_attacker_mods(state, opp),
                 **_incoming_defender_mods(state, mon),
             )
             if any(t.ohko_with_max_roll for t in threats):
@@ -1582,10 +1571,22 @@ def _ensure_turn_ctx(state: "BattleState") -> TurnContext:
 # #17, …) splats these in, so a new damage modifier added here is picked up
 # everywhere at once — no per-caller kwarg list to keep in sync.
 
+def _field_kwargs(state: "BattleState") -> dict:
+    """Field-state kwargs shared by EVERY damage call: assumed weather and
+    terrain.  One place to add the next field condition — weather, terrain and
+    type overrides were each hand-threaded through six call sites before the
+    mod helpers absorbed them (one leaked into a Combatant call)."""
+    return {
+        "weather": _assumed_weather(state),
+        "terrain": _assumed_terrain(state),
+    }
+
+
 def _outgoing_attacker_mods(mon: "Pokemon") -> dict:
     """Attacker-side outgoing-damage modifiers carried on *mon*: stat boosts,
     status (burn is non-volatile, so it follows the mon across switches),
-    HP-fraction (pinch abilities), Flash Fire, and Rage-Fist hit count."""
+    HP-fraction (pinch abilities), Flash Fire, Rage-Fist hit count, and the
+    current-type override (Protean)."""
     if mon is None:
         return {}
     return {
@@ -1594,28 +1595,39 @@ def _outgoing_attacker_mods(mon: "Pokemon") -> dict:
         "attacker_hp_fraction": mon.hp_fraction,
         "flash_fire_active":    getattr(mon, "flash_fire_active", False),
         "times_hit":            getattr(mon, "times_hit", 0),
+        "our_types":            getattr(mon, "types_override", None),
     }
 
 
 def _outgoing_defender_mods(state: "BattleState", opp: "Pokemon") -> dict:
-    """Defender(opponent)-side outgoing-damage modifiers: the opponent's stat
-    boosts (a +2-Def wall takes less), its current HP (KO threshold + the
-    fraction denominator), and its side's screens."""
+    """Defender(opponent)-side outgoing-damage modifiers: the opponent's
+    inferred ability/item beliefs, stat boosts (a +2-Def wall takes less),
+    current HP (KO threshold + fraction denominator + the Sash full-HP gate),
+    type override (Protean), and its side's screens."""
     return {
+        "opp_ability":     _effective_ability(opp) or "",
+        "opp_item":        _opp_item(state, opp),
+        "opp_types":       getattr(opp, "types_override", None),
         "defender_boosts": getattr(opp, "boosts", None),
         "opp_current_hp":  (opp.hp if (not opp.hp_is_percentage and opp.hp > 0) else None),
         "opp_hp_percent":  (opp.hp if (opp.hp_is_percentage and 0 < opp.hp < 100) else None),
+        "opp_is_full_hp":  ((opp.hp >= opp.max_hp)
+                            or (opp.hp_is_percentage and opp.hp >= 100)),
         "opp_screens":     getattr(state, "opp_screens", None),
         "defender_has_item": _opp_has_item(state, opp),
     }
 
 
-def _incoming_attacker_mods(opp: "Pokemon") -> dict:
-    """Attacker(opponent)-side ``incoming_damage`` modifiers from an opp Pokemon:
-    stat boosts (a +2-Atk foe hits harder), status, HP-fraction (pinch
-    abilities), Flash Fire, Rage-Fist hit count.  The defensive mirror of
+def _incoming_attacker_mods(state: "BattleState", opp: "Pokemon") -> dict:
+    """Attacker(opponent)-side ``incoming_damage`` modifiers: the opponent's
+    inferred ability/item beliefs, stat boosts (a +2-Atk foe hits harder),
+    status, HP-fraction (pinch abilities), Flash Fire, Rage-Fist hit count,
+    and the current-type override (Protean).  The defensive mirror of
     :func:`_outgoing_attacker_mods`."""
     return {
+        "opp_ability":           _effective_ability(opp) or "",
+        "opp_item":              _opp_item(state, opp),
+        "opp_types":             getattr(opp, "types_override", None),
         "opp_boosts":            getattr(opp, "boosts", None),
         "opp_status":            opp.status or "",
         "opp_hp_fraction":       opp.hp_fraction,
@@ -1634,6 +1646,7 @@ def _incoming_defender_mods(state: "BattleState", mon: "Pokemon | None") -> dict
                or (mon.hp_is_percentage and mon.hp >= 99))
     return {
         "our_boosts":              getattr(mon, "boosts", None),
+        "our_types":               getattr(mon, "types_override", None),
         "our_screens":             getattr(state, "my_screens", None),
         "our_defender_is_full_hp": at_full,
         "our_hp_percent":          (None if at_full else mon.hp_fraction * 100.0),
@@ -1679,10 +1692,9 @@ def _best_offense(
             results = outgoing_damage(
                 our_species=species, our_stats=stats, our_moves=[mv],
                 our_ability=ability or "", our_item=item,
-                opp_species=_defense_species(opp), opp_ability=_effective_ability(opp) or "",
-                opp_item=_opp_item(state, opp), weather=_assumed_weather(state), terrain=_assumed_terrain(state),
-                opp_types=opp.types_override,
+                opp_species=_defense_species(opp),
                 ally_faint_count=ally_faints,
+                **_field_kwargs(state),
                 **atk_mods, **def_mods,
             )
             if results:
@@ -1708,15 +1720,13 @@ def _switch_in_survives(
         locked = _choice_locked_move(state, opp)
         threats = incoming_damage(
             opp_species=_offense_species(opp), our_species=species,
-            our_stats=bench_tm.stats, opp_ability=_effective_ability(opp) or "",
-            opp_item=_opp_item(state, opp),
+            our_stats=bench_tm.stats,
             our_ability=_our_ability_for_damage(bench_tm, species, state.designated_mega),
             our_item=bench_item,   # consumption-aware switch-in item
-            weather=_assumed_weather(state), terrain=_assumed_terrain(state),
-            opp_types=opp.types_override,   # switch-in is fresh: base types
             only_moves=([locked] if locked else None),
             opp_ally_faint_count=opp_faints,
-            **_incoming_attacker_mods(opp),
+            **_field_kwargs(state),
+            **_incoming_attacker_mods(state, opp),
             **_incoming_defender_mods(state, bench_mon),
         )
         if any(t.ohko_with_max_roll for t in threats):
@@ -2657,20 +2667,14 @@ class RedirectionModule(ScoringModule):
 
         def _frac(move_name: str) -> float:
             """Avg damage fraction of *move_name* against the redirector."""
-            cur_hp = (redir.hp if (not redir.hp_is_percentage and redir.hp > 0) else None)
             results = outgoing_damage(
                 our_species=mon.species, our_stats=stats, our_moves=[move_name],
                 opp_species=_defense_species(redir),
                 our_ability=our_ability, our_item=our_item,
-                opp_ability=_effective_ability(redir) or "", opp_item=_opp_item(state, redir),
-                weather=_assumed_weather(state), terrain=_assumed_terrain(state), ally_faint_count=ally_faints,
-                our_types=mon.types_override, opp_types=redir.types_override,
-                opp_current_hp=cur_hp,
-                opp_hp_percent=(redir.hp if (redir.hp_is_percentage and 0 < redir.hp < 100) else None),
-                opp_screens=getattr(state, "opp_screens", None),
-                attacker_boosts=mon.boosts, defender_boosts=redir.boosts,
-                attacker_hp_fraction=mon.hp_fraction, attacker_status=mon.status or "",
-                flash_fire_active=mon.flash_fire_active,
+                ally_faint_count=ally_faints,
+                **_field_kwargs(state),
+                **_outgoing_attacker_mods(mon),
+                **_outgoing_defender_mods(state, redir),
             )
             return results[0].hp_fraction_avg if results else 0.0
 

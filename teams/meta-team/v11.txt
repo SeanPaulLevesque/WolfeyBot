@@ -1,0 +1,59 @@
+Heliolisk @ Choice Scarf
+Ability: Dry Skin
+Level: 50
+EVs: 13 HP / 32 SpA / 21 Spe
+Timid Nature
+- Grass Knot
+- Thunderbolt
+- Hyper Voice
+- Weather Ball
+
+Kingambit @ Chople Berry
+Ability: Defiant
+Level: 50
+EVs: 32 HP / 32 Atk / 2 SpD
+Brave Nature
+- Low Kick
+- Kowtow Cleave
+- Iron Head
+- Protect
+
+Basculegion (M) @ Mystic Water
+Ability: Adaptability
+Level: 50
+EVs: 2 HP / 32 Atk / 32 Spe
+Jolly Nature
+- Last Respects
+- Wave Crash
+- Aqua Jet
+- Protect
+
+Chandelure @ Colbur Berry
+Ability: Flash Fire
+Level: 50
+EVs: 32 HP / 25 Def / 9 SpD
+Modest Nature
+- Heat Wave
+- Shadow Ball
+- Psychic
+- Protect
+
+Greninja @ Greninjite
+Ability: Protean
+Level: 50
+EVs: 9 HP / 32 SpA / 25 Spe
+Timid Nature
+- Ice Beam
+- Dark Pulse
+- Grass Knot
+- Protect
+
+Aerodactyl @ Aerodactylite
+Ability: Rock Head
+Level: 50
+EVs: 2 HP / 32 Atk / 32 Spe
+Jolly Nature
+- Rock Slide
+- Dual Wingbeat
+- Ice Fang
+- Protect
