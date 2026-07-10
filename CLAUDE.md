@@ -338,13 +338,13 @@ Destructive git (checkout --, reset, rm) stays manual on purpose.
   or any `record_leads` reseed)** — inert (singles fallback) until then.
   Remaining idea: validate the row magnitudes (×0.85) against the next
   100-game sample's led-vs-back splits.
-- **Task #5** — Stat-aware mega selection. *Core idea now implemented in
-  `select_team` (0.6.9):* a second stone-holder is demoted to base typing/ability
-  **and** base stats (`base_BST / mega_BST`), which is the stat-aware mega-vs-base
-  comparison this task wanted. Remaining: `select_mega` (which of the *brought*
-  stones actually evolves) still ranks by defensive type-delta (≈0 for our team)
-  → could reuse the same stat-aware base-vs-mega value. Lower priority now that
-  we rarely bring two stones.
+- **Task #5** — Stat-aware mega selection. **COMPLETE (0.44.0):** `select_team`
+  demotes a second stone-holder natively (engine matchup scores, 0.38.0), and
+  `select_mega` now designates the brought stone holder with the highest
+  **engine gain** (`mega_val − base_val` from `_engine_matchup_scores`),
+  replacing the old defensive type-delta. The whole preview pipeline is
+  engine-grounded; the legacy type-chart path was deleted in the 0.44.0
+  cleanup.
 - **Ongoing** — Investigate weight issues surfaced by `snapshots/turn1_openings/baseline.md`. The
   FakeOut over-protection (×0.5 discount looked too aggressive; gratuitous lone
   Protects) is now addressed *via coordination* — `CoordinationModule` (0.6.9)
