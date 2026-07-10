@@ -860,9 +860,9 @@ class TestEndgameStallModule:
             self.module.score(state, slot=0, actions=[attack])
         assert attack.weight == pytest.approx(1.0)
 
-    def test_combined_with_protect_nets_one_in_1v1(self):
-        """Integration: ProtectValue ×2.5 then EndgameStall ×0.4 → net 1.0 — the
-        old in-module cancel, now spanning two modules."""
+    def test_combined_with_protect_net_in_1v1(self):
+        """Integration: ProtectValue ×2.5 then EndgameStall ×0.6 → net 1.5
+        (was ×0.4 / net 1.0 until 0.44.1 — user-tuned)."""
         state   = self._state_1v1()
         protect = make_action("Protect", "Protect")
         mock_tm = make_mock_member()
@@ -871,7 +871,8 @@ class TestEndgameStallModule:
              patch("decision.modules._opp_neutralized_before_acting", return_value=False):
             ProtectValueModule().score(state, slot=0, actions=[protect])
             self.module.score(state, slot=0, actions=[protect])
-        assert protect.weight == pytest.approx(1.0)
+        assert protect.weight == pytest.approx(
+            2.5 * EndgameStallModule.ENDGAME_1V1_FACTOR)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
