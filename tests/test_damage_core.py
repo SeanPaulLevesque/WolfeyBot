@@ -928,8 +928,51 @@ class TestEffectiveMoveType:
     def test_galvanize_normal_to_electric(self):
         assert effective_move_type("Normal", "Galvanize") == "Electric"
 
+    def test_dragonize_normal_to_dragon(self):
+        """Feraligatr-Mega (Champions): Normal moves become Dragon ×1.2."""
+        assert effective_move_type("Normal", "Dragonize") == "Dragon"
+
     def test_pixilate_non_normal_unchanged(self):
         assert effective_move_type("Water", "Pixilate") == "Water"
+
+    def test_dragonize_non_normal_unchanged(self):
+        assert effective_move_type("Water", "Dragonize") == "Water"
+
+
+class TestDragonize:
+    """The live miss (game 2646693615 t2): Feraligatr-Mega Double-Edge into
+    Basculegion (Water/Ghost) predicted 0% — Normal vs Ghost immune — and
+    dealt 89% as a Dragonized, boosted, STAB Dragon move."""
+
+    _S = {"hp": 160, "atk": 212, "def": 145, "spa": 109, "spd": 113, "spe": 98}
+
+    def test_double_edge_hits_ghosts_as_dragon(self):
+        def fake_types(s):
+            return {"Feraligatr-Mega": ["Water", "Dragon"],
+                    "Basculegion": ["Water", "Ghost"]}.get(s, ["Normal"])
+        with patch("damage.types_of", side_effect=fake_types):
+            r = full_damage_calc("Double-Edge", "Feraligatr-Mega", "Basculegion",
+                                 self._S, self._S,
+                                 attacker_ability="Dragonize",
+                                 defender_ability="")
+        assert r.effectiveness == 1.0        # Dragon vs Water/Ghost — NOT immune
+        assert r.stab == 1.5                 # Dragon move from a Dragon type
+        assert r.atk_modifier == pytest.approx(1.2)   # the -ate boost
+        assert r.damage_avg > 0
+
+    def test_dragonized_move_blanked_by_fairy(self):
+        """The flip side the engine can now see: Dragonized Normal moves are
+        IMMUNE into Fairy — a Sylveon walls Double-Edge completely."""
+        def fake_types(s):
+            return {"Feraligatr-Mega": ["Water", "Dragon"],
+                    "Sylveon": ["Fairy"]}.get(s, ["Normal"])
+        with patch("damage.types_of", side_effect=fake_types):
+            r = full_damage_calc("Double-Edge", "Feraligatr-Mega", "Sylveon",
+                                 self._S, self._S,
+                                 attacker_ability="Dragonize",
+                                 defender_ability="")
+        assert r.effectiveness == 0.0
+        assert r.damage_max == 0
 
     def test_no_ability_unchanged(self):
         assert effective_move_type("Fire", "") == "Fire"

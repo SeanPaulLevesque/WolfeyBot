@@ -82,6 +82,9 @@ _NORMALIZE_ABILITIES: dict[str, str] = {
     "Refrigerate": "Ice",
     "Aerilate":   "Flying",
     "Galvanize":  "Electric",
+    "Dragonize":  "Dragon",  # Feraligatr-Mega (Champions custom mega) — caught
+                             # live: Double-Edge into Basculegion predicted 0%
+                             # (Normal vs Ghost), dealt 89% as Dragon
     "Normalize":  "Normal",   # forces all moves to Normal (no boost)
 }
 

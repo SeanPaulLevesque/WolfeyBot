@@ -1,5 +1,17 @@
 # WolfeyBot Changelog
 
+## 0.42.1 — 2026-07-10
+
+### Modeling
+- **Dragonize (Feraligatr-Mega).** One new `_NORMALIZE_ABILITIES` row: Normal
+  moves become Dragon ×1.2, resolved through the existing -ate machinery
+  (type conversion + boost + converted STAB). Caught live (game 2646693615
+  t2): Double-Edge into Basculegion predicted **0%** — Normal vs Ghost immune
+  — and dealt **89%**; the fixed chain reads 80% avg through the standard
+  inference path (unrevealed Feraligatr → assumed Mega → Dragonize). The
+  engine also now sees the flip side: Dragonized moves are blanked by
+  Fairies. +4 tests.
+
 ## 0.42.0 — 2026-07-09
 
 ### Decision engine
