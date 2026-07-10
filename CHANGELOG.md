@@ -1,5 +1,27 @@
 # WolfeyBot Changelog
 
+## 0.44.0 — 2026-07-10
+
+### Codebase cleanup (dead code, mis-wiring, simplification)
+- **Seven zombie tools deleted** (`analyze_battles/brings/full/overkill2/
+  switches2`, `deep_dive`, `seed_lead_stats`): 0.6.x-era one-off
+  investigations, all superseded, all executing their full analysis at
+  import time. `elo_chart` (live) main-guarded — it regenerated docs as an
+  import side effect.
+- **Damage-call kwargs consolidated** into the mod-helper family
+  (`_field_kwargs` + extended `_outgoing/_incoming_*_mods`): six call sites
+  shrink to unique-kwargs + three splats; the next modifier is a one-place
+  addition. Fixed two latent inconsistencies in the process (both turn-1
+  neutral): phantom full-HP Sash gating in DamageOutput/redirection/
+  `_best_offense`, and the OHKO-fact loop missing Rage-Fist `times_hit`.
+- **Legacy type-chart preview path deleted** (~300 lines): production-
+  unreachable since 0.38.0. `select_mega` (its last real consumer) is now
+  engine-grounded — designate the stone holder with the highest
+  `mega_val − base_val` engine gain — completing task #5.
+- Small: `lead_stats.pair_partner_counts`/`all_lead_pairs` (test-only)
+  removed; `commit_code.py` commits pathspec-limited.
+- Suite: 1,956 passing; turn-1 snapshots byte-identical throughout.
+
 ## 0.43.0 — 2026-07-10
 
 ### Modeling — Protean / Libero (Greninja-Mega, meta-team v10)
