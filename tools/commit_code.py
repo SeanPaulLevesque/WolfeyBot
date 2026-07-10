@@ -48,11 +48,13 @@ def main(argv=None) -> None:
     if not staged:
         raise SystemExit("nothing staged from the given paths — refusing an empty commit")
 
+    # Commit ONLY the named paths — pathspec-limited so anything the user (or
+    # an earlier step) happens to have staged never rides along uninvited.
     if args.file:
         path = args.file if os.path.isabs(args.file) else os.path.join(ROOT, args.file)
-        r = _git("commit", "-q", "-F", path)
+        r = _git("commit", "-q", "-F", path, "--", *args.paths)
     else:
-        r = _git("commit", "-q", "-m", args.message)
+        r = _git("commit", "-q", "-m", args.message, "--", *args.paths)
     if r.returncode != 0:
         raise SystemExit(f"git commit failed:\n{r.stderr.strip()}\n{r.stdout.strip()}")
 
