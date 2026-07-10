@@ -1,11 +1,16 @@
 """team_preview.py — Team selection for VGC team preview.
 
+Everything here is **engine-grounded** (0.38.0+): the bring-4, the lead pair,
+and the designated mega are all chosen by building real turn-1 boards /
+matchup calcs and reading the same phase-1 weights and damage facts the
+in-battle engine uses.
+
 Two-stage process:
 
-1. :func:`select_team`  — Choose which Pokémon to bring, scored by type matchups.
-2. :func:`select_leads` — Pick the best lead *pair*: type matchups vs the
-   predicted opponent leads × initiative rows (slow leads without priority
-   are demoted unless Trick Room is expected; see the 0.7.7 changelog).
+1. :func:`select_team`  — Choose which Pokémon to bring: per-member engine
+   damage matchups vs the opponent's six, with native one-mega demotion.
+2. :func:`select_leads` — Pick the best lead *pair*: hedged engine board eval
+   against the top-K likely opponent pairs, × the empirical pair prior.
 
 Usage::
 
@@ -14,312 +19,24 @@ Usage::
 
     slots   = select_team(opp_species, get_team(), n=4)
     ordered = select_leads(slots, get_team(), opp_species)
-
-Scoring overview
-----------------
-Each of our Pokémon is given two sub-scores against the opponent's revealed
-team, then combined into one final score:
-
-* **Offensive coverage** (weight 2) — for each opponent, how hard can we hit
-  them?  We take the best type-effectiveness our move types can achieve
-  against that opponent's typing, then sum across all opponents.  A mon with
-  super-effective coverage against several opponents scores high; one limited
-  to neutral or resisted hits scores low.
-
-* **Defensive durability** (weight 1) — for each opponent, how badly can they
-  hit us with their STAB types?  We invert the worst incoming multiplier so
-  that resists and immunities reward the score and weaknesses penalise it.
-
-Mons are ranked by combined score; the top *n* are brought to the battle, in
-score order so that the two highest-scoring mons occupy the lead slots.
 """
 from __future__ import annotations
 
 import logging
 import math
-from dataclasses import dataclass
 from typing import Optional
 
-from data import (
-    types_of, move_type, move_category, ability_of, all_pokemon, get_sets,
-    move_priority, most_likely_speed, base_forme,
-)
-from damage import type_effectiveness
 from team import TeamMember
 
 log = logging.getLogger(__name__)
 
-# ── Tuning constants ──────────────────────────────────────────────────────────
-
-_OFFENSE_WEIGHT = 2.0   # multiplier for offensive coverage in the combined score
-_DEFENSE_WEIGHT = 1.0   # multiplier for defensive durability in the combined score
-_IMMUNITY_BONUS = 4.0   # defensive contribution when completely immune to a type
-
-# select_leads pair rows (0.7.7).  Magnitudes grounded in the 0.7.6
-# hundred-game sample: Kingambit won 41.3% when led vs 50.9% from the back
-# (ratio ≈ 0.81), and Tailwind rosters were the worst archetype at 45.9%.
-_SLOW_LEAD_FACTOR  = 0.85  # per lead slower than both predicted opp leads with
-                           # no attacking priority move (waived when opp has a
-                           # Trick Room setter — slow IS fast under TR)
-_TW_EXPOSED_FACTOR = 0.85  # extra penalty on a DOUBLE-slow pair when the opp
-                           # roster has an undeniable (priority) Tailwind setter
-
-# ── Ability-based incoming damage modifiers ───────────────────────────────────
-# Maps ability name → {attacking_type: multiplier applied to incoming damage}.
-# Only abilities that modify type-based damage are listed; all others default
-# to ×1.0.  Used by _defense_from_types to adjust the worst-hit calculation.
-_ABILITY_DEFENSE_MODS: dict[str, dict[str, float]] = {
-    "Thick Fat":     {"Fire": 0.5, "Ice": 0.5},
-    "Heatproof":     {"Fire": 0.5},
-    "Levitate":      {"Ground": 0.0},
-    "Flash Fire":    {"Fire": 0.0},
-    "Water Absorb":  {"Water": 0.0},
-    "Storm Drain":   {"Water": 0.0},
-    "Volt Absorb":   {"Electric": 0.0},
-    "Lightning Rod": {"Electric": 0.0},
-    "Motor Drive":   {"Electric": 0.0},
-    "Sap Sipper":    {"Grass": 0.0},
-    "Purifying Salt":{"Ghost": 0.5},
-    "Dry Skin":      {"Water": 0.0, "Fire": 1.25},
-}
-
-
-# ── Opponent mega assumptions ─────────────────────────────────────────────────
-
-def _mega_base_name(mega_name: str) -> str:
-    """Extract the base species name from a mega form name.
-
-    ``"Charizard-Mega-Y"`` → ``"Charizard"``,
-    ``"Venusaur-Mega"``   → ``"Venusaur"``,
-    ``"Floette-Eternal"`` → ``"Floette"``.
-
-    Mega-suffix stripping goes through the canonical ``data.base_forme``; the
-    ``-Eternal`` case (not a mega) stays a local special case.
-    """
-    base = base_forme(mega_name)
-    if base != mega_name:
-        return base
-    if mega_name.endswith("-Eternal"):
-        return mega_name[: -len("-Eternal")]
-    return mega_name
-
-
-def _build_opp_mega_forms(n: int = 8) -> dict[str, str]:
-    """Return ``{base_species: assumed_mega_form}`` for the top-*n* megas by
-    raw usage count.
-
-    Iterates the sets data, identifies mega-form entries (names containing
-    ``-Mega`` or ending in ``-Eternal``), and keeps only the highest-usage
-    form per base species (so Charizard-Mega-Y beats Charizard-Mega-X
-    automatically).  The top *n* base species by that count are returned.
-
-    Computed once at module import time.
-    """
-    best: dict[str, tuple[int, str]] = {}   # base → (raw_count, mega_name)
-    for species in all_pokemon():
-        if "-Mega" not in species and not species.endswith("-Eternal"):
-            continue
-        d = get_sets(species)
-        if not d:
-            continue
-        base  = _mega_base_name(species)
-        count = d["raw_count"]
-        if base not in best or count > best[base][0]:
-            best[base] = (count, species)
-
-    ranked = sorted(best.values(), key=lambda x: -x[0])[:n]
-    result = {_mega_base_name(mega): mega for _, mega in ranked}
-    log.debug("OPP MEGA ASSUMPTIONS (%d)  %s", n, result)
-    return result
-
-
-# Computed once at import: maps base preview species → assumed battle form.
-# Any opponent species in this dict is treated as its mega form for scoring.
-_OPP_MEGA_FORMS: dict[str, str] = _build_opp_mega_forms()
-
-
-def _opp_assumed_form(name: str) -> str:
-    """Return the assumed battle form for an opponent preview species.
-
-    Top-usage megas are mapped to their mega form so that offensive and
-    defensive scoring uses the correct typing.  All other species are returned
-    unchanged.
-    """
-    return _OPP_MEGA_FORMS.get(name, name)
-
-
-# ── Internal helpers ──────────────────────────────────────────────────────────
-
-def _move_types(member: TeamMember) -> frozenset[str]:
-    """Return the set of attacking types available in *member*'s moveset.
-
-    Only moves whose type can be looked up in the move database are included;
-    moves with unknown types (e.g. status moves that deal no damage but happen
-    not to have a type entry) are silently skipped.
-    """
-    types: set[str] = set()
-    for move in member.moves:
-        if move_category(move) == "Status":
-            continue   # status moves deal no damage; don't count as offensive coverage
-        t = move_type(move)
-        if t:
-            types.add(t)
-    return frozenset(types)
-
-
-def _defensive_types(member: TeamMember) -> list[str]:
-    """Return the defensive typing used for incoming damage calculations.
-
-    Uses the mega form's typing when the member carries a Mega Stone, since
-    that is what will be active once the mon mega evolves in battle.  Falls
-    back to the base form — and ultimately to ``["Normal"]`` if the species
-    is not in the database.
-    """
-    if member.mega_name:
-        mega_t = types_of(member.mega_name)
-        if mega_t:
-            return mega_t
-    return types_of(member.name) or ["Normal"]
-
-
-def _offensive_score(member: TeamMember, opp_species_list: list[str]) -> float:
-    """Sum of the best type-effectiveness our member can deal to each opponent.
-
-    For each opponent we take ``max(type_effectiveness(t, opp_types) * ability_mod for t in
-    our_move_types)``, then sum across all opponents.  Opponent abilities that grant
-    full immunity (e.g. Dry Skin → Water, Levitate → Ground, Flash Fire → Fire)
-    are respected so we don't over-rate Pokémon whose STAB or coverage is blocked.
-
-    Example — Water + Normal vs [Heliolisk (Electric/Normal, Dry Skin)]:
-      Water: type chart ×1.0 vs Electric, ×1.0 vs Normal → raw 1.0
-             but Dry Skin makes Water ×0.0 → 0.0 (immune)
-      Normal: ×1.0 (no ability modifier) → 1.0
-      Best = 1.0 (instead of the inflated 1.0 that ignores the immunity)
-
-    A member with no recognised move types is treated as having neutral (×1.0)
-    coverage across the board.
-    """
-    atk_types = _move_types(member)
-    if not atk_types:
-        return len(opp_species_list) * 1.0
-
-    total = 0.0
-    for opp in opp_species_list:
-        opp_form   = _opp_assumed_form(opp)
-        opp_types  = types_of(opp_form) or ["Normal"]
-        opp_abil   = ability_of(opp_form)
-        abil_mods  = _ABILITY_DEFENSE_MODS.get(opp_abil, {}) if opp_abil else {}
-        best = 0.0
-        for mt in atk_types:
-            eff = type_effectiveness(mt, opp_types) * abil_mods.get(mt, 1.0)
-            if eff > best:
-                best = eff
-        total += best
-    return total
-
-
-def _defense_from_types(
-    our_types: list[str],
-    opp_species_list: list[str],
-    ability: Optional[str] = None,
-) -> float:
-    """Defensive resilience score given an explicit type list and optional ability.
-
-    Shared by :func:`_defensive_score` (which reads the type list and ability
-    from a TeamMember) and :func:`select_mega` (which needs to score both the
-    base and mega form of the same member without constructing a fake TeamMember).
-
-    The *ability* parameter adjusts incoming damage for abilities like Thick Fat
-    (Fire/Ice ×0.5) and Levitate (Ground ×0.0) before the inversion is applied.
-    """
-    mods = _ABILITY_DEFENSE_MODS.get(ability, {}) if ability else {}
-    total = 0.0
-    for opp in opp_species_list:
-        opp_types = types_of(_opp_assumed_form(opp)) or ["Normal"]
-        worst = max(
-            type_effectiveness(ot, our_types) * mods.get(ot, 1.0)
-            for ot in opp_types
-        )
-        total += _IMMUNITY_BONUS if worst == 0.0 else 1.0 / worst
-    return total
-
-
-def _defensive_ability(member: TeamMember) -> Optional[str]:
-    """Return the ability used for incoming damage calculations.
-
-    Uses the mega form's ability when the member carries a Mega Stone (since
-    that is what will be active in battle), otherwise the base ability stored
-    in the team paste.
-    """
-    if member.mega_name:
-        return ability_of(member.mega_name)
-    return member.ability or None
-
-
-def _defensive_score(member: TeamMember, opp_species_list: list[str]) -> float:
-    """Sum of defensive resilience against each opponent's STAB attacking types.
-
-    For each opponent we find the *worst* (highest) effective damage multiplier
-    their STAB types achieve against us (type chart × ability modifier), then
-    invert it:
-
-    * immunity  (×0.0 incoming) → ``+_IMMUNITY_BONUS`` (default 4.0)
-    * resist    (×0.5)          → +2.0
-    * neutral   (×1.0)          → +1.0
-    * weak      (×2.0)          → +0.5
-    * quad-weak (×4.0)          → +0.25
-
-    Higher total = more defensively sound against this opponent team.
-    """
-    return _defense_from_types(
-        _defensive_types(member), opp_species_list, _defensive_ability(member)
-    )
-
-
-def _base_form_defensive_score(member: TeamMember, opp_species_list: list[str]) -> float:
-    """Defensive score for *member*'s **base** (un-mega'd) form.
-
-    Used by :func:`select_team` when a Mega-Stone holder is considered for the
-    bring but cannot actually mega evolve — only one mega is allowed per battle,
-    so any second stone holder would play with a dead item.  Scoring it with its
-    base typing and base ability (instead of the mega form) stops the selector
-    from over-valuing a second mega it can never use.
-
-    For a member with no mega stone this is identical to :func:`_defensive_score`.
-    """
-    base_types = types_of(member.name) or ["Normal"]
-    return _defense_from_types(base_types, opp_species_list, member.ability or None)
-
-
-# ── Public score container ────────────────────────────────────────────────────
-
-@dataclass
-class MemberScore:
-    """Per-member scoring breakdown returned by :func:`score_members`.
-
-    Exposed so callers can log or analyse the scoring without re-running the
-    pipeline.
-    """
-    index:   int         # 1-based slot in the team list
-    member:  TeamMember
-    offense: float       # raw offensive coverage score
-    defense: float       # raw defensive resilience score
-
-    @property
-    def combined(self) -> float:
-        """Weighted combination of offense and defense scores."""
-        return _OFFENSE_WEIGHT * self.offense + _DEFENSE_WEIGHT * self.defense
-
 
 # ── Engine-grounded preview evaluation (0.38.0) ──────────────────────────────
-# The type-chart arithmetic above is a crude parallel model: it can't see real
-# damage (stats/spreads/items/BP), OHKO thresholds, Fake Out pressure, or true
-# turn order — which is how a lead that *looks* good by type multipliers loses
-# on the actual board.  These helpers score preview decisions with the same
-# engine that plays the game: build the turn-1 board and read the phase-1
-# weights / damage facts directly.  The type-chart path below remains as the
-# fallback when a member can't be resolved by the data layer (synthetic test
-# fixtures, missing data).
+# Preview decisions are scored with the same engine that plays the game: build
+# the turn-1 board and read the phase-1 weights / damage facts directly.  (The
+# old type-chart parallel model — crude multipliers blind to real damage, OHKO
+# thresholds, Fake Out and turn order — was deleted in cleanup C; unresolvable
+# members now just keep team order.)
 
 _SWITCH_WANT_FACTOR = 0.5   # lead slot whose best phase-1 action is a SWITCH:
                             # the engine itself says this mon shouldn't be here
@@ -590,7 +307,9 @@ def _engine_matchup_scores(opp_species_list: list[str],
             worst = max((t.hp_fraction_avg for t in thr), default=0.0)
             def_total += max(0.0, 1.0 - min(worst, 1.0))
         n = max(len(opp_species_list), 1)
-        return _OFFENSE_WEIGHT * (off_total / n) + _DEFENSE_WEIGHT * (def_total / n)
+        # offense ×2 + defense ×1 — the weighting the legacy scorer used,
+        # kept as the engine combiner's own constants since cleanup C.
+        return 2.0 * (off_total / n) + 1.0 * (def_total / n)
 
     out: dict[int, tuple[float, float]] = {}
     for i, m in enumerate(our_members, start=1):
@@ -604,44 +323,6 @@ def _engine_matchup_scores(opp_species_list: list[str],
             mega_val = base_val
         out[i] = (mega_val, base_val)
     return out
-
-
-# ── Public API ────────────────────────────────────────────────────────────────
-
-def score_members(
-    opp_species_list: list[str],
-    our_members: list[TeamMember],
-) -> list[MemberScore]:
-    """Score and rank all our members against the opponent's revealed team.
-
-    Returns a list of :class:`MemberScore` sorted best-first by combined score.
-    When *opp_species_list* is empty (no opponent data yet) the list is
-    returned in original team order with zero scores.
-
-    This function is the numerical core; production code calls
-    :func:`select_team` instead.
-    """
-    if not opp_species_list:
-        return [MemberScore(i + 1, m, 0.0, 0.0) for i, m in enumerate(our_members)]
-
-    scores = [
-        MemberScore(
-            index=i + 1,
-            member=m,
-            offense=_offensive_score(m, opp_species_list),
-            defense=_defensive_score(m, opp_species_list),
-        )
-        for i, m in enumerate(our_members)
-    ]
-    scores.sort(key=lambda s: s.combined, reverse=True)
-
-    for s in scores:
-        log.debug(
-            "  PREVIEW  %-20s  off=%.2f  def=%.2f  total=%.2f",
-            s.member.name, s.offense, s.defense, s.combined,
-        )
-
-    return scores
 
 
 def select_team(
@@ -708,46 +389,11 @@ def select_team(
                   for i in picked])
         return picked
 
-    # ── Fallback: type-chart scoring (unresolvable members / no data) ─────
-    scored = score_members(opp_species_list, our_members)
-
-    def _base_combined(ms: MemberScore) -> float:
-        """Combined score for a stone holder that *cannot* mega this battle.
-
-        It plays as its true form: base typing/ability **and base stats**.  The
-        type-matchup score is taken from the base form, then scaled by the
-        member's own ``base_BST / mega_BST`` so the lost mega stat jump is
-        reflected (a Pokémon whose typing is unchanged on mega — so base-form
-        type scoring alone wouldn't demote it — is still correctly devalued).
-        Fully generic: reads only the member's own stat sheet, no species names.
-        """
-        base_def = _base_form_defensive_score(ms.member, opp_species_list)
-        val = _OFFENSE_WEIGHT * ms.offense + _DEFENSE_WEIGHT * base_def
-        m = ms.member
-        if m.mega_stats and m.stats:
-            mega_bst = sum(m.mega_stats.values())
-            if mega_bst > 0:
-                val *= sum(m.stats.values()) / mega_bst
-        return val
-
-    def _effective(ms: MemberScore, mega_claimed: bool) -> float:
-        # A stone holder is only worth its mega value if no mega is spoken for;
-        # otherwise it can't evolve, so value it as its (itemless) base form.
-        if ms.member.mega_name and mega_claimed:
-            return _base_combined(ms)
-        return ms.combined
-
-    remaining = list(scored)
-    selected: list[MemberScore] = []
-    mega_claimed = False
-    while remaining and len(selected) < n:
-        best = max(remaining, key=lambda ms: _effective(ms, mega_claimed))
-        selected.append(best)
-        remaining.remove(best)
-        if best.member.mega_name and not mega_claimed:
-            mega_claimed = True   # this slot consumes the battle's single mega
-
-    return [s.index for s in selected]
+    # ── No engine scores (unresolvable members — synthetic fixtures only) ─
+    # Real teams always resolve via find_member; the old type-chart fallback
+    # was deleted with the rest of the legacy scoring (cleanup C).
+    log.warning("TEAM SELECT: engine scores unavailable, using team order")
+    return list(range(1, len(our_members) + 1))[:n]
 
 
 def select_mega(
@@ -755,64 +401,40 @@ def select_mega(
     our_members: list[TeamMember],
     opp_species_list: list[str],
 ) -> Optional[str]:
-    """Choose which selected Pokémon should mega evolve this battle.
+    """Choose which brought stone holder mega evolves this battle.
 
-    Returns the base species name (``TeamMember.name``) of the designated
-    mega, or ``None`` if none of the selected members carry a Mega Stone.
+    Engine-grounded (cleanup C, completing task #5): among the brought stone
+    holders, designate the one whose **engine matchup value gains the most
+    from mega evolving** — ``mega_val − base_val`` from
+    :func:`_engine_matchup_scores` (real damage in and out, stat- and
+    ability-aware) — with the higher absolute mega value as the tiebreak.
+    Replaces the old defensive type-delta ranking, which was ≈0 for most
+    stones (a speed/power mega gains nothing defensively).
 
-    When exactly one mega is selected the answer is trivial.  When two are
-    selected, the one whose mega form provides the greatest *defensive* type
-    improvement over its base form is preferred; the combined score from
-    :func:`score_members` breaks ties (i.e. the more offensively valuable
-    mega wins when both improve defensively by the same amount).
-
-    Args:
-        slots:        1-based indices from :func:`select_team`.
-        our_members:  Full six-member team.
-        opp_species_list: Opponent's preview team.
-
-    Returns:
-        Base species name of the designated mega, or ``None``.
+    Returns the base species name of the designated mega, or ``None`` when
+    no brought member carries a Mega Stone.  Falls back to the first stone
+    holder in the bring when engine scores are unavailable (no opponent
+    data / synthetic fixtures).
     """
-    # Build a map from slot index → combined score so we can use it as a
-    # tiebreaker without re-running the full scoring pipeline.
-    score_map: dict[int, float] = {}
-    if opp_species_list:
-        for s in score_members(opp_species_list, our_members):
-            score_map[s.index] = s.combined
-
-    candidates: list[tuple[float, float, str]] = []  # (delta, combined, name)
-    for slot in slots:
-        member = our_members[slot - 1]
-        if not member.mega_name:
-            continue
-
-        if opp_species_list:
-            mega_types   = types_of(member.mega_name) or _defensive_types(member)
-            mega_ability = ability_of(member.mega_name)
-            base_types   = types_of(member.name) or ["Normal"]
-            base_ability = member.ability or None
-            delta = (
-                _defense_from_types(mega_types, opp_species_list, mega_ability)
-                - _defense_from_types(base_types, opp_species_list, base_ability)
-            )
-        else:
-            delta = 0.0
-
-        candidates.append((delta, score_map.get(slot, 0.0), member.name))
-
-    if not candidates:
+    holders = [s for s in slots if our_members[s - 1].mega_name]
+    if not holders:
         return None
-
-    # Sort: highest defensive delta first, highest combined score as tiebreaker.
-    candidates.sort(key=lambda x: (x[0], x[1]), reverse=True)
-    designated = candidates[0][2]
-
-    log.info(
-        "TEAM PREVIEW  designated mega: %s  (candidates: %s)",
-        designated,
-        [(name, f"Δdef={d:.2f} score={sc:.2f}") for d, sc, name in candidates],
-    )
+    if len(holders) > 1 and opp_species_list:
+        scores = _engine_matchup_scores(opp_species_list, our_members)
+        if scores is not None:
+            def _gain(s: int) -> tuple[float, float]:
+                mega_val, base_val = scores[s]
+                return (mega_val - base_val, mega_val)
+            holders.sort(key=_gain, reverse=True)
+            log.info(
+                "TEAM PREVIEW  designated mega: %s  (candidates: %s)",
+                our_members[holders[0] - 1].name,
+                [(our_members[s - 1].name,
+                  f"gain={scores[s][0] - scores[s][1]:.2f}") for s in holders],
+            )
+            return our_members[holders[0] - 1].name
+    designated = our_members[holders[0] - 1].name
+    log.info("TEAM PREVIEW  designated mega: %s", designated)
     return designated
 
 
@@ -907,79 +529,11 @@ def select_leads(
             )
             return result
 
-    # ── Fallback: type-chart scoring + initiative rows ────────────────────
-    all_scores    = score_members(predicted, our_members)
-    score_by_slot = {s.index: s.combined for s in all_scores}
-
-    # ── Initiative / speed-control context (pair rows, 0.7.7) ─────────────
-    # Imported lazily (matching the lead_stats import above) to keep
-    # team_preview importable without the full decision package.
-    try:
-        from decision.modules import (
-            _TR_SETTER_SPECIES, _TAILWIND_SETTER_SPECIES, _assumed_ability,
-        )
-        tr_expected = any(s in _TR_SETTER_SPECIES for s in opp_species_list)
-        tw_undeniable = any(
-            s in _TAILWIND_SETTER_SPECIES
-            and (s == "Talonflame" or _assumed_ability(s) == "Prankster")
-            for s in opp_species_list
-        )
-    except Exception:
-        tr_expected = tw_undeniable = False
-
-    opp_lead_speeds = [
-        spd for spd in (most_likely_speed(s) for s in predicted) if spd
-    ]
-
-    def _lead_liability(slot: int) -> bool:
-        """Leading this member concedes initiative: slower than every predicted
-        opponent lead, with no attacking priority move — and no Trick Room
-        expected to invert the speed order (slow IS fast under TR)."""
-        if tr_expected or not opp_lead_speeds:
-            return False
-        m = our_members[slot - 1]
-        has_priority = any(
-            (move_priority(mv) or 0) > 0 and move_category(mv) != "Status"
-            for mv in m.moves
-        )
-        if has_priority:
-            return False
-        spe = (m.stats or {}).get("spe", 0)
-        return all(spe <= opp_spd for opp_spd in opp_lead_speeds)
-
-    # ── Pick the best lead PAIR over all C(n,2) combinations ──────────────
-    # Pair score = (matchup_a + matchup_b) × initiative rows.  With no rows
-    # firing the argmax pair is exactly the top-2 individual scores, so the
-    # rows only move the choice when initiative is genuinely conceded.
-    from itertools import combinations
-
-    best_pair: tuple[int, ...] = tuple(sorted(slots)[:2])
-    best_score = float("-inf")
-    for a, b in combinations(sorted(slots), 2):
-        # Floor the base so the multiplicative penalty cannot *reward* a
-        # (rare) negative matchup total.
-        base = max(score_by_slot.get(a, 0.0) + score_by_slot.get(b, 0.0), 0.1)
-        liabilities = _lead_liability(a) + _lead_liability(b)
-        factor = _SLOW_LEAD_FACTOR ** liabilities
-        if liabilities == 2 and tw_undeniable:
-            factor *= _TW_EXPOSED_FACTOR
-        score = base * factor
-        if score > best_score:
-            best_score, best_pair = score, (a, b)
-
-    leads = sorted(best_pair,
-                   key=lambda i: score_by_slot.get(i, 0.0), reverse=True)
-    # Preserve the original relative ordering for the back-line so that
-    # support/setup mons don't shift unexpectedly.
-    back = [s for s in slots if s not in best_pair]
-
-    result = leads + back
-    log.info(
-        "LEAD ORDER  %s  (leads: %s vs predicted %s%s%s)",
-        result,
-        [our_members[i - 1].name for i in leads],
-        predicted,
-        "  [TR expected: slow-lead row waived]" if tr_expected else "",
-        "  [undeniable TW on roster]" if tw_undeniable else "",
-    )
+    # ── No engine eval (unresolvable members — synthetic fixtures only) ───
+    # The engine board eval is the one real selector since 0.38.0; the old
+    # type-chart + initiative fallback was deleted with the rest of the
+    # legacy scoring (cleanup C).  Keep the bring order.
+    result = sorted(slots)
+    log.info("LEAD ORDER  %s  (engine eval unavailable, keeping bring order)",
+             result)
     return result
