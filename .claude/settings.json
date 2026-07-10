@@ -1,7 +1,9 @@
 {
   "permissions": {
-    "defaultMode": "acceptEdits",
     "allow": [
+      "Read(C:/Users/Sean/PycharmProjects/WolfeyBot/**)",
+      "Edit(C:/Users/Sean/PycharmProjects/WolfeyBot/**)",
+      "Write(C:/Users/Sean/PycharmProjects/WolfeyBot/**)",
       "Bash(mkdir *)",
       "Bash(.venv\\Scripts\\pytest*)",
       "Bash(./run_tests.bat)",

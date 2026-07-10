@@ -25,3 +25,6 @@ Thumbs.db
 
 # Ad-hoc analysis scratch slot (see CLAUDE.md tools row) -- never committed
 tools/scratch.py
+# In-project scratch for commit messages / release notes (write access is
+# scoped to this project, so these stay inside the repo, gitignored)
+tools/scratch/

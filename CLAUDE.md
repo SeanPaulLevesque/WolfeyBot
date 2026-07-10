@@ -301,6 +301,13 @@ Instead:
   regen + full suite) in one allowlisted call. Write the notes body with the
   Write tool first.
 
+**Permissions (2026-07-10):** file Read/Edit/Write is auto-allowed **only
+inside this project** (`.claude/settings.json` path-scoped rules); anything
+outside — home dir, AppData, other repos, the `~/.claude` memory files —
+prompts. So keep scratch **inside the repo**: commit messages / release notes
+go in the gitignored `tools/scratch/` dir (not the AppData scratchpad, which
+now prompts), and ad-hoc analysis stays `tools/scratch.py`.
+
 **The automation IS the interface (user directive, 2026-07-10).** Prefer the
 project's own scripts over composed shell for every routine operation, and
 when a script falls short, **extend the script** rather than working around
