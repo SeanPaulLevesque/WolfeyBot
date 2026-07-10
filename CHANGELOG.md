@@ -3,10 +3,11 @@
 ## 0.44.1 — 2026-07-10
 
 ### Decision engine
-- **EndgameStall (#7): ×0.4 → ×0.6** on both rows (1v1 last-vs-last and 2v1
-  numerical advantage). Net with ProtectValue's ×2.5 shield goes from 1.0 to
-  1.5. User-requested tuning after observed endgame escapes. Turn-1 snapshots
-  unchanged (full 2v2 boards never fire the module).
+- **EndgameStall (#7): ×0.4 → ×0.2** on both rows (1v1 last-vs-last and 2v1
+  numerical advantage). Net with ProtectValue's ×2.5 shield goes from 1.0
+  (neutral) to 0.5 — decisively below any real attack. User-requested tuning
+  after observed endgame escapes. Turn-1 snapshots unchanged (full 2v2 boards
+  never fire the module).
 
 ## 0.44.0 — 2026-07-10
 

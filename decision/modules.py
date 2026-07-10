@@ -867,19 +867,19 @@ class EndgameStallModule(ScoringModule):
     a connecting OHKO — but answers a different question: *is Protecting futile
     because the board is already decided?*
 
-      * 1v1 endgame (last mon vs last mon): Protect only delays → ×0.6.
-      * 2v1 numerical advantage: Protecting can't improve the outcome → ×0.6.
+      * 1v1 endgame (last mon vs last mon): Protect only delays → ×0.2.
+      * 2v1 numerical advantage: Protecting can't improve the outcome → ×0.2.
 
-    Net with ProtectValue's ×2.5 shield: 2.5 × 0.6 = 1.5.  (×0.4 / net 1.0
-    until 0.44.1 — user-tuned after observed endgame escapes.)  Reason
-    strings keep the ``incoming_ohko:`` prefix so phase-2 coordination still
-    reads the Protect as justified.
+    Net with ProtectValue's ×2.5 shield: 2.5 × 0.2 = 0.5 — decisively below
+    any real attack.  (×0.4 / net 1.0 until 0.44.1 — user-tuned after
+    observed endgame escapes.)  Reason strings keep the ``incoming_ohko:``
+    prefix so phase-2 coordination still reads the Protect as justified.
     """
 
     name = "endgame_stall"
 
-    ENDGAME_1V1_FACTOR   = 0.6
-    ADVANTAGE_2V1_FACTOR = 0.6
+    ENDGAME_1V1_FACTOR   = 0.2
+    ADVANTAGE_2V1_FACTOR = 0.2
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         ctx = _ensure_turn_ctx(state)

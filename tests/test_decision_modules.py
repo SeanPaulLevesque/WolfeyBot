@@ -861,7 +861,7 @@ class TestEndgameStallModule:
         assert attack.weight == pytest.approx(1.0)
 
     def test_combined_with_protect_net_in_1v1(self):
-        """Integration: ProtectValue ×2.5 then EndgameStall ×0.6 → net 1.5
+        """Integration: ProtectValue ×2.5 then EndgameStall ×0.2 → net 0.5
         (was ×0.4 / net 1.0 until 0.44.1 — user-tuned)."""
         state   = self._state_1v1()
         protect = make_action("Protect", "Protect")
