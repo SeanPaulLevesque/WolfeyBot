@@ -488,6 +488,25 @@ class TestBoostUnboost:
         parser._rebuild_team([req_mon], "p1")
         assert parser.state.my_team[0].boosts.get("atk") == -1
 
+    def test_protean_type_survives_request_rebuild(self):
+        """Regression (0.44.3): our Greninja Proteans to Ice (Ice Beam), then a
+        per-turn |request| rebuilds my_team from JSON (no type info).  The
+        committed type must persist, or the engine keeps modelling defence on
+        the base Water/Dark typing turns after the change (Farigiraf Twin Beam
+        read 0% via Dark immunity when Greninja was already Ice)."""
+        parser, _ = make_parser()
+        parser.state.my_side = "p1"
+        parser.state.my_team = [
+            Pokemon(ident="p1: Greninja", species="Greninja", hp=100, max_hp=100)
+        ]
+        run(parser.feed("|-start|p1a: Greninja|typechange|Ice"))
+        assert parser.state.my_team[0].types_override == ["Ice"]
+        req_mon = {"ident": "p1: Greninja", "details": "Greninja, L50, M",
+                   "condition": "100/100", "active": True,
+                   "moves": [{"move": "Ice Beam"}]}
+        parser._rebuild_team([req_mon], "p1")
+        assert parser.state.my_team[0].types_override == ["Ice"]
+
 
 # ── Move tracking ─────────────────────────────────────────────────────────────
 

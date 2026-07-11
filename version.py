@@ -14,4 +14,4 @@ The only spots that still hold the number by hand are the human-facing docs
 (``CHANGELOG.md`` release notes); ``CLAUDE.md`` points here rather than copying it.
 """
 
-__version__ = "0.44.2"
+__version__ = "0.44.3"

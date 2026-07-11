@@ -138,9 +138,18 @@ class BattleParser:
           un-Intimidated and systematically over-predicted our damage (0.17.0).
           On an actual switch-out ``_on_switch`` replaces the entry with a fresh
           (empty-boost) object, so a benched mon never carries stale stages back in.
+        * ``types_override`` — a Protean/Libero user's committed type (Greninja-
+          Mega becomes its first move's type, once per switch-in).  The request
+          JSON has no type info, so without this the type change was wiped by the
+          very next per-turn request and the engine kept modelling defence on the
+          base typing — Greninja read as still Water/Dark turns after it Proteaned
+          (0.44.3).  Reset on switch-out via ``_on_switch``'s fresh object, same
+          as boosts.
         """
         _old_item_consumed = {p.ident: p.item_consumed for p in self.state.my_team}
         _old_boosts = {p.ident: dict(p.boosts) for p in self.state.my_team if p.boosts}
+        _old_types = {p.ident: p.types_override
+                      for p in self.state.my_team if p.types_override}
         self.state.my_team = [_normalize_member_ids(Pokemon.from_request(p, side_id))
                               for p in side_pokemon]
         for mon in self.state.my_team:
@@ -148,6 +157,8 @@ class BattleParser:
                 mon.item_consumed = True
             if mon.ident in _old_boosts:
                 mon.boosts = dict(_old_boosts[mon.ident])
+            if mon.ident in _old_types:
+                mon.types_override = list(_old_types[mon.ident])
 
     def _handle_force_switch(self, data: dict) -> None:
         """Populate state for a force-switch phase (one or more Pokémon fainted).

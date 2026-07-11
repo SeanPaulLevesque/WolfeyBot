@@ -1,5 +1,23 @@
 # WolfeyBot Changelog
 
+## 0.44.3 — 2026-07-11
+
+### Fixes
+- **Protean/Libero committed type now survives the per-turn request rebuild.**
+  Our Greninja-Mega Proteans to its first move's type (e.g. Ice after Ice
+  Beam), and the parser tracked it — but `_rebuild_team` rebuilds `my_team`
+  from the request JSON every turn and only carried forward `item_consumed` /
+  `boosts`, silently wiping `types_override`. So the engine kept modelling
+  Greninja's **defence** on its base Water/Dark typing 1-2 turns after it
+  changed: Farigiraf Twin Beam read 0% (phantom Dark immunity) when Greninja
+  was already Ice (actual ~32%), and Steel/Fire moves were under-predicted
+  across the board. `_rebuild_team` now preserves `types_override` by ident,
+  same as boosts (reset on switch-out via `_on_switch`'s fresh object). The
+  fresh-switch-in reset keeps Protean's once-per-switch-in semantics correct.
+  This only fixes the **post-commit** turns (Regime A); the commit turn itself
+  — where the defensive type depends on our unpicked move and turn order — is
+  left as-is by design. +1 parser test; turn-1 snapshots unchanged.
+
 ## 0.44.2 — 2026-07-11
 
 ### Fixes
