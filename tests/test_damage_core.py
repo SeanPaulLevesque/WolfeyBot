@@ -939,6 +939,64 @@ class TestEffectiveMoveType:
         assert effective_move_type("Water", "Dragonize") == "Water"
 
 
+class TestMultiHitRange:
+    """Variable 2-5-hit moves (Water Shuriken, Bullet Seed) can only GUARANTEE
+    their minimum hit count and can reach their maximum, so the min/max damage
+    rolls scale by 2 and 5 hits — using the 3.17 average for both over-stated
+    guaranteed OHKOs (false ThreatElimination/PriorityKill) and under-stated
+    incoming OHKO risk.  Fixed-count moves (Dual Wingbeat = 2) are unchanged."""
+
+    from data import hit_range as _hr
+
+    def test_hit_range_variable_vs_fixed(self):
+        from data import hit_range
+        assert hit_range("Water Shuriken") == (2.0, 3.17, 5.0)
+        assert hit_range("Bullet Seed") == (2.0, 3.17, 5.0)
+        assert hit_range("Dual Wingbeat") == (2.0, 2.0, 2.0)   # fixed 2
+        assert hit_range("Surging Strikes") == (5.0, 5.0, 5.0)  # fixed 5
+        assert hit_range("Ice Fang") == (1.0, 1.0, 1.0)         # single hit
+
+    _S = {"hp": 150, "atk": 130, "def": 100, "spa": 130, "spd": 100, "spe": 120}
+
+    def _calc(self, move):
+        def fake(s):
+            return {"Atk": ["Water"], "Def": ["Normal"]}.get(s, ["Normal"])
+        with patch("damage.types_of", side_effect=fake):
+            return full_damage_calc(move, "Atk", "Def", self._S, self._S)
+
+    def test_variable_has_wide_hitcount_spread(self):
+        """Water Shuriken min (2 hits × low roll) < avg (3.17) < max (5 hits ×
+        high roll).  The min/max band is far wider than a single move's ±15%
+        damage-roll spread, because hit-count variance (2→5) compounds it."""
+        r = self._calc("Water Shuriken")
+        assert r.damage_min < r.damage_avg < r.damage_max
+        # 2-hit-low vs 5-hit-high ≈ (2·0.85)/(5·1.0) ≈ 0.34 — well below 0.85.
+        assert r.damage_min / r.damage_max < 0.5
+
+    def test_fixed_multi_hit_unchanged(self):
+        """Dual Wingbeat (fixed 2) keeps a normal roll band — min/max reflect
+        only the ±15% damage roll, not hit-count variance (min=max=2 hits)."""
+        r = self._calc("Dual Wingbeat")
+        assert r.damage_min / r.damage_max == pytest.approx(0.85, abs=0.03)
+
+    def test_guaranteed_ohko_needs_min_hits(self):
+        """A target that dies to 3.17 hits but survives 2 must NOT be a
+        guaranteed OHKO (the bug: 3.17-hit min over-claimed the kill)."""
+        r = self._calc("Water Shuriken")
+        # tune a defender HP between the 2-hit floor and the 3.17-hit average
+        two_hit = r.damage_min
+        avg_hit = r.damage_avg
+        assert two_hit < avg_hit                     # sanity: 2 hits < avg
+        mid_hp = (two_hit + avg_hit) // 2 + 1
+        def fake(s):
+            return {"Atk": ["Water"], "Def": ["Normal"]}.get(s, ["Normal"])
+        with patch("damage.types_of", side_effect=fake):
+            r2 = full_damage_calc("Water Shuriken", "Atk", "Def", self._S,
+                                  {**self._S, "hp": mid_hp})
+        assert not r2.is_ohko                         # 2 hits don't guarantee it
+        assert r2.ohko_with_max_roll                  # but 5 hits can
+
+
 class TestProtean:
     """Protean / Libero (Greninja-Mega): the FIRST move after entering changes
     the user's type to the move's type — unspent = every move is effectively

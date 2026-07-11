@@ -308,18 +308,32 @@ prompts. So keep scratch **inside the repo**: commit messages / release notes
 go in the gitignored `tools/scratch/` dir (not the AppData scratchpad, which
 now prompts), and ad-hoc analysis stays `tools/scratch.py`.
 
-**The automation IS the interface (user directive, 2026-07-10).** Prefer the
-project's own scripts over composed shell for every routine operation, and
-when a script falls short, **extend the script** rather than working around
-it in bash. One bare allowlisted command per Bash call — no pipes, chains,
-substitutions, or redirects. The full set:
-- tests → `.venv\Scripts\pytest -q` (or `./run_tests.bat`), bare
-- code commits → `tools/commit_code.py -F <msgfile> <paths...>` (stage +
-  commit + push in one call; explicit paths only, never resets)
-- data commits → `tools/commit_push_data.py`
-- releases → `tools/release.py <ver> --notes <file>`
-- games → `tools/run_games.py [N]`; analysis → `tools/scratch.py`
-Destructive git (checkout --, reset, rm) stays manual on purpose.
+**FIXED COMMAND STRINGS — the only thing that stops the approval prompts
+(2026-07-10).** This desktop client **ignores hand-edited allow rules** in
+`.claude/settings.json` / `settings.local.json` (proven across a restart, both
+glob `*` and regex `.*` forms). It only honours rules it writes itself when
+the user clicks **"Always allow"**, and it keys them to the **exact command
+string**. So a command whose arguments vary (version, message, battle id,
+paths, a `-c` snippet) re-prompts every single time. The fix is to make every
+routine op an **unchanging command** — push the variability into a file the
+script reads, not the command line. The user "Always allow"s each once; then
+it's permanent. The full fixed set (invoke **exactly** as written, no args):
+- tests → `.venv\Scripts\python.exe -m pytest -q` (always the full suite;
+  a specific test file is a varying arg and will re-prompt)
+- analysis → `.venv\Scripts\python.exe tools/scratch.py` (put the snippet
+  IN the file; never pass args, never a `-c` one-liner)
+- snapshots → `.venv\Scripts\python.exe tools/regen_snapshots.py`
+- code commit → write `tools/scratch/commit.json`
+  (`{"message"|"message_file", "paths":[...]}`) then
+  `.venv\Scripts\python.exe tools/commit_code.py` (no args)
+- release → write `tools/scratch/release.json`
+  (`{"version", "notes_file"}`) + the notes body, then
+  `.venv\Scripts\python.exe tools/release.py` (no args)
+- data commit → `.venv\Scripts\python.exe tools/commit_push_data.py`
+- games → `.venv\Scripts\python.exe tools/run_games.py`
+When a script can't take a fixed form, **extend the script** to read a fixed
+scratch file rather than passing args. Destructive git (checkout --, reset,
+rm) stays manual on purpose.
 
 ---
 

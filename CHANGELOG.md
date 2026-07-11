@@ -1,5 +1,20 @@
 # WolfeyBot Changelog
 
+## 0.44.2 — 2026-07-11
+
+### Fixes
+- **Multi-hit guaranteed damage corrected.** Variable 2-5-hit moves (Water
+  Shuriken, Bullet Seed, Rock Blast, …) scaled power by the *average* hit
+  count (3.17) for *every* roll, so their minimum (guaranteed) damage was
+  over-stated ~1.5× and their maximum under-stated. New `hit_range(move)`
+  returns `(min, expected, max)` hits, and `full_damage_calc` re-scales the
+  min roll to the 2-hit floor and the max roll to the 5-hit ceiling (average
+  unchanged). This stops variable multi-hit moves from claiming guaranteed
+  OHKOs they can't promise (false `ThreatElimination`/`PriorityKill` credit)
+  and stops under-counting their worst-case incoming OHKO risk. Fixed-count
+  moves (Dual Wingbeat = 2, Surging Strikes = 5) are unchanged (min=exp=max).
+  Turn-1 snapshots unchanged. +4 tests.
+
 ## 0.44.1 — 2026-07-10
 
 ### Decision engine

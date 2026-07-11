@@ -151,6 +151,25 @@ def expected_hits(name: str) -> float:
     return _MULTI_HIT_COUNTS.get(name, 1.0)
 
 
+def hit_range(name: str) -> tuple[float, float, float]:
+    """Return ``(min_hits, expected_hits, max_hits)`` for *name*.
+
+    A **variable** 2-5-hit move (Water Shuriken, Bullet Seed, …) has a floor of
+    2 and a ceiling of 5, so its *guaranteed* (min-roll) damage is only 2 hits
+    and its *worst-case* (max-roll) is 5 — using the 3.17 average for both
+    over-states guaranteed OHKOs and under-states incoming OHKO risk.  A
+    fixed-count move (Dual Wingbeat = 2, Surging Strikes = 5) has
+    min = expected = max, so its range is unchanged.
+
+    The variable movers are exactly the entries stored as the ``3.17`` average;
+    everything else (fixed multi-hit, or single-hit → 1.0) collapses to a point.
+    """
+    c = _MULTI_HIT_COUNTS.get(name, 1.0)
+    if c == 3.17:            # variable 2-5 hit move
+        return (2.0, c, 5.0)
+    return (c, c, c)         # fixed count (or single hit)
+
+
 def all_moves() -> dict[str, dict]:
     """Return the full move dictionary (read-only copy)."""
     _load()

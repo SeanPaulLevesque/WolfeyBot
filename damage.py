@@ -21,7 +21,7 @@ from typing import Optional
 
 from data import (
     get_move,
-    is_spread_move, expected_hits,
+    is_spread_move, expected_hits, hit_range,
     types_of, base_stats as get_base_stats,
     spread_distribution, parse_spread,
     calc_all_stats, get_weight,
@@ -978,6 +978,18 @@ def full_damage_calc(
         dmg_min = math.floor(dmg_min * scr)
         dmg_max = math.floor(dmg_max * scr)
         dmg_avg = dmg_avg * scr
+
+    # Multi-hit hit-count variance (power was scaled by the AVERAGE hit count,
+    # which the ``avg`` roll correctly represents).  A variable 2-5-hit move
+    # (Water Shuriken, Bullet Seed, …) can only *guarantee* its minimum hit
+    # count and can hit up to its maximum, so re-scale the min/max rolls to
+    # the true extremes — otherwise its guaranteed (min-roll) damage is
+    # over-stated (false OHKOs) and its worst-case (max-roll) under-stated.
+    # Fixed-count moves have min = expected = max, so this is a no-op for them.
+    mn_hits, exp_hits, mx_hits = hit_range(move_name)
+    if mn_hits != exp_hits or mx_hits != exp_hits:
+        dmg_min = math.floor(dmg_min * mn_hits / exp_hits)
+        dmg_max = math.floor(dmg_max * mx_hits / exp_hits)
 
     n_hits = expected_hits(move_name)
     ko_prevented = (

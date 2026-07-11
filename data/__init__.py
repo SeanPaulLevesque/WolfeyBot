@@ -56,7 +56,7 @@ from .move_flags import move_flags, move_has_flag, is_contact
 from .moves import (
     get_move, move_power, move_type, move_category,
     move_priority, is_priority_move, is_spread_move,
-    needs_target, expected_hits, all_moves,
+    needs_target, expected_hits, hit_range, all_moves,
     SPREAD_TARGETS, NO_TARGET_STRINGS,
 )
 
@@ -106,7 +106,7 @@ __all__ = [
     # moves
     "get_move", "move_power", "move_type", "move_category",
     "move_priority", "is_priority_move", "is_spread_move",
-    "needs_target", "expected_hits", "all_moves",
+    "needs_target", "expected_hits", "hit_range", "all_moves",
     "SPREAD_TARGETS", "NO_TARGET_STRINGS",
     # items
     "get_item", "item_exists", "speed_multiplier", "type_boost_multiplier",
