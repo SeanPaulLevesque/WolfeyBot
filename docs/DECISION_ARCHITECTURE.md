@@ -16,97 +16,87 @@ Three decisions are made:
 ## Part 1 — Team Preview: which 4 to bring
 
 When the opponent's six Pokémon appear, the bot scores each of *our* six against
-the whole enemy team and brings the top four. Each mon's score is:
+the whole enemy team with the **real damage engine** — the same calculator it
+uses in battle — and brings the top four. (This replaced the old type-chart
+approximation, deleted in 0.44.0: the engine sees actual stats, spreads, items,
+and damage-reducing abilities, not just type multipliers, so Thick-Fat Venusaur,
+a Multiscale Dragonite, and bulky EV spreads all register.)
+
+Each of our mons is scored against each opponent — using the population-weighted
+*assumed* forme / ability / item for the enemy — and averaged:
 
 ```
 combined = offense × 2  +  defense × 1
 ```
 
-**Offense** — for each of the six opponents, the best type-multiplier any of our
-moves can reach against it, summed. (Stomping Tantrum vs Incineroar = ×2.0; Dragon
-Claw vs the same = ×1.0; the best available move counts.)
+- **Offense** — the best damage fraction our moveset deals to that opponent,
+  capped at 1.0 (an OHKO maxes it), averaged over the six.
+- **Defense** — `1 − the worst damage fraction they deal to us`, capped at 1.0
+  (being OHKO'd zeroes it), averaged over the six.
 
-**Defense** — for each opponent, take the *worst* (highest) multiplier its STAB
-types hit us for, and invert it. More resilient = higher score:
+So a mon that OHKOs several foes and survives their hits scores near the ceiling;
+one that's walled or frail scores low.
 
-| Their best hit on us | Score |
-|---|---|
-| Immune (×0) | +4.0 |
-| Resist (×0.5) | +2.0 |
-| Neutral (×1.0) | +1.0 |
-| Weak (×2.0) | +0.5 |
-| Quad-weak (×4.0) | +0.25 |
-
-Abilities that change incoming damage are folded in first (Levitate → Ground ×0,
-Thick Fat → Fire/Ice ×0.5, etc.).
-
-**One mega per battle.** Only one Mega Stone can activate, so when two stone
-holders would both be brought, the second is re-valued at its *base* form — base
-typing, base ability, and base stats (scaled by `base_BST / mega_BST`) — so the bot
-doesn't over-rate a second, dead stone.
+**One mega per battle.** Each Mega-Stone holder is scored twice — as its mega and
+as its base form. Selection is greedy; once a mega is claimed, any further stone
+holder is valued at its *base* form (a second stone plays with a dead item), so
+the bot never over-brings two megas. `select_mega` then designates the brought
+stone holder whose **engine gain** (`mega_val − base_val`) is largest.
 
 ### Example
 
 Opponent: Farigiraf / Incineroar / Sneasler / Kingambit / Talonflame / Pelipper.
-These are the engine's actual scores for the current team (`offense × 2 + defense`):
+The engine's actual matchup scores for the baseline roster (`mega/base`, scale
+≈ 0–3):
 
-| Our Pokémon | offense | defense | **combined** | Brought? |
-|---|---|---|---|---|
-| Sneasler | 13.5 | 5.2 | **32.2** | ✓ |
-| Aerodactyl | 11.5 | 6.0 | **29.0** | ✓ |
-| Kingambit | 11.0 | 6.2 | **28.2** | ✓ |
-| Basculegion | 11.0 | 5.5 | **27.5** | ✓ |
-| Garchomp | 9.0 | 6.0 | **24.0** | ✗ |
-| Venusaur | 9.0 | 4.5 | **22.5** | ✗ |
+| Our Pokémon | score | Brought? |
+|---|---|---|
+| Basculegion | **2.00** | ✓ |
+| Garchomp | **1.95** | ✓ |
+| Kingambit | **1.94** | ✓ |
+| Aerodactyl | **1.77** | ✓ |
+| Venusaur | 1.71 (base 1.32) | ✗ |
+| Sneasler | 1.68 | ✗ |
 
-Against *this* team Garchomp's coverage is mediocre (off 9.0), so it's left
-home — a reminder the bring is matchup-specific, not a fixed "best six".
-
-### How a type multiplier is found
-
-A move has one type; a Pokémon has one or two. Multiply the move's effectiveness
-against each defender type:
-
-- **Stomping Tantrum (Ground) vs Incineroar (Fire/Dark):** ×2 (Fire) × ×1 (Dark) = **×2**
-- **Stomping Tantrum (Ground) vs Aerodactyl (Rock/Flying):** ×1 (Rock) × ×0 (Flying) = **×0**
+The bring is matchup-specific, not a fixed "best six" — a different opponent
+reshuffles these.
 
 ---
 
 ## Part 2 — Team Preview: which 2 lead
 
-The bot records which Pokémon opponents actually lead with, every battle
-(`Battle Data/lead_stats.json`, rebuilt by `tools/build_lead_stats.py`). Across
-**2,947 recorded battles** the most common leads are:
+Two questions: **what will the opponent lead**, and **which of our four counter
+that best**.
 
-| Opponent lead | Times led | % of battles |
-|---|---|---|
-| Garchomp | 948 | 32.2 % |
-| Sneasler | 284 | 9.6 % |
-| Farigiraf | 233 | 7.9 % |
-| Whimsicott | 199 | 6.8 % |
-| Aerodactyl | 166 | 5.6 % |
-| Incineroar | 159 | 5.4 % |
-| Sableye | 127 | 4.3 % |
-| Rotom-Wash | 108 | 3.7 % |
-| Talonflame | 108 | 3.7 % |
-| Pelipper | 102 | 3.5 % |
-| Charizard | 95 | 3.2 % |
-| Basculegion | 89 | 3.0 % |
+**Predicting the opponent's lead pair.** The bot records every opponent's turn-1
+leads (`Battle Data/lead_stats.json`, rebuilt by `tools/build_lead_stats.py`).
+It predicts not the two most common *individual* leads — which can be two
+supports that are rarely brought together — but the **pair most often co-led**:
+a Swampert + Pelipper duo seen together 51× beats pairing two unrelated
+high-usage supports (`predict_pair`, co-occurrence-aware; falls back to
+anchor + real-partner, then top-2 singles). The scorer actually **hedges** over
+the top-3 likely pairs weighted by co-lead evidence (`predict_pairs`), so a lead
+that's fine against the most-likely pair but folds to the second gets penalized
+in proportion to how likely the second is.
 
-*(A species can be led in up to two slots per battle, so the column is "fraction
-of battles in which the opponent led with this mon," not a share of 100 %.)*
+**Scoring our lead pairs on the real board.** For each of our C(4,2) candidate
+lead pairs, the bot builds an actual **turn-1 `BattleState`** against the
+predicted opponent leads and runs the in-battle phase-1 scorer — so the same
+real-damage, kill, turn-order, Fake-Out and doomed facts that pick moves also
+pick leads. Each slot's value is its best attack weight; the pair's score is the
+**product** of the two (one dead slot sinks the pair, geometric-mean-combined
+across the hedged opponent pairs). Two penalties fire:
 
-From the opponent's previewed six, the bot predicts the **two highest-frequency
-leads**, then re-runs the Part 1 offense/defense scoring against *only those two*.
-The two of our four brought mons that score best there go out first; the rest keep
-their order. (With no lead data, the two highest overall-matchup mons lead.)
+- **Doomed lead (×0.25)** — the board says this lead is KO'd before it acts (a
+  frail mega led into a faster attacker); starting it just concedes the slot.
+- **Self-refuting lead (×0.5)** — the engine's own best action for the lead is to
+  *switch out*. If it doesn't want to be there, don't lead it.
 
-**Example.** Opponent previews Garchomp, Whimsicott, Incineroar, Sableye,
-Rotom-Wash, Tyranitar. Highest lead frequencies among them: **Garchomp (32.2 %)**
-and **Whimsicott (6.8 %)**. The bot brings Sneasler / Venusaur / Kingambit /
-Garchomp, then scores those four against the predicted Garchomp + Whimsicott pair:
-**Venusaur** (Giga Drain ×2 on Garchomp — Grass vs Ground — and Sludge Bomb ×2 on
-Whimsicott) and **Garchomp** score highest, so they lead.
+TR/TW field variants are folded in when the predicted pair contains a setter.
+Finally the score is multiplied by an **empirical pair prior** — our own
+historical win rate with that exact lead pair (Beta-smoothed per team version) —
+so a pairing the board loves but that has gone (say) 3-15 in practice is
+discounted. The argmax pair leads; the other two keep their order.
 
 ---
 
@@ -126,39 +116,38 @@ starts at **weight 1.0**; modules **multiply** those weights.
 
 
 
-![Per-action weight table — phase-1 modules (1–18) then phase-2 joint adjusters (J1–J6)](decision_weights.svg)
+![Per-action weight table — phase-1 per-slot modules, then phase-2 joint adjusters](decision_weights.svg)
 
 *(Generated by `tools/gen_decision_table_svg.py` — edit the data there and re-run; rendered as SVG so it never horizontally scrolls on GitHub.)*
 
 
 ### Worked example (turn 1)
 
-Our **Garchomp + Kingambit** vs **Incineroar + Basculegion** 
+Our **Garchomp + Kingambit** vs **Incineroar + Basculegion**. Incineroar's Fake
+Out will flinch one of ours, so phase 1 halves every attack (×0.5) and would
+boost a Protect (×2).
 
-**Phase 1 — Garchomp on its own.** Incineroar's Fake Out boosts Protect ×3 and
-halves every attack, so in isolation Garchomp's best candidate is to shield:
+**Phase 1 — each slot on its own.**
 
-| Garchomp candidate | weight |
-|---|---|
-| **Protect** | **3.00** (Fake Out ×3) |
-| Stomping Tantrum → Incineroar | 2.63 (×2 Ground, halved by Fake Out) |
-| Stomping Tantrum → Basculegion | 2.05 |
-| Dragon Claw → Basculegion | 1.94 |
+| Garchomp candidate (Choice Scarf, no Protect) | weight | | Kingambit candidate | weight |
+|---|--:|---|---|--:|
+| **Stomping Tantrum → Incineroar** | **3.13** (×2 Ground, Fake-Out-halved) | | **Kowtow Cleave → Basculegion** | **7.50** (guaranteed OHKO) |
+| Dragon Claw → Basculegion | 2.57 | | Protect | 2.00 (Fake-Out-boosted) |
+| Stomping Tantrum → Basculegion | 2.44 | | Low Kick → Incineroar | 0.91 |
 
-**Phase 2 — the pair.** Kingambit's best action is an attack (Kowtow Cleave →
-Basculegion, a guaranteed OHKO). Beside an attacking partner two joint rules pull
-Garchomp's Protect down: the **Fake Out absorbed** adjuster strips its ×3 boost
-(the attacker is the one assumed to eat the flinch — a pair claims the Fake-Out
-adjustment once, never twice), and the **Coordination** adjuster halves it as a
-gratuitous lone Protect (no incoming OHKO, no stall): 3.00 → 0.50. In the
-double-attack pair the same Fake-Out rule instead *frees* Kingambit's attack from
-its ×0.5 discount (6.33 → 12.67). Stomping Tantrum → Incineroar (2.63) is now
-Garchomp's best, and the chosen pair is **both attacking**: Garchomp → Incineroar,
-Kingambit → Basculegion.
+Kingambit's Fake-Out-boosted **Protect (2.00)** is tempting in isolation, but its
+Kowtow Cleave is a guaranteed OHKO (7.50), so even alone it prefers to swing.
 
-That's the whole design in one turn: per-slot scoring leaned toward a shield, and
-joint coordination corrected it — *don't gratuitously Protect while your partner
-swings.*
+**Phase 2 — the pair.** With both slots attacking, the **Fake-Out-absorbed**
+adjuster frees the attack from its ×0.5 discount — a pair eats the flinch once,
+not twice — so Kingambit's Kowtow Cleave jumps **7.50 → 15.00**. The chosen pair
+is both attacking: Garchomp → Incineroar, Kingambit → Basculegion.
+
+That's the design in one turn: per-slot scoring already prefers pressure here,
+and the joint pass makes sure the pair only pays the Fake-Out tax once. (When a
+slot's *isolated* best genuinely is a Fake-Out-boosted Protect with no real
+shield reason, the **Coordination** adjuster instead halves it beside an
+attacking partner — *don't gratuitously Protect while your partner swings.*)
 
 ### What the final weight means
 
