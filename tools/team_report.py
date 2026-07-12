@@ -248,6 +248,30 @@ def lead_prediction_outcomes(games, opening_turns=3):
             "n_with_pred": n_with_pred, "turns": opening_turns}
 
 
+def opponent_lead_pairs(games, opening_turns=3):
+    """Our record against each **opponent** lead pair (their turn-1 actives,
+    order-independent, mega-folded via ``base_forme``).
+
+    Unlike :func:`lead_prediction_outcomes` (keyed on whether *our* prediction
+    was right), this is keyed on *what the opponent actually led* — the boards
+    we face most, and how we do on them.  Returns
+    ``{pair: {games, wins, ahead}}`` where *ahead* counts games with a positive
+    opening net over the first *opening_turns* turns."""
+    pairs = collections.defaultdict(lambda: dict(games=0, wins=0, ahead=0))
+    for g in games:
+        turns = g.get("turns", [])
+        if not turns:
+            continue
+        opp = sorted({base_forme(m["s"]) for m in turns[0].get("opp", []) if m})
+        if len(opp) != 2:
+            continue   # need a genuine two-mon lead pair
+        rec = pairs[tuple(opp)]
+        rec["games"] += 1
+        rec["wins"] += g.get("outcome") == "win"
+        rec["ahead"] += _opening_net(turns, opening_turns) > 0
+    return dict(pairs)
+
+
 def move_usage(games):
     """Return ``{species: {move: times_chosen}}`` from each turn's chosen action
     (``dec[].ch``), excluding switches."""
@@ -467,6 +491,21 @@ def build_markdown(games, label, slop=0.15, team_name=None, team_version=None,
                 r = pc[pr]; w = r["wins"]; n = r["games"]
                 out.append(f"| {' + '.join(pr)} | {n} | {w}-{n-w} | "
                            f"{_pct(w/n)} | {_pct(r['ahead']/n)} |")
+
+    # 1c. OPPONENT LEAD PAIRS WE FACE MOST — OUR RECORD
+    olp = opponent_lead_pairs(games)
+    if olp:
+        out += ["", "### Top opponent lead pairs — our record", "",
+                "The 10 opponent lead pairs we face most (their turn-1 actives, "
+                "order-independent). *Ahead rate* = share of those games with a "
+                f"positive opening net over the first {op['turns']} turns.",
+                "",
+                "| Opponent lead pair | Games | W-L | Win rate | Ahead rate |",
+                "|---|--:|--:|--:|--:|"]
+        for pr in sorted(olp, key=lambda p: -olp[p]["games"])[:10]:
+            r = olp[pr]; w = r["wins"]; n = r["games"]
+            out.append(f"| {' + '.join(pr)} | {n} | {w}-{n-w} | "
+                       f"{_pct(w/n)} | {_pct(r['ahead']/n)} |")
 
     # 2. MOVE USAGE
     use = move_usage(games)

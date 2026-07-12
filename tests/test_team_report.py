@@ -212,6 +212,41 @@ class TestLeadPredictionOutcomes:
         assert r["pairs_correct"] == {}
 
 
+class TestOpponentLeadPairs:
+    """Our record vs each opponent lead pair (their turn-1 actives), keyed on
+    what the opponent actually led — independent of our prediction."""
+
+    @staticmethod
+    def _g(outcome, opp_leads, ahead=False):
+        ev = ([{"sd": "us", "a": "Aerodactyl", "mv": "X",
+                "tg": opp_leads[0], "h0": 0.5, "d": 0.6}] if ahead else [])
+        return {"outcome": outcome,
+                "turns": [{"my": [{"s": "Aerodactyl", "hp": 1.0}],
+                           "opp": [{"s": s, "hp": 1.0} for s in opp_leads],
+                           "ev": ev}]}
+
+    def test_aggregates_order_independent_with_ahead(self):
+        from tools.team_report import opponent_lead_pairs
+        games = [
+            self._g("win",  ["Swampert", "Pelipper"], ahead=True),
+            self._g("loss", ["Pelipper", "Swampert"]),            # reversed order
+            self._g("win",  ["Incineroar", "Farigiraf"], ahead=True),
+        ]
+        r = opponent_lead_pairs(games)
+        assert r[("Pelipper", "Swampert")] == {"games": 2, "wins": 1, "ahead": 1}
+        assert r[("Farigiraf", "Incineroar")] == {"games": 1, "wins": 1, "ahead": 1}
+
+    def test_mega_folded_and_singletons_skipped(self):
+        from tools.team_report import opponent_lead_pairs
+        games = [
+            self._g("win", ["Swampert-Mega", "Pelipper"]),   # folds to Swampert
+            self._g("loss", ["Swampert"]),                   # single lead → skipped
+        ]
+        r = opponent_lead_pairs(games)
+        assert list(r) == [("Pelipper", "Swampert")]
+        assert r[("Pelipper", "Swampert")]["games"] == 1
+
+
 class TestMoveUsage:
     def test_counts_chosen_moves_excluding_switches(self):
         u = move_usage([_GAME_WIN])
