@@ -53,23 +53,15 @@ to make green by editing expectations. This is a hard rule:
 | `data/` | Usage: `moves-gen9championsvgc2026regmb-1760.txt` (Smogon M-B moveset dump → `sets.py`; "No Ability"/"Other" filtered at parse) + `leads-gen9championsvgc2026regmb-1760.txt` (ladder lead prior — a sub-observation tiebreak in `lead_stats.predict_pair`, never outranking our observed pair data). Dex: `smogon_champions_slim.json` (species/types/base stats) + `champions_moves/items/abilities/megas.json`. `sets_supplement.json` = hand-entered gap-fill merged at load (~empty; Watchog only) — the escape hatch for the next reg roll |
 | `team_preview.py` | Bring-4 selection logic |
 | `docs/DECISION_ARCHITECTURE.md` | Full narrative of how the engine works, with weight tables |
-| `tools/` | Dev/analysis scripts — **all of `tools/` is allowlisted** (`.venv/Scripts/python.exe tools/...` runs prompt-free), so **prefer adding/using a `tools/` script over inline `python - <<PY` heredocs** (heredocs need approval every time and burn tokens re-deriving the same script). Key scripts: `team_report.py` (logs dir/glob → Markdown roster-perf + prediction-accuracy report; `--team v2`, `--out report.md`), `accuracy_report.py` (prediction accuracy; exposes `compute_prediction(games, slop)` + `_load(version, team_version)`), battle analysis, lead stats, ELO chart, team packing, `gen_snapshot.py`. **Investigation trio (0.36.x):** `inspect_battle.py <id-frag> [--turn N]` = compact turn-by-turn log summary (board, chosen actions + weights, events, faints; `--turn` adds full reasons + wall); `replay_turn.py <id-frag> <turn>` = rebuild a logged board and run the **current** engine on it (ranked actions + coordinate pair vs what the game chose — the "would the fix change this?" tool; caveats printed); `regen_snapshots.py` = regen every turn-1 snapshot + classify the diff vs HEAD (decision-changed vs weight-only). **Zero-arg automation:** `run_games.py [N]` = run N games on latest meta-team version → report → commit+push data (the "kick off N games" one-shot); `latest_meta_report.py` = report on the newest meta-team data; `commit_push_data.py` = commit+push **data artifacts only** (Battle Data/ · elo_log.json · reports/), auto message, never touches code; `release.py <ver> --notes <file>` = version bump + CHANGELOG prepend + snapshot regen + full suite in one call. **`scratch.py` = the designated gitignored slot for ad-hoc analysis snippets** — Write it, run it prompt-free, overwrite next time (never a heredoc) |
+| `tools/` | Dev/analysis scripts (see "Running things" for the prompt-free fixed-command set). Investigation: `inspect_battle.py <id> [--turn N]` (turn-by-turn log summary), `replay_turn.py <id> <turn>` (rebuild a logged board, run the **current** engine — the "would the fix change this?" tool), `team_report.py <dir>` (roster-perf + prediction-accuracy report), `turns_vs_lead.py`, `endgame_autopsy.py`, `preview_backtest.py`. `scratch.py` = gitignored ad-hoc-analysis slot. |
 | `CHANGELOG.md` | Per-version bug fixes — always check before investigating a bug |
 | `snapshots/turn1_openings/baseline.md` | Generated first-turn decision table (6 our leads × 20 opp leads) for the baseline roster |
 | `tests/` | pytest suite — run with `.venv\Scripts\pytest` |
 
----
-
-## Current team (snapshots/baseline_team.txt; = teams/meta-team/v1)
-
-| Pokémon | Item | Ability | Nature | Key moves |
-|---|---|---|---|---|
-| Aerodactyl | Aerodactylite | Unnerve | Jolly | Dual Wingbeat / Rock Tomb / Ice Fang / Protect |
-| Kingambit | Chople Berry | Defiant | Adamant | Kowtow Cleave / Iron Head / Low Kick / Protect |
-| Sneasler | White Herb | Unburden | Jolly | Close Combat / Dire Claw / Rock Tomb / Protect |
-| Basculegion-M | Sitrus Berry | Adaptability | Adamant | Liquidation / Last Respects / Psychic Fangs / Protect |
-| Venusaur | Venusaurite | Chlorophyll | Modest | Sludge Bomb / Giga Drain / Earth Power / Protect |
-| Garchomp | Choice Scarf | Rough Skin | Adamant | Dragon Claw / Stomping Tantrum / Poison Jab / Rock Tomb |
+**Teams:** the ladder roster is `teams/meta-team/v<n>.txt` (current version in
+`teams.json`); `snapshots/baseline_team.txt` (= meta-team v1) is the frozen
+no-`--team` fallback the snapshots pin against. `main.py --list-teams` prints
+the rosters + accounts.
 
 ---
 
@@ -136,80 +128,35 @@ seen. The old greedy + `recoordinate` re-pass (0.6.8–0.6.10) is gone — its
 overkill-redirect and gratuitous-Protect repairs are now emergent from choosing
 the best pair.
 
-### Key constants in engine.py / modules.py
-- `TurnContext` (modules.py) — per-turn precomputed facts: `doomed[slot]` (KO'd
-  before acting), `ohko` (set of `(slot, move, opp_slot)` guaranteed-OHKO
-  triples), `incoming_ohko[slot]` / `incoming_certain[slot]` (opp slots whose
-  max / min roll OHKOs us), `neutralized[opp_slot]` (opp KO'd before it acts),
-  `fake_out[slot]` (Fake-Out adjustment applies), and board counts behind the
-  1v1/2v1 rows. Built once per turn by `build_turn_context` — the **only**
-  place damage calcs run for yes/no facts — and cached via
-  `_ensure_turn_ctx(state)` (keyed on `state.turn`). `_partner_can_ohko` /
-  `_opp_neutralized_before_acting` / `_ko_before_acting` are thin fact readers
-  (tests patch them as seams; the build passes the partial ctx explicitly)
-- **Forme resolution — one resolver, two jobs (since 0.16.0).** `mon.species` is
-  the raw protocol name (base before `|detailschange|`, mega after), so it is
-  **never** keyed off directly for modelling. Two canonical helpers:
-  - **`_assumed_species(mon)` — inference (the modelling answer).** Population-
-    weighted forme via `data.assumed_forme` (a pre-mega Charizard → Charizard-
-    Mega-Y; revealed mega/non-stone item overrides). All stats/types/ability/
-    item/damage/speed use this (via `_offense_species`/`_defense_species`).
-  - **`data.base_forme(name)` — identity normalisation (matching only).** Strips
-    the mega suffix so two names for the same line compare equal. Used **only**
-    for set membership and log↔log matching, never as a modelling choice.
-  - **Membership predicates** `_is_fake_out_user` / `_is_tr_setter` /
-    `_is_tw_setter` compose them as `base_forme(_assumed_species(mon)) in <SET>`,
-    so the species sets hold **base names only** (no `-Mega` duplicates —
-    enforced by `test_no_mega_entries_in_species_sets`). Inference still applies
-    (a pre-mega Lopunny is recognised as the Mega Fake-Out user it becomes).
-  - The `pin` log keys by the *assessed* forme (`_offense_species`), and
-    `tools/accuracy_report.py` reconciles `pin`↔`ev` via `data.base_forme` — no
-    local copies of the normaliser.
-- **Opponent inference seams (modules.py, since 0.7.6)** — every fact about an
-  unrevealed opponent goes through these helpers: `_assumed_species(mon)`
-  (above), `_effective_ability(mon)` (revealed > top-usage ability of the
-  assumed forme — so a pre-mega Pyroar → Pyroar-Mega → Fire Mane),
-  `_effective_item(mon, evidence)` / `_opp_item(state, mon)`
-  (prefer `_opp_item` wherever `state` is in scope), and `_opp_has_item(state,
-  mon)` — the **does it hold *any* item** belief Poltergeist needs (True unless
-  `ItemEvidence.consumed` / `item_consumed`; unknown → assumed held, since
-  `_opp_item` returning None conflates "consumed" with "don't know which"). It
-  feeds `damage.py`'s `defender_has_item` (Poltergeist → 0 vs an itemless target)
-  through the `_*_defender_mods` helpers and the OHKO-fact loop. Item inference is a
-  **usage-stats prior resolved against observed `ItemEvidence`** (since 0.12.0):
-  held-now > `consumed`→None > `confirmed` > field-stint consumed > prior with
-  `evidence.ruled_out` removed. `_assumed_item(species, ruled_out)` walks the
-  usage list skipping ruled-out items; the 25% bar (`_ASSUMED_ITEM_MIN_PCT`)
-  gates **only the literal top item**, and once a higher-usage item is ruled out
-  it commits to the next-most-likely **unconditionally** (observation narrowed
-  the field). `ItemEvidence` (battle_state.py, on `BattleState.opp_item_evidence`,
-  keyed by normalized ident so it survives the per-switch object replacement) is
-  fed by the parser: ≥2 distinct moves in one stint → rule out `CHOICE_ITEMS`;
-  being outsped when even its slowest scarf would be faster → rule out Choice
-  Scarf (`_observe_speed_from_history`, run from `build_turn_context`);
-  **outspeeding us when even its fastest non-scarf spread couldn't → rule Choice
-  Scarf *in*** as `evidence.inferred` (`_infer_scarf_from_speed`, 0.30.0; same
-  bracket, no TR/TW/weather); `[from] item:` / `-item` → `confirmed`; `-enditem`
-  → `consumed`. **Choice lock (0.30.0):** a believed-Choice opponent that has used
-  exactly one move this stint is locked into it (`_choice_locked_move`) — the
-  incoming-threat facts assess `only_moves=[locked]` instead of its whole
-  movepool (resets on switch). This **one item belief**
-  feeds **both** damage math and the speed pipeline (since 0.11.0): `turn_order`
-  applies it via `data.items.speed_multiplier` (Choice Scarf ×1.5, Iron Ball /
-  Macho Brace ×0.5) — `speed_distribution` is a pure *spread* prior with no scarf
-  branch. Focus Sash/Sturdy set `DamageResult.ko_prevented` (damage.py), which
-  gates `is_ohko`/`ohko_with_max_roll` — multi-hit moves break Sash naturally
-- `JointAdjuster` (engine.py) — phase-2 base class; `factor(state, slot_a, a0,
-  slot_b, a1) -> (factor_a, factor_b, reason)`. Concrete: `DoublingAdjuster`,
-  `OverkillAdjuster`, `CoordinationAdjuster`, `FakeOutAdjuster`, `SwitchCollisionAdjuster` (modules.py)
-- `_PROTECT_MOVES` — frozenset of all Protect-family move names
-- `_FAKE_OUT_USERS` / `_TR_SETTER_SPECIES` / `_TAILWIND_SETTER_SPECIES` —
-  frozensets of **base names** (membership normalises megas via the predicates
-  above). FakeOut: Incineroar, Kangaskhan, Tinkaton, Weavile, Sneasler, Lopunny,
-  Toxicroak, Salazzle, etc. TR (≥40% usage): Farigiraf, Oranguru, Hatterene,
-  Cofagrigus, Runerigus, Slowbro/Slowking variants, Reuniclus, Wyrdeer, etc.
-  TW (≥20%): Talonflame, Whimsicott, Aerodactyl, Noivern, Pelipper, Corviknight,
-  Dragonite, etc. (Champions-legal only; derived from usage stats)
+### Key invariants (modules.py) — the rules that prevent recurring bugs
+- **`TurnContext` is the single fact source.** `build_turn_context` runs **all**
+  yes/no damage calcs (`ohko`, `doomed[slot]`, `incoming_ohko/certain[slot]`,
+  `neutralized[opp_slot]`, `fake_out`, `min_dmg`) **once per turn**, cached by
+  `_ensure_turn_ctx(state)` (keyed on `state.turn`). Modules read facts, never
+  recompute. `_partner_can_ohko` / `_ko_before_acting` etc. are thin readers
+  (tests patch them as seams).
+- **Damage modifiers live in the shared helpers** — `_field_kwargs(state)` +
+  `_outgoing/_incoming_attacker_mods` / `_*_defender_mods`. Every
+  `outgoing_damage`/`incoming_damage` caller splats these, so a new modifier
+  (weather, terrain, boosts, screens, type override, item belief) is added in
+  **one** place and picked up everywhere.
+- **Forme resolution — two helpers, never key off raw `mon.species`.**
+  `_assumed_species(mon)` = the **modelling** answer (population-weighted forme:
+  pre-mega Charizard → Charizard-Mega-Y; revealed mega/non-stone item override;
+  `types_override` for a committed Protean); all stats/types/ability/speed use
+  it. `data.base_forme(name)` = **identity** only (strip mega suffix for set
+  membership / log matching). The species sets (`_FAKE_OUT_USERS`,
+  `_TR_SETTER_SPECIES`, `_TAILWIND_SETTER_SPECIES`) hold **base names only**
+  (enforced by `test_no_mega_entries_in_species_sets`); predicates compose as
+  `base_forme(_assumed_species(mon)) in <SET>`.
+- **Every opponent fact goes through an inference seam** — `_assumed_species`,
+  `_effective_ability` (revealed > top-usage of the assumed forme), `_opp_item`
+  / `_opp_has_item` (Poltergeist's "holds any item?" belief), `_choice_locked_move`.
+  Item belief is a usage-stats prior resolved against `ItemEvidence`
+  (battle_state.py, ident-keyed so it survives per-switch object replacement;
+  fed by the parser: ≥2 moves/stint rules out Choice, speed observations rule
+  Scarf in/out). This one belief feeds **both** damage and the speed pipeline
+  (`turn_order` via `data.items.speed_multiplier`).
 
 ---
 
@@ -337,60 +284,21 @@ rm) stays manual on purpose.
 
 ---
 
-## Pending tasks
+## Backlog & version
 
-- **Task #3** — Audit switch-in order logic after a faint
-- **Task #4** — Build lead selection framework. *Engine-grounded (0.38.0):*
-  `select_leads` scores every C(n,2) lead pair on a real turn-1 `BattleState`
-  vs the predicted opp pair (best phase-1 attack weight per slot, product over
-  the pair; ×0.5 when the engine's best action for a lead is a **switch** —
-  self-refuting lead; TR/undeniable-TW rosters add averaged field variants).
-  `select_team` uses per-member engine damage matchups vs the opp six with
-  native mega demotion (second stone holder re-evaluated as its base form).
-  The old type-chart scoring remains only as the fallback for unresolvable
-  members (synthetic fixtures). `tools/preview_backtest.py` replays logged
-  previews through the current selector for validation.
-  *Opponent-lead prediction is co-occurrence-aware (0.34.0):*
-  `data.lead_stats.predict_pair` prefers the previewed duo actually **co-led**
-  most (a `pairs` map in `lead_stats.json`) over the two highest *individual*
-  leads, which otherwise pairs two rarely-together supports (Whimsicott+Farigiraf
-  co-led only 5×). Falls back to anchor+real-partner, then top-2 singles.
-  **Activate by rebuilding `lead_stats.json` with `pairs` (`tools/build_lead_stats.py`
-  or any `record_leads` reseed)** — inert (singles fallback) until then.
-  Remaining idea: validate the row magnitudes (×0.85) against the next
-  100-game sample's led-vs-back splits.
-- **Task #5** — Stat-aware mega selection. **COMPLETE (0.44.0):** `select_team`
-  demotes a second stone-holder natively (engine matchup scores, 0.38.0), and
-  `select_mega` now designates the brought stone holder with the highest
-  **engine gain** (`mega_val − base_val` from `_engine_matchup_scores`),
-  replacing the old defensive type-delta. The whole preview pipeline is
-  engine-grounded; the legacy type-chart path was deleted in the 0.44.0
-  cleanup.
-- **Ongoing** — Investigate weight issues surfaced by `snapshots/turn1_openings/baseline.md`. The
-  FakeOut over-protection (×0.5 discount looked too aggressive; gratuitous lone
-  Protects) is now addressed *via coordination* — `CoordinationModule` (0.6.9)
-  flips a gratuitous lone Protect to an attack beside an attacking partner,
-  rather than re-tuning the FakeOut multipliers. Remaining: opponent **setup**
-  (Tailwind/TR/defensive boosts) is the biggest loss correlate (59.8% of 0.6.8
-  losses) — largely a team gap (no Taunt/Haze/speed-control), tracked separately.
-
----
-
-## Current version
-
-Single source of truth: **`version.py`** (`__version__`), imported by `main.py`
-(battle-log folder + elo log) and `tools/gen_snapshot.py` (snapshot header).
-Bump that one line per release and add a `CHANGELOG.md` entry; everything else
-derives from it. See `CHANGELOG.md` for full history.
+- **Open tasks / ideas live in `BACKLOG.md`** — check it before starting new
+  work; don't duplicate the task list here.
+- **Version:** single source of truth is `version.py` (`__version__`), imported
+  by `main.py` + `tools/gen_snapshot.py`; `tools/release.py` bumps it. Full
+  per-version history is in `CHANGELOG.md` — check it before investigating a bug.
 
 ---
 
 ## Compact instructions
 
 When compacting, always preserve:
-- The 13-module pipeline order and what each module does
-- Current team (species, items, moves)
-- Any weight bug currently under investigation and which matchups reproduce it
-- Pending task numbers and descriptions
-- Key file paths and API patterns (BattleState construction, scored_actions)
-- Current engine version
+- The two-phase pipeline (19 per-slot modules multiply → `coordinate` argmax
+  over pairs) and the Key-invariants section above
+- Any weight bug under investigation and which matchups reproduce it
+- Key file paths and the test-BattleState / scored_actions API patterns
+- The fixed-command workflow (approvals) and current engine version
