@@ -17,6 +17,30 @@ from __future__ import annotations
 
 import html
 import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
+# The numeric weights are read LIVE from the engine so the table can never
+# drift from decision/modules.py — edit a constant there, re-run this, done.
+from decision.modules import (  # noqa: E402
+    DamageOutputModule as _Dmg, ThreatEliminationModule as _Threat,
+    DoomedModule as _Doom, PriorityKillModule as _PKill,
+    PriorityBlockModule as _PBlock, ProtectValueModule as _Prot,
+    EndgameStallModule as _End, TurnOrderModule as _TO,
+    OppProtectRecencyModule as _OPR, ConsecutiveProtectModule as _CP,
+    FakeOutModule as _FO, FieldConditionModule as _FC,
+    SwitchTempoModule as _ST, SwitchSafetyModule as _SS,
+    DoublingAdjuster as _Dbl, OverkillAdjuster as _Ovk,
+    PartnerClearsAdjuster as _PC, CoordinationAdjuster as _Coord,
+    SETUP_URGENCY, SETUP_DENIAL, BOOST_TARGET_FACTOR,
+)
+
+
+def _x(v: float) -> str:
+    """Format a multiplier as a table cell, e.g. 2.5 -> '×2.5', 0.0 -> '×0'."""
+    return f"×{v:g}"
+
 
 OUT = pathlib.Path(__file__).resolve().parent.parent / "docs" / "decision_weights.svg"
 
@@ -27,72 +51,88 @@ OUT = pathlib.Path(__file__).resolve().parent.parent / "docs" / "decision_weight
 #   tail = [protect, switch1, switch2]   each a str, or (str, span) to merge cells
 SECTION = "__section__"
 
+# Numeric cells reference the LIVE engine constants (via _x / f-strings) so a
+# weight change in decision/modules.py flows straight into the table on re-run.
+# The prose in the Note column is hand-written (not derivable from a number).
+_TURN_ORDER = " · ".join(f"pos {k} {_x(v)}"
+                         for k, v in sorted(_TO._MULTIPLIERS.items()))
+
 ROWS = [
     ("—",   "Starting Weight",        ("span6", "1"),                 ["1", "1", "1"],
      "All options equally likely to start"),
-    ("1",   "Predicted Damage Dealt", ("cells", "×(1 + d×2.0)"),      ["-", "—", "—"],
+    ("1",   "Predicted Damage Dealt",
+     ("cells", f"×({_Dmg.DAMAGE_INTERCEPT:g} + d×{_Dmg.DAMAGE_SLOPE:g})"), ["-", "—", "—"],
      "d = median damage roll as a fraction of the target's current HP, capped at 1.0 — "
      "overkill earns nothing (value saturates at lethal, so the joint pass routes by chip, "
      "not by which foe is overkilled hardest)"),
-    ("2",   "Score A Guaranteed Kill", ("span6", "×5"),               ["—", "—", "—"],
+    ("2",   "Score A Guaranteed Kill", ("span6", _x(_Threat.GUARANTEED_OHKO)), ["—", "—", "—"],
      "Lowest damage roll ≥ the target's HP"),
-    ("3",   "Die Before Acting",      ("span6", "×0.2"),              ["—", "—", "—"],
+    ("3",   "Die Before Acting",      ("span6", _x(_Doom.DOOMED_FACTOR)), ["—", "—", "—"],
      "A faster threat will kill before we act (priority aware)"),
-    ("4",   "Priority Kill",          ("span6", "×3.0"),              ["—", "—", "—"],
+    ("4",   "Priority Kill",          ("span6", _x(_PKill.PRIORITY_KILL_FACTOR)), ["—", "—", "—"],
      "If one of our priority moves can score a kill"),
-    ("5",   "Priority Block",         ("span6", "×0"),                ["—", "—", "—"],
+    ("5",   "Priority Block",         ("span6", _x(_PBlock.BLOCK_FACTOR)), ["—", "—", "—"],
      "Cancel priority attacks while an opponent has Armor Tail / Queenly Majesty on the field"),
-    ("6",   "Incoming Kill",          ("span6", "—"),                 ["×2.5", "—", "—"],
+    ("6",   "Incoming Kill",          ("span6", "—"),                 [_x(_Prot.THREATENED_FACTOR), "—", "—"],
      "An opponent's max roll kills this mon at its current HP"),
-    ("7.a", "1v1 Endgame",            ("span6", "—"),                 ["×0.2", "—", "—"],
+    ("7.a", "1v1 Endgame",            ("span6", "—"),                 [_x(_End.ENDGAME_1V1_FACTOR), "—", "—"],
      "Protect stalling in 1v1 only delays"),
-    ("7.b", "2v1 Endgame",            ("span6", "—"),                 ["×0.2", "—", "—"],
+    ("7.b", "2v1 Endgame",            ("span6", "—"),                 [_x(_End.ADVANTAGE_2V1_FACTOR), "—", "—"],
      "Protect stalling in 2v1 can't improve the outcome"),
-    ("8",   "Turn Order",             ("span6", "pos 1 ×2.0 · pos 2 ×1.5 · pos 3 ×1.0 · pos 4 ×0.75"),
+    ("8",   "Turn Order",             ("span6", _TURN_ORDER),
      ["—", "—", "—"], "pos = Our rank in the 4-mon turn order"),
-    ("9",   "Setup Urgency",          ("span3", "×2.0", "×2.0"),      ["—", "—", "—"],
+    ("9",   "Setup Urgency",          ("span3", _x(SETUP_URGENCY), _x(SETUP_URGENCY)), ["—", "—", "—"],
      "A setter is on the field, but their effect isn't active *"),
-    ("10",  "Setup Denial",           ("span3", "×2.0", "×2.0"),      ["—", "—", "—"],
+    ("10",  "Setup Denial",           ("span3", _x(SETUP_DENIAL), _x(SETUP_DENIAL)), ["—", "—", "—"],
      "OHKOs a setter *"),
-    ("11.a", "target Protected last turn (Slot 1)", ("span3", "×1.3", "—"), ["—", "—", "—"],
+    ("11.a", "target Protected last turn (Slot 1)",
+     ("span3", _x(_OPR.PROTECTED_BOOST), "—"), ["—", "—", "—"],
      "the Slot-1 target used Protect last turn, so it can't Protect again"),
-    ("11.b", "target Protected last turn (Slot 2)", ("span3", "—", "×1.3"), ["—", "—", "—"],
+    ("11.b", "target Protected last turn (Slot 2)",
+     ("span3", "—", _x(_OPR.PROTECTED_BOOST)), ["—", "—", "—"],
      "the Slot-2 target used Protect last turn, so it can't Protect again"),
-    ("12",  "I used Protect last turn", ("span6", "—"),               ["×0.2", "—", "—"],
+    ("12",  "I used Protect last turn", ("span6", "—"),               [_x(_CP.CONSECUTIVE_PENALTY), "—", "—"],
      "consecutive Protect"),
-    ("13",  "Fake Out threatened",    ("merge6", "×0.5"),             ["×3.0", "—", "—"],
+    ("13",  "Fake Out threatened",    ("merge6", _x(_FO.ATTACK_DISCOUNT)),
+     [_x(_FO.PROTECT_BOOST), "—", "—"],
      "a fresh Fake Out user is on the field"),
-    ("14",  "Field Condition stall",  ("span6", "—"),                 ["×3.0", "—", "—"],
+    ("14",  "Field Condition stall",  ("span6", "—"),                 [_x(_FC.STALL_FACTOR), "—", "—"],
      "opp Trick Room / Tailwind has 1 or 3 turns left"),
     ("15",  "redirection hedge",      ("cells", "×d (to redirector)"), ["—", "—", "—"],
      "Rage Powder / Follow Me user active; hedge our attack on the possibility of redirection"),
-    ("16",  "Switch tempo",           ("span6", "—"),                 ["—", "×0.8", "×0.8"],
+    ("16",  "Switch tempo",           ("span6", "—"),                 ["—", _x(_ST.TEMPO_FACTOR), _x(_ST.TEMPO_FACTOR)],
      "flat cost of switching — forfeit the turn + concede a free hit"),
     ("17",  "Switch offense",         ("span6", "—"),                 ["—", "×(1+g)", "×(1+g)"],
      "g = the switch-in's best-damage gain over the mon staying in (floored at 0)"),
-    ("18",  "Switch safety",          ("span6", "—"),                 ["—", "×4.0 / ×0.3", "×4.0 / ×0.3"],
-     "×4.0 escape a connecting OHKO into a surviving switch-in; ×0.3 if the switch-in is itself OHKO'd"),
-    ("19",  "Boosted target",         ("span6", "×(1 + 0.4×stages)"), ["—", "—", "—"],
+    ("18",  "Switch safety",          ("span6", "—"),
+     ["—", f"{_x(_SS.ESCAPE_FACTOR)} / {_x(_SS.DANGER_FACTOR)}",
+      f"{_x(_SS.ESCAPE_FACTOR)} / {_x(_SS.DANGER_FACTOR)}"],
+     f"{_x(_SS.ESCAPE_FACTOR)} escape a connecting OHKO into a surviving switch-in; "
+     f"{_x(_SS.DANGER_FACTOR)} if the switch-in is itself OHKO'd"),
+    ("19",  "Boosted target",         ("span6", f"×(1 + {BOOST_TARGET_FACTOR:g}×stages)"), ["—", "—", "—"],
      "attacks into a stat-boosted opponent, per positive stage on the target — 1 stage ×1.4, "
      "2 ×1.8; punish the snowball before it rolls"),
     (SECTION, "Phase 2 — joint adjusters (applied to the chosen pair)", None, None, None),
-    ("J1",  "doubling up",            ("span6", "×0.4"),              ["—", "—", "—"],
+    ("J1",  "doubling up",            ("span6", _x(_Dbl.DOUBLING_FACTOR)), ["—", "—", "—"],
      "flat penalty when both slots attack the same target — the spread-your-damage tax"),
-    ("J2",  "overkill",               ("span6", "×0.05"),             ["—", "—", "—"],
+    ("J2",  "overkill",               ("span6", _x(_Ovk.FACTOR)),     ["—", "—", "—"],
      "one slot already guarantees the OHKO on the shared target → near-veto the other "
      "(wasteful) doubler, so the pair that spreads onto the survivor wins. Composes on top of J1"),
-    ("J2b", "joint setup denial",      ("span6", "×2.5 × ×2.0"),      ["—", "—", "—"],
-     "both attack the same SETTER (TR/TW), neither solo-OHKOs it, but summed min rolls kill it "
-     "and both attacks resolve before it moves → doubling tax waived (×2.5) + setup denial (×2.0)"),
-    ("J3",  "attack alongside partner", ("span6", "—"),               ["×0.5", "—", "—"],
+    ("J2b", "joint setup denial",
+     ("span6", f"×{1 / _Dbl.DOUBLING_FACTOR:g} × {_x(SETUP_DENIAL)}"), ["—", "—", "—"],
+     f"both attack the same SETTER (TR/TW), neither solo-OHKOs it, but summed min rolls kill it "
+     f"and both attacks resolve before it moves → doubling tax waived (×{1 / _Dbl.DOUBLING_FACTOR:g}) "
+     f"+ setup denial ({_x(SETUP_DENIAL)})"),
+    ("J3",  "attack alongside partner", ("span6", "—"),               [_x(_Coord.SPLIT_PENALTY), "—", "—"],
      "a gratuitous lone Protect (no real OHKO/stall reason, e.g. only a Fake Out nudge) "
      "beside an attacking partner — favour the double-attack"),
-    ("J4",  "Fake Out absorbed (free partner)", ("span6", "×2.0"),    ["×0.33", "—", "—"],
+    ("J4",  "Fake Out absorbed (free partner)",
+     ("span6", _x(1 / _FO.ATTACK_DISCOUNT)), [_x(1 / _FO.PROTECT_BOOST), "—", "—"],
      "when either slot attacks, the partner's Fake-Out multiplier above is divided back out "
      "(attack un-halved, Protect un-boosted) — a pair pays the Fake-Out adjustment once, never twice"),
     ("J5",  "switch collision",       ("span6", "—"),                 ["—", ("×0", 2)],
      "both slots switch to the same bench mon → that pair is vetoed"),
-    ("J6",  "Partner Clears",         ("span6", "—"),                 ["×3.0", "—", "—"],
+    ("J6",  "Partner Clears",         ("span6", "—"),                 [_x(_PC.PARTNER_KO_FACTOR), "—", "—"],
      "one slot Protects against a connecting OHKO and the partner's chosen attack guaranteed-"
      "OHKOs that threatener → Protect so we survive while the partner removes it "
      "(was phase-1 \"Threat Clear\"; it's a cross-slot question, so it's phase 2)"),
