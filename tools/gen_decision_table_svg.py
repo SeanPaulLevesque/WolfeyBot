@@ -137,6 +137,11 @@ def _esc(s: str) -> str:
     return html.escape(s, quote=True)
 
 
+def _comment(s: str) -> str:
+    """Sanitise text for an XML comment: `--` is illegal inside `<!-- -->`."""
+    return s.replace("--", "—")
+
+
 def _text(x, y, s, *, cls="tx", anchor="middle", fs=FS, bold=False):
     weight = ' font-weight="600"' if bold else ""
     return (f'<text x="{x:.1f}" y="{y:.1f}" class="{cls}" font-size="{fs}" '
@@ -201,6 +206,7 @@ def build() -> str:
     for row in ROWS:
         num, name, atk, tail, note = row
         if num == SECTION:
+            body.append(f'<!-- ══ {_comment(name)} ══ -->')
             h = ROW_MIN
             body.append(f'<rect x="0" y="{y:.1f}" width="{TOTAL_W}" height="{h}" class="sec"/>')
             body.append(_hline(y))
@@ -211,6 +217,7 @@ def build() -> str:
             y += h
             continue
 
+        body.append(f'<!-- row {num}: {_comment(name)} -->')
         name_lines = _wrap(name, W[1], FS)
         note_lines = _wrap(note, W[11], FS_NOTE)
         h = max(ROW_MIN, LINE_H * max(len(name_lines), len(note_lines)) + 8)
@@ -265,29 +272,42 @@ def build() -> str:
         hdr.append(_vline(X[idx], 0, HEADER_H))
     hdr.append(_vline(TOTAL_W, 0, HEADER_H))
 
-    style = """
-    <style>
-      .bg { fill: #ffffff; }
-      .hd { fill: #f6f8fa; }
-      .sec{ fill: #eaeef2; }
-      .tx { fill: #1f2328; font-family: -apple-system, Segoe UI, Helvetica, Arial, sans-serif; }
-      .bd { stroke: #d0d7de; stroke-width: 1; }
-      @media (prefers-color-scheme: dark) {
-        .bg { fill: #0d1117; }
-        .hd { fill: #161b22; }
-        .sec{ fill: #21262d; }
-        .tx { fill: #e6edf3; }
-        .bd { stroke: #30363d; }
-      }
-    </style>"""
+    style = (
+        '<style>\n'
+        '    .bg { fill: #ffffff; }\n'
+        '    .hd { fill: #f6f8fa; }\n'
+        '    .sec{ fill: #eaeef2; }\n'
+        '    .tx { fill: #1f2328; font-family: -apple-system, Segoe UI, Helvetica, Arial, sans-serif; }\n'
+        '    .bd { stroke: #d0d7de; stroke-width: 1; }\n'
+        '    @media (prefers-color-scheme: dark) {\n'
+        '      .bg { fill: #0d1117; }\n'
+        '      .hd { fill: #161b22; }\n'
+        '      .sec{ fill: #21262d; }\n'
+        '      .tx { fill: #e6edf3; }\n'
+        '      .bd { stroke: #30363d; }\n'
+        '    }\n'
+        '  </style>'
+    )
 
+    # One element per line, indented inside <svg>, with the row comments already
+    # threaded through `body` — so the file is diff-friendly and hand-readable
+    # (it is generated, but a clean diff makes weight-table changes reviewable).
+    elements = (
+        [style,
+         f'<rect x="0" y="0" width="{TOTAL_W}" height="{total_h:.0f}" class="bg"/>',
+         '',
+         '<!-- column header -->']
+        + hdr
+        + ['', '<!-- table body + notes -->']
+        + body
+    )
+    inner = "\n  ".join(elements)
     return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{TOTAL_W}" height="{total_h:.0f}" '
-        f'viewBox="0 0 {TOTAL_W} {total_h:.0f}" font-family="sans-serif">'
-        f'{style}'
-        f'<rect x="0" y="0" width="{TOTAL_W}" height="{total_h:.0f}" class="bg"/>'
-        + "".join(hdr) + "".join(body)
-        + "</svg>\n"
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{TOTAL_W}" '
+        f'height="{total_h:.0f}" viewBox="0 0 {TOTAL_W} {total_h:.0f}" '
+        f'font-family="sans-serif">\n'
+        f'  {inner}\n'
+        f'</svg>\n'
     )
 
 
