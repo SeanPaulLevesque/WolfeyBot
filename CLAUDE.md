@@ -7,7 +7,7 @@ WolfeyBot is a Gen 9 VGC doubles bot that plays on Pokémon Showdown in the
 2026-06-17 (`BATTLE_FORMAT` in `main.py` is `gen9championsvgc2026regmb`); the
 data/usage layer runs on the real Smogon **M-B** dumps since 0.37.0. It
 connects via WebSocket, parses the battle protocol, and chooses moves using a
-two-phase scoring engine (19 per-slot modules + 7 joint adjusters; see the
+two-phase scoring engine (20 per-slot modules + 7 joint adjusters; see the
 pipeline section below).
 
 ---
@@ -43,7 +43,7 @@ to make green by editing expectations. This is a hard rule:
 | `main.py` | WebSocket client — connects to Showdown, drives the game loop |
 | `battle.py` / `battle_state.py` | `BattleState` and `Pokemon` dataclasses; battle protocol parser |
 | `decision/engine.py` | `Action`, `ScoringModule`, `DecisionEngine`, `_build_actions` |
-| `decision/modules.py` | All 19 per-slot modules + 7 joint adjusters + `make_engine()` factory |
+| `decision/modules.py` | All 20 per-slot modules + 7 joint adjusters + `make_engine()` factory |
 | `team.py` | `find_member(species)` + active-team selector (`set_active_team`, `get_team`, `list_teams`, `validate_team`, `resolve_team_spec`) |
 | `teams/` | Named ladder teams for A/B testing: `teams/<name>/v<n>.txt` pastes + `teams.json` manifest (name → label, account, current version). See `teams/README.md` |
 | `snapshots/` | Decision-snapshot regression subsystem: `baseline_team.txt` (frozen baseline roster, the no-`--team` fallback) + `<scenario>/<team>.md` generated tables |
@@ -73,7 +73,7 @@ target* is part of the action's identity — not a field that modules pick and
 overwrite. Spread/status/self moves and switches are single candidates
 (`target_slot=None`).
 
-### Phase 1 — per-slot scoring (19 modules)
+### Phase 1 — per-slot scoring (20 modules)
 Each candidate starts at `weight = 1.0`; modules multiply — never add. A slot is
 scored **in isolation** (blind to the partner) over its own candidates. The
 numbering matches `docs/DECISION_ARCHITECTURE.md` and the `make_engine` list, but
@@ -100,8 +100,9 @@ reasons, so the order is for readability only.
 | 15 | Redirection | Hedge single-target attacks vs an active Rage Powder / Follow Me user: ×(damage to the redirector, capped 1.0); immune→×0, OHKO-on-redirector→×1.0. Exempts spread/status/switch, a Stalwart/Propeller-Tail attacker, and (Rage Powder) a Grass / Overcoat / Safety-Goggles attacker |
 | 16 | SwitchTempo | Flat cost of switching at all: ×0.8 on every switch (forfeit the turn + concede a free hit). A switch must earn its keep via #17/#18 |
 | 17 | SwitchOffense | ×(1+g), `g = max(0, switch_in_offense − current_offense)` (best single hit to the live foes). Floored at 0 — a softer-hitting defensive switch isn't penalised here. `_best_offense` is full-damage-modifier-aware via the shared `_outgoing_*_mods` helpers, for **both** the current mon (its boosts/burn/HP) and the switch-in (its own — e.g. a persistent burn), and the opponent's boosts/screens — so a debuffed mon vs a +Def wall is judged on the real board |
-| 18 | SwitchSafety | One `_switch_in_survives` board check: ×4.0 if the current mon faces a connecting OHKO and the switch-in survives (escape); ×0.3 if the switch-in is itself OHKO'd (soft discount, not a veto). Same-bench-mon collision is phase 2. `_switch_in_survives` (and the active-mon threat facts in `build_turn_context`) are full-modifier-aware via the shared `_incoming_attacker_mods(opp)` / `_incoming_defender_mods(state, mon)` helpers — so a +Atk foe / our screens / our boosts all count |
-| 19 | BoostedTarget | Attacks aimed at a stat-boosted opponent ×(1 + 0.4 × Σ positive stages) — 1 stage ×1.4, 2 ×1.8. Punish the snowball (endgame autopsy: opp boosted in 61% of late loss-turns vs 38% in wins). Positive stages only (accuracy/evasion count); spread attacks take the most-boosted live foe; Protect/switches untouched |
+| 18 | SwitchEscape | Bail a doomed current mon into safety: ×4.0 when the current mon faces a connecting OHKO **and** the switch-in survives. One `_switch_in_survives` board check (shared with #19); it and the active-mon threat facts in `build_turn_context` are full-modifier-aware via the shared `_incoming_attacker_mods(opp)` / `_incoming_defender_mods(state, mon)` helpers — so a +Atk foe / our screens / our boosts all count. Split out of the old SwitchSafety (0.44.4) |
+| 19 | SwitchDanger | Don't land into a waiting KO: ×0.3 when the switch-in is itself OHKO'd — a soft discount, not a veto. Reads the same `_switch_in_survives` check as #18; the same-bench-mon collision is phase 2 (SwitchCollisionAdjuster). Split out of the old SwitchSafety (0.44.4) |
+| 20 | BoostedTarget | Attacks aimed at a stat-boosted opponent ×(1 + 0.4 × Σ positive stages) — 1 stage ×1.4, 2 ×1.8. Punish the snowball (endgame autopsy: opp boosted in 61% of late loss-turns vs 38% in wins). Positive stages only (accuracy/evasion count); spread attacks take the most-boosted live foe; Protect/switches untouched |
 
 ### Phase 2 — joint coordination (`DecisionEngine.coordinate`)
 Phase 1 yields a ranked candidate list per slot. `coordinate` then picks the
@@ -297,7 +298,7 @@ rm) stays manual on purpose.
 ## Compact instructions
 
 When compacting, always preserve:
-- The two-phase pipeline (19 per-slot modules multiply → `coordinate` argmax
+- The two-phase pipeline (20 per-slot modules multiply → `coordinate` argmax
   over pairs) and the Key-invariants section above
 - Any weight bug under investigation and which matchups reproduce it
 - Key file paths and the test-BattleState / scored_actions API patterns

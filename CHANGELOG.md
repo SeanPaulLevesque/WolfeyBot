@@ -1,5 +1,27 @@
 # WolfeyBot Changelog
 
+## 0.44.4 — 2026-07-13
+
+**Split `SwitchSafetyModule` (#18) into two single-concern modules** — a
+behavior-preserving refactor.
+
+The old module bundled two unrelated reads behind one `_switch_in_survives`
+board check:
+
+- **`SwitchEscapeModule` (#18)** — ×4.0 when the *current* mon faces a
+  connecting OHKO **and** the switch-in survives (the escape pivot).
+- **`SwitchDangerModule` (#19)** — ×0.3 when the *switch-in itself* is OHKO'd
+  (a soft discount, not a veto).
+
+They have different subjects (current mon vs. switch-in) and opposite
+directions (reward vs. penalty), so each now lives in its own independently
+tunable module — mirroring the earlier #16 tempo / #17 offense decomposition.
+`BoostedTargetModule` renumbers #19 → #20 (20 per-slot modules total). The
+reason-string prefixes change `switch_safety:` → `switch_escape:` /
+`switch_danger:` (nothing parses them). The per-slot product is identical in
+every case, so the full suite — including the turn-1 decision snapshots —
+passes unchanged.
+
 ## 0.44.3 — 2026-07-11
 
 ### Fixes

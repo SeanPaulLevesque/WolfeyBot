@@ -1657,13 +1657,14 @@ def _incoming_defender_mods(state: "BattleState", mon: "Pokemon | None") -> dict
     }
 
 
-# ── Switch evaluation (decomposed into modules 16–18) ─────────────────────────
-# A switch is scored by a cheap 1-ply board lookahead, split into three
+# ── Switch evaluation (decomposed into modules 16–19) ─────────────────────────
+# A switch is scored by a cheap 1-ply board lookahead, split into four
 # independent multipliers so each can be tuned on its own (phase 1 commutes):
 #   16 SwitchTempo   — the flat cost of switching at all
 #   17 SwitchOffense — does the switch-in hit the current foes harder?
-#   18 SwitchSafety  — escape a connecting OHKO / avoid switching into one
-# The two damage helpers below are shared by the offense / safety modules.
+#   18 SwitchEscape  — bail a doomed current mon into a surviving switch-in
+#   19 SwitchDanger  — discount switching into a waiting OHKO
+# The two damage helpers below are shared by the offense / escape / danger modules.
 # (Two slots switching to the *same* bench mon is vetoed jointly in phase 2 —
 # SwitchCollisionAdjuster — not here.)
 
@@ -1817,17 +1818,47 @@ class SwitchOffenseModule(ScoringModule):
                 f"{self.name}: +{g:.0%} offense gain -> x{1.0 + g:.2f}")
 
 
-class SwitchSafetyModule(ScoringModule):
-    """The defensive read on a switch, off one ``_switch_in_survives`` check:
+class SwitchEscapeModule(ScoringModule):
+    """Reward bailing a *doomed current mon* into a safe switch-in.
 
-      * **Escape** (×``ESCAPE_FACTOR``) — the current mon is OHKO-threatened by a
-        *connecting* hit and the switch-in survives: bail into safety.
-      * **Danger** (×``DANGER_FACTOR``) — the switch-in is itself OHKO'd by an
-        active opponent: discourage it (a soft discount, not a veto).
+    ×``ESCAPE_FACTOR`` when the current mon is OHKO'd by a *connecting* hit and
+    the switch-in survives — the escape pivot.  One ``_switch_in_survives``
+    board check; the mirror-image "don't land into a KO" discount is its own
+    module, :class:`SwitchDangerModule`.
     """
 
-    name = "switch_safety"
+    name = "switch_escape"
     ESCAPE_FACTOR = 4.0
+
+    def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
+        live_switches = [a for a in actions if a.is_switch]
+        if not live_switches:
+            return
+        mon = state.my_actives[slot] if slot < len(state.my_actives) else None
+        if mon is None:
+            return
+        if not _ensure_turn_ctx(state).is_threatened(slot):
+            return   # nothing to escape from — this module only rewards a bail-out
+        for action in live_switches:
+            bench_tm, bench_mon, bench_item = _live_switch_bench(state, action)
+            if bench_tm is None:
+                continue
+            if _switch_in_survives(
+                    state, action.switch_target, bench_tm, bench_item, bench_mon):
+                action.weight *= self.ESCAPE_FACTOR
+                action.reasons.append(
+                    f"{self.name}: escapes OHKO -> x{self.ESCAPE_FACTOR}")
+
+
+class SwitchDangerModule(ScoringModule):
+    """Discourage switching a mon *into* a waiting OHKO.
+
+    ×``DANGER_FACTOR`` when the switch-in is itself OHKO'd by an active opponent
+    — a soft discount, not a veto.  One ``_switch_in_survives`` board check; the
+    mirror-image escape reward is its own module, :class:`SwitchEscapeModule`.
+    """
+
+    name = "switch_danger"
     DANGER_FACTOR = 0.3
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
@@ -1837,18 +1868,12 @@ class SwitchSafetyModule(ScoringModule):
         mon = state.my_actives[slot] if slot < len(state.my_actives) else None
         if mon is None:
             return
-        cur_threatened = _ensure_turn_ctx(state).is_threatened(slot)
         for action in live_switches:
             bench_tm, bench_mon, bench_item = _live_switch_bench(state, action)
             if bench_tm is None:
                 continue
-            survives = _switch_in_survives(
-                state, action.switch_target, bench_tm, bench_item, bench_mon)
-            if cur_threatened and survives:
-                action.weight *= self.ESCAPE_FACTOR
-                action.reasons.append(
-                    f"{self.name}: escapes OHKO -> x{self.ESCAPE_FACTOR}")
-            if not survives:
+            if not _switch_in_survives(
+                    state, action.switch_target, bench_tm, bench_item, bench_mon):
                 action.weight *= self.DANGER_FACTOR
                 action.reasons.append(
                     f"{self.name}: switch-in OHKO'd -> x{self.DANGER_FACTOR}")
@@ -2707,7 +2732,7 @@ def make_engine() -> DecisionEngine:
       PriorityBlock -> ProtectValue -> EndgameStall -> TurnOrder -> Urgency ->
       Setup Denial -> OppProtectRecency -> ConsecutiveProtect -> FakeOut ->
       FieldCondition -> Redirection -> SwitchTempo -> SwitchOffense ->
-      SwitchSafety
+      SwitchEscape -> SwitchDanger -> BoostedTarget
 
     Each module multiplies the candidate's weight from precomputed TurnContext
     facts and the candidate itself — none reads the running weight or another
@@ -2749,8 +2774,9 @@ def make_engine() -> DecisionEngine:
             RedirectionModule(),          # 15: hedge single-target attacks vs an active redirector
             SwitchTempoModule(),          # 16: flat cost of switching (×0.8)
             SwitchOffenseModule(),        # 17: switch-in hits harder? ×(1+offense gain)
-            SwitchSafetyModule(),         # 18: escape a connecting OHKO (×4.0) / switch into one (×0.3)
-            BoostedTargetModule(),        # 19: prioritise boosted targets ×(1 + 0.4×stages)
+            SwitchEscapeModule(),         # 18: bail a doomed mon into a surviving switch-in (×4.0)
+            SwitchDangerModule(),         # 19: switch-in itself OHKO'd → soft discount (×0.3)
+            BoostedTargetModule(),        # 20: prioritise boosted targets ×(1 + 0.4×stages)
         ],
         joint=[
             DoublingAdjuster(),           # both attack same target: ×0.4 flat (spread your damage)

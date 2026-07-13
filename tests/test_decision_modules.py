@@ -36,7 +36,8 @@ from decision import (
     SwitchCollisionAdjuster,
     SwitchTempoModule,
     SwitchOffenseModule,
-    SwitchSafetyModule,
+    SwitchEscapeModule,
+    SwitchDangerModule,
     DamageOutputModule,
     ThreatEliminationModule,
     DoomedModule,
@@ -1948,13 +1949,15 @@ class TestSetupDenial:
 
 
 class TestSwitchModule:
-    """The decomposed switch modules (#16 tempo, #17 offense, #18 safety) — run
-    in sequence they reproduce the old single-module product."""
+    """The decomposed switch modules (#16 tempo, #17 offense, #18 escape,
+    #19 danger) — run in sequence they reproduce the old single-module
+    product."""
 
     def _score_all(self, state, slot, actions):
         SwitchTempoModule().score(state, slot, actions)
         SwitchOffenseModule().score(state, slot, actions)
-        SwitchSafetyModule().score(state, slot, actions)
+        SwitchEscapeModule().score(state, slot, actions)
+        SwitchDangerModule().score(state, slot, actions)
 
     def test_does_not_veto_partner_switch_collision(self):
         """Partner-blind: the two-slots-switch-to-the-same-mon veto lives in the
@@ -2007,7 +2010,7 @@ class TestSwitchModule:
         # offense gain 0 (current and switch-in deal the same) → (1+g)=1.0;
         # threatened + survives → × ESCAPE_FACTOR.
         expected = (SwitchTempoModule.TEMPO_FACTOR * 1.0
-                    * SwitchSafetyModule.ESCAPE_FACTOR)
+                    * SwitchEscapeModule.ESCAPE_FACTOR)
         assert switch.weight == pytest.approx(expected, abs=0.05)
 
     def test_switch_into_ohko_is_discouraged(self):
@@ -2026,7 +2029,7 @@ class TestSwitchModule:
             self._score_all(state, 0, [switch])
 
         expected = (SwitchTempoModule.TEMPO_FACTOR * 1.0
-                    * SwitchSafetyModule.DANGER_FACTOR)
+                    * SwitchDangerModule.DANGER_FACTOR)
         assert switch.weight == pytest.approx(expected, abs=0.05)
 
 
@@ -3384,7 +3387,7 @@ class TestBenchConsumedItem:
         action = Action(label="Switch Kingambit", switch_target="Kingambit")
         with patch("decision.modules._switch_in_survives",
                    return_value=True) as survives_spy:
-            SwitchSafetyModule().score(state, 0, [action])
+            SwitchDangerModule().score(state, 0, [action])
         # call signature: (state, species, bench_tm, bench_item, bench_mon)
         return survives_spy.call_args[0][3]
 
