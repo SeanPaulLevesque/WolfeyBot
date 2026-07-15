@@ -347,8 +347,8 @@
   },
   "meta-team@v9": {
     "Aerodactyl|Basculegion": {
-      "w": 150,
-      "g": 307
+      "w": 151,
+      "g": 308
     },
     "Basculegion|Lycanroc-Dusk": {
       "w": 52,
@@ -380,7 +380,7 @@
     },
     "Basculegion|Kingambit": {
       "w": 20,
-      "g": 52
+      "g": 53
     },
     "Aerodactyl|Chandelure": {
       "w": 15,
@@ -405,6 +405,110 @@
     "Aerodactyl|Lycanroc-Dusk": {
       "w": 15,
       "g": 30
+    }
+  },
+  "meta-team@v10": {
+    "Chandelure|Greninja": {
+      "w": 2,
+      "g": 4
+    },
+    "Chandelure|Kingambit": {
+      "w": 0,
+      "g": 2
+    },
+    "Greninja|Heliolisk": {
+      "w": 1,
+      "g": 3
+    },
+    "Aerodactyl|Basculegion": {
+      "w": 8,
+      "g": 11
+    },
+    "Basculegion|Greninja": {
+      "w": 6,
+      "g": 18
+    },
+    "Aerodactyl|Kingambit": {
+      "w": 13,
+      "g": 19
+    },
+    "Aerodactyl|Chandelure": {
+      "w": 0,
+      "g": 2
+    },
+    "Greninja|Kingambit": {
+      "w": 1,
+      "g": 3
+    },
+    "Basculegion|Kingambit": {
+      "w": 2,
+      "g": 3
+    },
+    "Heliolisk|Kingambit": {
+      "w": 1,
+      "g": 1
+    }
+  },
+  "meta-team@v11": {
+    "Aerodactyl|Greninja": {
+      "w": 13,
+      "g": 22
+    },
+    "Aerodactyl|Basculegion": {
+      "w": 105,
+      "g": 229
+    },
+    "Greninja|Kingambit": {
+      "w": 74,
+      "g": 133
+    },
+    "Basculegion|Greninja": {
+      "w": 90,
+      "g": 201
+    },
+    "Greninja|Heliolisk": {
+      "w": 0,
+      "g": 3
+    },
+    "Aerodactyl|Kingambit": {
+      "w": 23,
+      "g": 50
+    },
+    "Basculegion|Decidueye-Hisui": {
+      "w": 17,
+      "g": 42
+    },
+    "Decidueye-Hisui|Kingambit": {
+      "w": 15,
+      "g": 28
+    },
+    "Basculegion|Kingambit": {
+      "w": 37,
+      "g": 71
+    },
+    "Aerodactyl|Chandelure": {
+      "w": 37,
+      "g": 64
+    },
+    "Decidueye-Hisui|Greninja": {
+      "w": 13,
+      "g": 29
+    },
+    "Chandelure|Kingambit": {
+      "w": 15,
+      "g": 21
+    },
+    "Basculegion|Chandelure": {
+      "w": 7,
+      "g": 18
+    },
+    "Chandelure|Greninja": {
+      "w": 11,
+      "g": 26
+    },
+    "Aerodactyl|Decidueye-Hisui": {
+      "w": 9,
+      "g": 14
     }
   }
 }
