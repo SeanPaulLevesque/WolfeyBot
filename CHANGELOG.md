@@ -1,5 +1,48 @@
 # WolfeyBot Changelog
 
+## 0.45.1 — 2026-07-15
+
+Two engine changes.
+
+### Fake Out immunity — the modules no longer fire on mons that can't be flinched
+
+`ctx.fake_out[slot]` now requires that our mon at that slot can actually be
+flinched, via a new `_immune_to_fake_out(state, mon)`:
+
+- **Inner Focus** → immune (Scrappy can't bypass it).
+- A **Ghost** type → immune to the Normal-type Fake Out, **unless** a fresh
+  opposing Fake Out user has **Scrappy** (its Normal moves then hit Ghosts).
+
+Both Fake-Out modules read the fact, so an immune slot gets neither the attack
+×0.5 (FakeOutModule #13) nor the Protect ×2 (FakeOutProtectAdjuster). Opponent
+Scrappy resolves through the `_effective_ability` seam (revealed > usage).
+
+Impact: 55 turn-1 decision changes, all one story — a Ghost-immune mon
+(Basculegion Water/Ghost, Aegislash's King's Shield, Poltergeist users) that was
+wastefully Protecting/switching to dodge a Fake Out it can't be hit by now
+attacks instead. +4 unit tests.
+
+### Self-boost setup sweepers added to the setup registry (#9 Urgency, #10 Denial)
+
+Generalised the data-driven setter derivation to cover self-boost sweepers. A new
+`_SELF_BOOST_SETTER_SPECIES` = every base-forme running one of {Dragon Dance,
+Swords Dance, Nasty Plot, Calm Mind, Quiver Dance, Bulk Up, Shell Smash, Coil,
+Shift Gear, Tail Glow, Belly Drum, Victory Dance, Tidy Up, Clangorous Soul, Take
+Heart, Geomancy, Agility, Rock Polish} in ≥40% of its usage (`population_move_users`,
+self-updating), plus **Staraptor** by hand (Mega-Staraptor "sets up" by abusing
+Contrary, which no move-name test can catch). 22 species derived: Volcarona,
+Gyarados, Feraligatr, Blastoise, Gholdengo, Annihilape, Volcarona, …
+
+A new `SetupType(self_boost=True)` row: no board flag, so "still stoppable" is
+per-opponent — the sweeper has no positive stat stage yet. While unboosted, every
+attack ×2 (Urgency) and the guaranteed-OHKO kill shot ×2 (Denial); once it holds
+a positive stage the boost stops and BoostedTargetModule (#20) owns it. Fires
+every turn it's present and unboosted (chosen deliberately — we lose to setup
+sweepers; watch for over-aggression on a lingering unboosted pivot).
+
+0 turn-1 snapshot changes (the fixed scenario's opponent pool contains none of the
+22 sweepers). +3 unit tests. Full suite green (1971).
+
 ## 0.45.0 — 2026-07-14
 
 **Protect/Fake-Out redesign: 1 module = 1 condition set = 1 outcome** — the

@@ -91,8 +91,8 @@ reasons, so the order is for readability only.
 | 6 | ProtectValue | **Single row** on Protect-family moves when `ctx.is_threatened(slot)`: ×5.0 (doubled from 2.5 in 0.45.0 to survive the unconditional LoneProtect ×0.5 — a threatened Protect beside an attacker nets 2.5). The partner-clears ×3.0 is a phase-2 adjuster (`PartnerClearsAdjuster`); the 1v1/2v1 "Protect only delays" cancels are a separate `EndgameStallModule` (#7) — one concern per module |
 | 7 | EndgameStall | Protect ×0.1 when `ctx.is_threatened(slot)` and the board is a 1v1 endgame or 2v1 advantage (Protect only delays; halved 0.2 → 0.1 in 0.45.0 in lockstep with ProtectValue's doubling — the user-tuned net of 0.5 from 0.44.1 is preserved). Split out of ProtectValue |
 | 8 | TurnOrder | By rank in the 4-mon turn order (pos 1 = we act before all 3 other actives): pos 1 ×2.0; pos 2 ×1.5; pos 3 ×1.0; pos 4 ×0.75 — attacks only |
-| 9 | Urgency | One urgency boost per turn, first applicable setup in `_SETUP_TYPES` order (TR first): a setter present & its effect stoppable (not active, or last turn) → all attacks ×`SETUP_URGENCY` (flat ×2 for any setup). Target-agnostic — bias toward attacking, not stalling. Walks the shared `_SETUP_TYPES` registry, so a new urgent setup (screens, …) is one new row. (No TR↔TW cross-guard: the meta runs no mixed TR+TW teams.) |
-| 10 | Setup Denial | A candidate aimed at a setter it guaranteed-OHKOs (`ctx.ohko`), that we outspeed, whose setup move has no +1 priority (Prankster/Gale Wings) → ×`SETUP_DENIAL` (flat ×2 for any setup). At most one denial per action (TR claim wins); active effects can't be denied. Same shared `_SETUP_TYPES` registry as Urgency (#9) |
+| 9 | Urgency | One urgency boost per turn, first applicable setup in `_SETUP_TYPES` order (TR first): a setter present & its effect stoppable → all attacks ×`SETUP_URGENCY` (flat ×2 for any setup). Target-agnostic — bias toward attacking, not stalling. Registry is data-driven (`population_move_users(move, pct)`) so it self-updates with usage. Three kinds now: **TR/TW field effects** (stoppable = not active, or last turn) + **self-boost sweepers** (`_SELF_BOOST_SETTER_SPECIES` — any base-forme running Calm Mind/Shell Smash/… ≥40%, plus Staraptor by hand for its Contrary abuse; stoppable = the setter has no positive boost yet → then #20 owns it). (No TR↔TW cross-guard: the meta runs no mixed TR+TW teams.) |
+| 10 | Setup Denial | A candidate aimed at a setter it guaranteed-OHKOs (`ctx.ohko`), that we outspeed, whose setup move has no +1 priority (Prankster/Gale Wings) → ×`SETUP_DENIAL` (flat ×2 for any setup). At most one denial per action (TR claim wins); active effects can't be denied (a self-boost setter that already boosted is skipped — a normal kill). Same shared `_SETUP_TYPES` registry as Urgency (#9) |
 | 11 | OppProtectRecency | ×1.3 if the candidate's target used Protect last turn |
 | 12 | ConsecutiveProtect | ×0.2 if we used Protect last turn — no exceptions |
 | 13 | FakeOut | `ctx.fake_out_fired(slot)` (fresh Fake Out user on field): attacks ×0.5 — per slot, so a double attack pays it twice (accepted). Protect/switches untouched; the Protect response is phase 2 (`FakeOutProtectAdjuster`) |
@@ -186,6 +186,10 @@ s.trick_room = False
 s.trick_room_turns_left = 0
 s.weather = None
 s.my_tailwind = False
+s.designated_mega = "Greninja"   # the team-preview mega pick — WITHOUT this, a
+                                 # stone-holder is scored at BASE forme (speed,
+                                 # stats, ability) and every fact downstream
+                                 # (turn order, doom, OHKOs) silently degrades
 ```
 
 **Opponent Pokémon at unknown HP:** use `hp=100, max_hp=100, hp_is_percentage=True`

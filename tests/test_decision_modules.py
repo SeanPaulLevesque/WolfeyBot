@@ -22,6 +22,7 @@ from decision import (
     _PROTECT_MOVES,
     _FAKE_OUT_USERS,
     FakeOutModule,
+    _immune_to_fake_out,
     FieldConditionModule,
     OppProtectRecencyModule,
     ProtectValueModule,
@@ -48,6 +49,7 @@ from decision import (
     UrgencyModule,
     SetupDenialModule,
     SETUP_URGENCY,
+    _SELF_BOOST_SETTER_SPECIES,
     SETUP_DENIAL,
     _assumed_ability,
     _effective_ability,
@@ -434,6 +436,37 @@ class TestFakeOutModule:
         for species in ("Hariyama", "Hitmontop", "Ambipom", "Mienshao",
                         "Scream Tail", "Persian", "Persian-Alola"):
             assert species not in _FAKE_OUT_USERS, f"{species} should not be in _FAKE_OUT_USERS"
+
+
+class TestFakeOutImmunity:
+    """`_immune_to_fake_out`: a Ghost or an Inner Focus holder can't be flinched
+    by a Normal-type Fake Out — unless a fresh opposing Fake Out user has Scrappy
+    (which lets its Normal move hit Ghosts; it can't bypass Inner Focus)."""
+
+    def _fresh_fo(self, ability=None):
+        return make_state(
+            opp_actives=[make_mon("Incineroar", side="p2", ability=ability)],
+            opp_last_moves=[""],
+        )
+
+    def test_ghost_type_is_immune(self):
+        # Basculegion is Water/Ghost — a Normal Fake Out can't touch it.
+        assert _immune_to_fake_out(self._fresh_fo(), make_mon("Basculegion"))
+
+    def test_ghost_not_immune_vs_scrappy(self):
+        # Scrappy lets the opposing Fake Out user's Normal move hit a Ghost.
+        assert not _immune_to_fake_out(
+            self._fresh_fo(ability="Scrappy"), make_mon("Basculegion"))
+
+    def test_inner_focus_is_immune_even_vs_scrappy(self):
+        # Inner Focus prevents the flinch outright; Scrappy can't bypass it.
+        mon = make_mon("Garchomp", ability="Inner Focus")
+        assert _immune_to_fake_out(self._fresh_fo(), mon)
+        assert _immune_to_fake_out(self._fresh_fo(ability="Scrappy"), mon)
+
+    def test_ordinary_mon_not_immune(self):
+        # Non-Ghost, non-Inner-Focus (Garchomp is Dragon/Ground) — gets flinched.
+        assert not _immune_to_fake_out(self._fresh_fo(), make_mon("Garchomp"))
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1578,6 +1611,38 @@ class TestUrgency:
         earth = next(a for a in actions if a.move_name == "Earth Power")
         assert earth.weight == pytest.approx(SETUP_URGENCY)
         assert any("re-set risk" in r for r in earth.reasons)
+
+    # ── Self-boost sweepers ───────────────────────────────────────────────────
+
+    def test_self_boost_setter_set_is_derived_and_includes_staraptor(self):
+        """The set is data-derived (non-empty) and carries the manual Staraptor."""
+        assert "Staraptor" in _SELF_BOOST_SETTER_SPECIES
+        assert len(_SELF_BOOST_SETTER_SPECIES) > 1   # 40%-threshold users too
+        assert not any("-Mega" in s for s in _SELF_BOOST_SETTER_SPECIES)
+
+    def test_unboosted_self_boost_sweeper_boosts_attacks(self):
+        """An unboosted setup sweeper (Staraptor) → attacks ×2, Protect/Switch not."""
+        state = make_state(opp_actives=[make_mon("Staraptor"), make_mon("Incineroar")])
+        actions = self._actions()
+        self.urgency.score(state, 0, actions)
+
+        protect = next(a for a in actions if a.move_name == "Protect")
+        earth   = next(a for a in actions if a.move_name == "Earth Power")
+        switch  = next(a for a in actions if a.is_switch)
+        assert earth.weight   == pytest.approx(SETUP_URGENCY)
+        assert protect.weight == pytest.approx(1.0)
+        assert switch.weight  == pytest.approx(1.0)
+        assert any("self_boost" in r for r in earth.reasons)
+
+    def test_already_boosted_sweeper_does_not_fire(self):
+        """Once the sweeper holds a positive stage, urgency stops (BoostedTarget #20
+        owns it) — no boost."""
+        boosted = make_mon("Staraptor", boosts={"atk": 1})
+        state = make_state(opp_actives=[boosted, make_mon("Incineroar")])
+        actions = self._actions()
+        self.urgency.score(state, 0, actions)
+        for a in actions:
+            assert a.weight == pytest.approx(1.0)
 
     def test_tw_boost_fires_while_tr_active_cross_guard_removed(self):
         """Cross-guard removed (the meta runs no mixed TR+TW teams): with TR

@@ -33,10 +33,11 @@ from data import (
     population_move_users as _population_move_users,
     SPEED_BOOST_ITEMS as _SPEED_BOOST_ITEMS,
     CHOICE_ITEMS as _CHOICE_ITEMS,
+    types_of as _types_of,
     note_gap as _note_gap,
 )
 from team import find_member
-from damage import outgoing_damage, incoming_damage, is_grounded
+from damage import outgoing_damage, incoming_damage, is_grounded, type_effectiveness
 from turn_order import Combatant, will_outspeed, priority_bracket
 
 from decision.engine import (
@@ -300,6 +301,37 @@ def _modeled_forme(mon: "Pokemon") -> str:
 def _is_fake_out_user(mon: "Pokemon") -> bool:
     """True if *mon*'s modelled forme is a Fake Out user."""
     return _modeled_forme(mon) in _FAKE_OUT_USERS
+
+
+def _immune_to_fake_out(state: "BattleState", mon: "Pokemon") -> bool:
+    """True if OUR *mon* cannot be flinched by a fresh opposing Fake Out.
+
+    Fake Out is a Normal-type flinch move.  Two immunities matter:
+
+    * **Inner Focus** never flinches — absolute, and Scrappy can't bypass it.
+    * A **Ghost** type is immune to the Normal move (``type_effectiveness`` 0) —
+      **unless** a fresh Fake Out user on the field has **Scrappy**, which lets
+      its Normal moves hit Ghosts (then the Ghost *can* be flinched).
+
+    Reads our exact ability/types (``types_override`` honours a Proteaned
+    forme); the opponent's Scrappy goes through the ``_effective_ability`` seam
+    (revealed > usage), so an unrevealed non-Scrappy user leaves the Ghost immune.
+    """
+    ability = mon.ability or (
+        find_member(mon.species).ability if find_member(mon.species) else None)
+    if ability == "Inner Focus":
+        return True
+    our_types = mon.types_override or _types_of(mon.species) or []
+    if type_effectiveness("Normal", our_types) != 0.0:
+        return False   # not a Ghost — Fake Out connects and flinches
+    # Ghost: immune only if no fresh Fake Out user on the field has Scrappy.
+    for slot, opp in enumerate(state.opp_actives):
+        if opp is None or opp.fainted or not _is_fake_out_user(opp):
+            continue
+        last = state.opp_last_moves[slot] if slot < len(state.opp_last_moves) else ""
+        if last == "" and _effective_ability(opp) == "Scrappy":
+            return False
+    return True
 
 
 def _is_tr_setter(mon: "Pokemon") -> bool:
@@ -1216,10 +1248,11 @@ class TurnContext:
       Aqua Jet is ignored.
     * ``neutralized[opp_slot]`` — that opponent is KO'd before it can act this
       turn (:func:`_opp_neutralized_before_acting`), so its threats never land.
-    * ``fake_out[slot]`` — a fresh Fake Out user threatens the field *and* its
-      non-Fake-Out partner meaningfully threatens our *slot* — the condition
-      under which FakeOutModule discounts that slot's attacks and the
-      FakeOutProtectAdjuster boosts its Protect.
+    * ``fake_out[slot]`` — a fresh Fake Out user is on the field *and* our mon
+      at that slot can actually be flinched (`_immune_to_fake_out` is False —
+      a Ghost with no opposing Scrappy, or an Inner Focus holder, is excluded).
+      The condition under which FakeOutModule discounts that slot's attacks and
+      the FakeOutProtectAdjuster boosts its Protect.
     * ``bench_alive`` / ``alive_slots`` / ``opp_alive`` — board-state counts
       behind the 1v1-endgame and 2v1-advantage rows.
     """
@@ -1477,7 +1510,7 @@ def build_turn_context(state: "BattleState") -> TurnContext:
         mon   = state.my_actives[slot]
         tm    = find_member(mon.species)
         stats = _our_stats(state, slot)
-        ctx.fake_out[slot] = fo_live
+        ctx.fake_out[slot] = fo_live and not _immune_to_fake_out(state, mon)
         if tm is None or stats is None:
             _note_gap("team_member", mon.species)
             continue
@@ -2137,6 +2170,8 @@ class FakeOutModule(ScoringModule):
     A Fake Out flinches one of our mons and wastes its turn; the ×0.5 is the
     chance this slot's attack is the one flinched away.  Applied per slot —
     a double attack carries it twice (accepted: both slots bear the risk).
+    A slot whose mon can't be flinched (`_immune_to_fake_out`: Ghost with no
+    opposing Scrappy, or Inner Focus) never fires — `ctx.fake_out[slot]` is False.
 
     Protect and switches are untouched here.  The Protect response to Fake Out
     is the joint :class:`FakeOutProtectAdjuster` (×2 when the partner is not
@@ -2177,6 +2212,29 @@ _TR_SETTER_MIN_PCT = 40.0
 _TAILWIND_SETTER_MIN_PCT = 20.0
 _TR_SETTER_SPECIES: frozenset[str] = _population_move_users("Trick Room", _TR_SETTER_MIN_PCT)
 _TAILWIND_SETTER_SPECIES: frozenset[str] = _population_move_users("Tailwind", _TAILWIND_SETTER_MIN_PCT)
+
+# Self-boost setup sweepers — a mon that raises its OWN stats (no board flag, no
+# turn counter; the "effect" is its boosts dict).  Derived the same data-driven
+# way as the setters: any base-forme running one of these moves in ≥40% of its
+# usage.  Auto-updates with the stats.  Staraptor is added by hand — Mega-Staraptor
+# "sets up" by abusing Contrary (its stat-lowering moves raise it instead), which
+# no move-name test can catch; this is the one such case in the meta.
+_SELF_BOOST_SETUP_MOVES: frozenset[str] = frozenset({
+    "Dragon Dance", "Swords Dance", "Nasty Plot", "Calm Mind", "Quiver Dance",
+    "Bulk Up", "Shell Smash", "Coil", "Shift Gear", "Tail Glow", "Belly Drum",
+    "Victory Dance", "Tidy Up", "Clangorous Soul", "Take Heart", "Geomancy",
+    "Agility", "Rock Polish",
+})
+_SELF_BOOST_SETTER_MIN_PCT = 40.0
+_SELF_BOOST_SETTER_SPECIES: frozenset[str] = frozenset(
+    sp for mv in _SELF_BOOST_SETUP_MOVES
+    for sp in _population_move_users(mv, _SELF_BOOST_SETTER_MIN_PCT)
+) | {"Staraptor"}
+
+
+def _has_positive_boost(opp: "Pokemon") -> bool:
+    """True if *opp* holds at least one positive stat stage (already set up)."""
+    return any(v > 0 for v in (getattr(opp, "boosts", None) or {}).values())
 
 # Redirection users — same data-driven derivation (base names; membership via
 # _modeled_forme).  Kept as two sets because the two moves differ on immunities
@@ -2247,6 +2305,10 @@ class SetupType:
 
     * ``priority_exempt`` — the setter's setup move carries +1 priority
       (Prankster / Gale Wings), so we can't land first → not deniable.
+    * ``self_boost`` — the setup raises the setter's OWN stats (Calm Mind, Shell
+      Smash, Contrary-Staraptor …).  There is no board flag: "still stoppable"
+      is per-opponent — the matched setter has no positive boost yet.  The
+      board-level ``is_active`` / ``turns_left`` are unused for these rows.
     """
     key: str                                        # reason prefix, e.g. "trick_room"
     abbr: str                                       # short reason tag, e.g. "TR"
@@ -2254,8 +2316,9 @@ class SetupType:
     species: frozenset                              # setter species (base-forme names)
     move: str                                       # setter move (revealed-move match)
     priority_exempt: Callable[["Pokemon"], bool]
-    is_active: Callable[["BattleState"], bool]      # effect already up?
-    turns_left: Callable[["BattleState"], int]      # remaining turns of the effect
+    is_active: Callable[["BattleState"], bool]      # effect already up? (field setups)
+    turns_left: Callable[["BattleState"], int]      # remaining turns (field setups)
+    self_boost: bool = False                        # setter raises its own stats
 
 
 _SETUP_TYPES: list[SetupType] = [
@@ -2272,6 +2335,14 @@ _SETUP_TYPES: list[SetupType] = [
         priority_exempt=_tw_setter_has_priority,
         is_active=lambda s: s.opp_tailwind,
         turns_left=lambda s: s.opp_tailwind_turns_left,
+    ),
+    SetupType(
+        key="self_boost", abbr="setup", label="setup sweeper",
+        species=_SELF_BOOST_SETTER_SPECIES, move="",
+        priority_exempt=lambda opp: False,
+        is_active=lambda s: False,     # no board flag — stoppable is per-opponent
+        turns_left=lambda s: 0,
+        self_boost=True,
     ),
     # Screens (Aurora Veil / Reflect / Light Screen) and any other urgent setup
     # plug in here: add a row with its setter species set + detection and both
@@ -2291,6 +2362,10 @@ class UrgencyModule(ScoringModule):
 
       * **Trick Room** — TR setter up, TR stoppable → every attack ×2.
       * **Tailwind** — TW setter up, TW stoppable → every attack ×2.
+      * **Self-boost sweeper** — an assumed Calm Mind / Shell Smash / … user (or
+        Contrary Staraptor) on the field that hasn't boosted yet → every attack
+        ×2.  "Stoppable" here is per-opponent (no board flag): once it holds a
+        positive stage the boost stops and BoostedTargetModule (#20) takes over.
 
     One boost per turn; Protect and switches are untouched, so it biases the
     slot away from a stall while the speed tier is about to flip.
@@ -2309,14 +2384,23 @@ class UrgencyModule(ScoringModule):
             return
 
         for st in _SETUP_TYPES:
-            if not any(_modeled_forme(o) in st.species for o in active_opps):
-                continue
-            active = st.is_active(state)
-            if active and st.turns_left(state) != 1:
-                continue   # effect up with time left — not stoppable this turn
-            label = (f"{st.key}: {st.abbr} setter on field "
-                     f"({st.abbr} last turn, re-set risk)" if active
-                     else f"{st.key}: {st.abbr} setter on field ({st.abbr} not active)")
+            matches = [o for o in active_opps if _modeled_forme(o) in st.species]
+            if st.self_boost:
+                # Per-opponent "stoppable" = the setter hasn't boosted yet; once
+                # it has, BoostedTargetModule (#20) owns it.
+                matches = [o for o in matches if not _has_positive_boost(o)]
+                if not matches:
+                    continue
+                label = f"{st.key}: {st.label} on field (unboosted)"
+            else:
+                if not matches:
+                    continue
+                active = st.is_active(state)
+                if active and st.turns_left(state) != 1:
+                    continue   # effect up with time left — not stoppable this turn
+                label = (f"{st.key}: {st.abbr} setter on field "
+                         f"({st.abbr} last turn, re-set risk)" if active
+                         else f"{st.key}: {st.abbr} setter on field ({st.abbr} not active)")
             for action in actions:
                 if action.is_switch or action.move_name in _PROTECT_MOVES:
                     continue
@@ -2384,7 +2468,9 @@ class SetupDenialModule(ScoringModule):
     earns the per-target ×``SETUP_DENIAL`` (×2) when the effect isn't already up,
     the kill is confirmed (``ctx.guarantees_ohko``), we outspeed the setter, and
     its setup move carries no +1 priority (Prankster / Gale Wings) — the same
-    flat boost for any setup (Trick Room, Tailwind, …).
+    flat boost for any setup (Trick Room, Tailwind, self-boost sweeper, …).  For
+    a self-boost sweeper "already up" is per-opponent: a setter that has already
+    boosted is skipped (killing it is a normal KO, not a denial).
 
     Registry order breaks ties (Trick Room first), so its claim wins when one
     target sets both; an action denies at most one setup.  Choosing the setter
@@ -2415,6 +2501,8 @@ class SetupDenialModule(ScoringModule):
                     continue
                 if _modeled_forme(opp) not in st.species and st.move not in opp.moves:
                     continue
+                if st.self_boost and _has_positive_boost(opp):
+                    continue   # already set up — a normal kill, not a denial
                 if st.priority_exempt(opp):
                     continue
                 setter_cbt = _opp_combatant(state, opp_slot)
@@ -2508,6 +2596,8 @@ class JointSetupDenialAdjuster(JointAdjuster):
                 continue   # effect already up — nothing left to deny
             if _modeled_forme(opp) not in st.species and st.move not in opp.moves:
                 continue
+            if st.self_boost and _has_positive_boost(opp):
+                continue   # already set up — a combined kill, not a denial
             if st.priority_exempt(opp):
                 continue
             if not (_acts_before_setter(state, slot_a, a0.move_name, target)
