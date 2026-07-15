@@ -88,15 +88,15 @@ reasons, so the order is for readability only.
 | 3 | Doomed | **Per-candidate** (`_move_undeliverable`): ×0.2 on each attack a certain killer would land before — so a priority move that out-speeds the threat is spared (revenge-KO) while slower moves are cut; Protect/switch untouched. Split out of ThreatElimination |
 | 4 | PriorityKill | ×3.0 on a **priority** move (`priority_bracket > 0`) that `ctx.guarantees_ohko`s its target — it removes the foe before it can act, so prefer the priority KO over a slower one. Gated on guaranteed OHKO, so weak non-KO priority moves get nothing |
 | 5 | PriorityBlock | ×0 on a **priority** attack while any live opponent has a priority-block ability (`_PRIORITY_BLOCK_ABILITIES` = Armor Tail / Queenly Majesty) — these block priority vs the holder *and its ally*, so it can't connect. Protect/switch/non-priority untouched; reads `_effective_ability` (assumes Armor Tail on an unrevealed Farigiraf). Composes with #4 (3.0×0=0) |
-| 6 | ProtectValue | **Single row** on Protect-family moves when `ctx.is_threatened(slot)`: ×2.5. The partner-clears ×3.0 is now a phase-2 adjuster (`PartnerClearsAdjuster`, J6); the 1v1/2v1 "Protect only delays" ×0.4 cancels are a separate `EndgameStallModule` (#7) — one concern per module |
-| 7 | EndgameStall | Protect ×0.2 when `ctx.is_threatened(slot)` and the board is a 1v1 endgame or 2v1 advantage (Protect only delays; ×0.4 → ×0.2 in 0.44.1, user-tuned — net with ProtectValue's ×2.5 is 0.5). Split out of ProtectValue |
+| 6 | ProtectValue | **Single row** on Protect-family moves when `ctx.is_threatened(slot)`: ×5.0 (doubled from 2.5 in 0.45.0 to survive the unconditional LoneProtect ×0.5 — a threatened Protect beside an attacker nets 2.5). The partner-clears ×3.0 is a phase-2 adjuster (`PartnerClearsAdjuster`); the 1v1/2v1 "Protect only delays" cancels are a separate `EndgameStallModule` (#7) — one concern per module |
+| 7 | EndgameStall | Protect ×0.1 when `ctx.is_threatened(slot)` and the board is a 1v1 endgame or 2v1 advantage (Protect only delays; halved 0.2 → 0.1 in 0.45.0 in lockstep with ProtectValue's doubling — the user-tuned net of 0.5 from 0.44.1 is preserved). Split out of ProtectValue |
 | 8 | TurnOrder | By rank in the 4-mon turn order (pos 1 = we act before all 3 other actives): pos 1 ×2.0; pos 2 ×1.5; pos 3 ×1.0; pos 4 ×0.75 — attacks only |
 | 9 | Urgency | One urgency boost per turn, first applicable setup in `_SETUP_TYPES` order (TR first): a setter present & its effect stoppable (not active, or last turn) → all attacks ×`SETUP_URGENCY` (flat ×2 for any setup). Target-agnostic — bias toward attacking, not stalling. Walks the shared `_SETUP_TYPES` registry, so a new urgent setup (screens, …) is one new row. (No TR↔TW cross-guard: the meta runs no mixed TR+TW teams.) |
 | 10 | Setup Denial | A candidate aimed at a setter it guaranteed-OHKOs (`ctx.ohko`), that we outspeed, whose setup move has no +1 priority (Prankster/Gale Wings) → ×`SETUP_DENIAL` (flat ×2 for any setup). At most one denial per action (TR claim wins); active effects can't be denied. Same shared `_SETUP_TYPES` registry as Urgency (#9) |
 | 11 | OppProtectRecency | ×1.3 if the candidate's target used Protect last turn |
 | 12 | ConsecutiveProtect | ×0.2 if we used Protect last turn — no exceptions |
-| 13 | FakeOut | `ctx.fake_out_fired(slot)` (fresh Fake Out user on field): Protect ×2.0, all attacks ×0.5 — for **every** slot |
-| 14 | FieldCondition | turns_left=1 or 3 → Protect ×3.0 (stall every other turn) |
+| 13 | FakeOut | `ctx.fake_out_fired(slot)` (fresh Fake Out user on field): attacks ×0.5 — per slot, so a double attack pays it twice (accepted). Protect/switches untouched; the Protect response is phase 2 (`FakeOutProtectAdjuster`) |
+| 14 | FieldCondition | turns_left=1 or 3 → Protect ×6.0 (stall every other turn; doubled from 3.0 in 0.45.0 to survive LoneProtect ×0.5 — a stall Protect beside an attacker nets 3.0) |
 | 15 | Redirection | Hedge single-target attacks vs an active Rage Powder / Follow Me user: ×(damage to the redirector, capped 1.0); immune→×0, OHKO-on-redirector→×1.0. Exempts spread/status/switch, a Stalwart/Propeller-Tail attacker, and (Rage Powder) a Grass / Overcoat / Safety-Goggles attacker |
 | 16 | SwitchTempo | Flat cost of switching at all: ×0.8 on every switch (forfeit the turn + concede a free hit). A switch must earn its keep via #17/#18 |
 | 17 | SwitchOffense | ×(1+g), `g = max(0, switch_in_offense − current_offense)` (best single hit to the live foes). Floored at 0 — a softer-hitting defensive switch isn't penalised here. `_best_offense` is full-damage-modifier-aware via the shared `_outgoing_*_mods` helpers, for **both** the current mon (its boosts/burn/HP) and the switch-in (its own — e.g. a persistent burn), and the opponent's boosts/screens — so a debuffed mon vs a +Def wall is judged on the real board |
@@ -119,15 +119,15 @@ turn as: phase-1 score all → `coordinate` → record/mega/emit.
 | Doubling | Both attack the same target: flat ×0.4 (penalty on the higher slot) — the spread-your-damage tax. Just the base penalty; the overkill near-veto is its own adjuster |
 | Overkill | One slot already guarantees the OHKO on the shared target → ×0.05 near-veto on the *non-killer* (wasteful doubler), so the pair that **spreads** onto the survivor wins (emergent "redirect"). Composes on top of Doubling |
 | JointSetupDenial | Both attack the same `_SETUP_TYPES` **setter**, neither solo-OHKOs it, but the summed **min rolls** kill it and both attacks resolve before it moves → waive the doubling tax (×1/0.4) and apply ×`SETUP_DENIAL` (×2). The combined kill no per-slot module can see (born from the 8-52 Swampert+Pelipper record: two ~0.7 hits kill Pelipper pre-Tailwind, but the doubling tax kept routing the second attacker onto Swampert). Reads `ctx.min_dmg` |
-| Coordination | A **gratuitous** lone Protect (no `incoming_ohko`/`protect:`/`field_condition` reason) beside an attacking partner: ×0.5 on the Protect → favour double-attack; justified Protects and double-Protects untouched |
-| FakeOut (free) | When **either** slot attacks, divide the partner's Fake-Out multiplier back out (attack un-halved, Protect un-boosted; known from `ctx.fake_out` + the action type) — a pair pays the Fake-Out adjustment once, never twice; symmetric since 0.7.2 |
+| LoneProtect | **Any** Protect beside an attacking partner: ×0.5 — unconditional, no exemptions (0.45.0; the phase-1 boosts in #6/#14 are sized to survive it when the Protect has a real job). Double-Protects and switches untouched |
+| FakeOutProtect | Fake Out threatened AND a slot Protects AND its partner is **not** attacking (Protecting or switching): that Protect ×2. Fires per slot — a double-Protect gets it twice (pair ×4), the blank-the-Fake-Out-turn line. Replaced the old phase-1 Protect boost + divide-back FakeOut adjuster (0.45.0) |
 | SwitchCollision | Both slots switch to the **same** bench mon → ×0 |
 | PartnerClears | One slot Protects against a connecting OHKO **and** the partner's chosen attack guaranteed-OHKOs that threatener → ×3.0 on the Protect (survive while the partner removes it). Was a phase-1 ProtectValue row; moved to phase 2 because "is the threat cleared?" depends on the partner's actual action |
 
 There is no scoring-order blind spot: slot 0 is never committed before slot 1 is
 seen. The old greedy + `recoordinate` re-pass (0.6.8–0.6.10) is gone — its
-overkill-redirect and gratuitous-Protect repairs are now emergent from choosing
-the best pair.
+overkill-redirect and lone-Protect repairs are now emergent from choosing the
+best pair.
 
 ### Key invariants (modules.py) — the rules that prevent recurring bugs
 - **`TurnContext` is the single fact source.** `build_turn_context` runs **all**

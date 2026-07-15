@@ -33,7 +33,8 @@ from decision.modules import (  # noqa: E402
     SwitchTempoModule as _ST,
     SwitchEscapeModule as _SE, SwitchDangerModule as _SDg,
     DoublingAdjuster as _Dbl, OverkillAdjuster as _Ovk,
-    PartnerClearsAdjuster as _PC, CoordinationAdjuster as _Coord,
+    PartnerClearsAdjuster as _PC, LoneProtectAdjuster as _LP,
+    FakeOutProtectAdjuster as _FOP,
     SETUP_URGENCY, SETUP_DENIAL, BOOST_TARGET_FACTOR,
 )
 
@@ -63,7 +64,7 @@ ROWS = [
      "All options equally likely to start"),
     ("1",   "Predicted Damage Dealt",
      ("cells", f"×({_Dmg.DAMAGE_INTERCEPT:g} + d×{_Dmg.DAMAGE_SLOPE:g})"), ["-", "—", "—"],
-     "d = median damage roll as a fraction of the target's current HP, capped at 1.0 — "),
+     "d = median damage roll as a fraction of the target's current HP, capped at 1.0"),
     ("2",   "Score A Guaranteed Kill", ("span6", _x(_Threat.GUARANTEED_OHKO)), ["—", "—", "—"],
      "Lowest damage roll ≥ the target's HP"),
     ("3",   "Die Before Acting",      ("span6", _x(_Doom.DOOMED_FACTOR)), ["—", "—", "—"],
@@ -93,8 +94,8 @@ ROWS = [
     ("12",  "I used Protect last turn", ("span6", "—"),               [_x(_CP.CONSECUTIVE_PENALTY), "—", "—"],
      "consecutive Protect"),
     ("13",  "Fake Out threatened",    ("merge6", _x(_FO.ATTACK_DISCOUNT)),
-     [_x(_FO.PROTECT_BOOST), "—", "—"],
-     "a fresh Fake Out user is on the field"),
+     ["—", "—", "—"],
+     "a fresh Fake Out user is on the field; attacks only — the Protect response is J4"),
     ("14",  "Field Condition stall",  ("span6", "—"),                 [_x(_FC.STALL_FACTOR), "—", "—"],
      "opp Trick Room / Tailwind has 1 or 3 turns left"),
     ("15",  "redirection hedge",      ("cells", "×d (to redirector)"), ["—", "—", "—"],
@@ -116,20 +117,16 @@ ROWS = [
     ("J1",  "doubling up",            ("span6", _x(_Dbl.DOUBLING_FACTOR)), ["—", "—", "—"],
      "flat penalty when both slots attack the same target — the spread-your-damage tax"),
     ("J2",  "overkill",               ("span6", _x(_Ovk.FACTOR)),     ["—", "—", "—"],
-     "one slot already guarantees the OHKO on the shared target → near-veto the other "
-     "(wasteful) doubler, so the pair that spreads onto the survivor wins. Composes on top of J1"),
+     "one slot already guarantees the OHKO on the shared target → near-veto the other "),
     ("J2b", "joint setup denial",
      ("span6", f"×{1 / _Dbl.DOUBLING_FACTOR:g} × {_x(SETUP_DENIAL)}"), ["—", "—", "—"],
-     f"both attack the same SETTER (TR/TW), neither solo-OHKOs it, but summed min rolls kill it "
-     f"and both attacks resolve before it moves → doubling tax waived (×{1 / _Dbl.DOUBLING_FACTOR:g}) "
-     f"+ setup denial ({_x(SETUP_DENIAL)})"),
-    ("J3",  "attack alongside partner", ("span6", "—"),               [_x(_Coord.SPLIT_PENALTY), "—", "—"],
-     "a gratuitous lone Protect (no real OHKO/stall reason, e.g. only a Fake Out nudge) "
-     "beside an attacking partner — favour the double-attack"),
-    ("J4",  "Fake Out absorbed (free partner)",
-     ("span6", _x(1 / _FO.ATTACK_DISCOUNT)), [_x(1 / _FO.PROTECT_BOOST), "—", "—"],
-     "when either slot attacks, the partner's Fake-Out multiplier above is divided back out "
-     "(attack un-halved, Protect un-boosted) — a pair pays the Fake-Out adjustment once, never twice"),
+     f"A double up could deny a TW/TR"),
+    ("J3",  "Lone Protect",           ("span6", "—"),               [_x(_LP.SPLIT_PENALTY), "—", "—"],
+     "any Protect beside an attacking partner — no exemptions (the phase-1 Protect boosts "
+     "in rows 6 and 14 are sized to survive this when the Protect has a real job)"),
+    ("J4",  "Fake Out double-Protect", ("span6", "—"),              [_x(_FOP.PROTECT_BOOST), "—", "—"],
+     "Fake Out threatened and the partner is NOT attacking (Protecting or switching) — "
+     "blank the Fake Out turn; fires per slot, so a double-Protect gets it twice"),
     ("J5",  "switch collision",       ("span6", "—"),                 ["—", ("×0", 2)],
      "both slots switch to the same bench mon → that pair is vetoed"),
     ("J6",  "Partner Clears",         ("span6", "—"),                 [_x(_PC.PARTNER_KO_FACTOR), "—", "—"],

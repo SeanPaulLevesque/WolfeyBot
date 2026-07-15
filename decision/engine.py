@@ -82,23 +82,6 @@ class Action:
         return bool(self.switch_target)
 
 
-# A Protect is "justified" (a legitimate split exception) when a real threat or
-# field reason drove it — a genuine OHKO incoming, a partner-clears-the-threat
-# Protect, or a TR/TW stall turn.  A Protect lacking any of these is "gratuitous"
-# (e.g. only the FakeOut nudge, or nothing better) and is what the
-# CoordinationAdjuster squeezes out in favour of attacking alongside an
-# attacking partner during the joint :meth:`DecisionEngine.coordinate` pass.
-_PROTECT_JUSTIFIED_PREFIXES = ("incoming_ohko", "protect:", "field_condition")
-
-
-def _protect_is_justified(action: Optional["Action"]) -> bool:
-    """True if *action* is a Protect backed by a real threat/field reason."""
-    if action is None:
-        return False
-    return any(r.startswith(_PROTECT_JUSTIFIED_PREFIXES)
-               for r in (action.reasons or []))
-
-
 def _is_attack(action: Optional["Action"]) -> bool:
     """True if *action* is a damaging move (not a Protect-family move, not a switch)."""
     return (action is not None and action.is_move
@@ -147,14 +130,15 @@ class JointAdjuster(ABC):
     :class:`ScoringModule` scores each slot's ``(move, target)`` candidates in
     isolation (blind to the partner); a ``JointAdjuster`` then expresses how a
     specific *combination* of the two slots' choices should be rewarded or
-    penalised — doubling the same target, a gratuitous lone Protect beside an
-    attacker, a freed Fake-Out partner, two slots switching to the same mon.
+    penalised — doubling the same target, a Protect beside an attacking
+    partner, a double-Protect into a threatened Fake Out, two slots switching
+    to the same mon.
 
     The contract is a pure function (no mutation): given the ordered pair
     ``(slot_a, action_a)`` and ``(slot_b, action_b)`` with ``slot_a < slot_b``,
     return ``(factor_a, factor_b, reason)`` — *per-slot* multipliers attributing
     the joint effect to whichever slot it falls on (the wasteful doubler, the
-    gratuitous Protect, the freed Fake-Out partner …) and a short ``reason`` (or
+    lone Protect, the boosted double-Protect …) and a short ``reason`` (or
     ``None``).  The engine maximises ``(w_a·factor_a)·(w_b·factor_b)`` over all
     candidate pairs and, on the chosen pair, bakes each per-slot factor into that
     slot's final weight — so a decision's weight always reflects the cross-slot
@@ -319,8 +303,9 @@ class DecisionEngine:
         * **Overkill / focus-fire** — a pair where both attack the same target a
           partner already confirm-OHKOs is penalised by the doubling adjuster, so
           the pair that *spreads* onto the survivor wins (the emergent "redirect").
-        * **De-coordination** — a pair with a gratuitous lone Protect beside an
-          attacking partner is penalised, so the double-attack pair wins.
+        * **Lone Protect** — a pair with a Protect beside an attacking partner
+          is penalised, so the double-attack pair wins unless the Protect's
+          phase-1 boosts (real threat / stall turn) outweigh the penalty.
 
         Because slot 0 is never committed before slot 1 is seen, there is no
         order-induced blind spot left to patch.

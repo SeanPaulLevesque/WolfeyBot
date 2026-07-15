@@ -42,7 +42,7 @@ from turn_order import Combatant, will_outspeed, priority_bracket
 from decision.engine import (
     Action, ScoringModule, JointAdjuster, DecisionEngine,
     _PROTECT_MOVES, _FAKE_OUT_USERS,
-    _protect_is_justified, _is_attack,
+    _is_attack,
 )
 
 if TYPE_CHECKING:
@@ -830,21 +830,21 @@ class ProtectValueModule(ScoringModule):
 
     One multiplicative row, applied only when `ctx.is_threatened(slot)`:
 
-    * ×2.5 — a connecting OHKO exists (basic incoming-threat boost).
-      reason: ``"incoming_ohko: OHKO threat -> x2.5"``
+    * ×5.0 — a connecting OHKO exists (basic incoming-threat boost).
+      reason: ``"incoming_ohko: OHKO threat -> x5.0"``
+
+    The factor doubled 2.5 → 5.0 in 0.45.0, when the phase-2 LoneProtect rule
+    became unconditional (every Protect beside an attacking partner takes ×0.5,
+    no exemptions) — a threatened Protect beside an attacker still nets 2.5.
 
     Two siblings own the other Protect concerns (one module per concern): the
-    partner-clears ×3.0 boost is :class:`PartnerClearsModule`; the 1v1 / 2v1
-    "Protect only delays" cancels are :class:`EndgameStallModule`.
-
-    The reason prefix ``"incoming_ohko:"`` is consumed by ``_protect_is_justified``
-    (phase-2 CoordinationAdjuster) to mark a threatened Protect as justified —
-    keep it exact.
+    partner-clears ×3.0 boost is :class:`PartnerClearsAdjuster` (phase 2); the
+    1v1 / 2v1 "Protect only delays" cancels are :class:`EndgameStallModule`.
     """
 
     name = "protect"
 
-    THREATENED_FACTOR    = 2.5
+    THREATENED_FACTOR    = 5.0
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         ctx = _ensure_turn_ctx(state)
@@ -867,19 +867,19 @@ class EndgameStallModule(ScoringModule):
     a connecting OHKO — but answers a different question: *is Protecting futile
     because the board is already decided?*
 
-      * 1v1 endgame (last mon vs last mon): Protect only delays → ×0.2.
-      * 2v1 numerical advantage: Protecting can't improve the outcome → ×0.2.
+      * 1v1 endgame (last mon vs last mon): Protect only delays → ×0.1.
+      * 2v1 numerical advantage: Protecting can't improve the outcome → ×0.1.
 
-    Net with ProtectValue's ×2.5 shield: 2.5 × 0.2 = 0.5 — decisively below
-    any real attack.  (×0.4 / net 1.0 until 0.44.1 — user-tuned after
-    observed endgame escapes.)  Reason strings keep the ``incoming_ohko:``
-    prefix so phase-2 coordination still reads the Protect as justified.
+    Net with ProtectValue's ×5.0 shield: 5.0 × 0.1 = 0.5 — decisively below
+    any real attack.  (The factors halved 0.2 → 0.1 in 0.45.0 in lockstep with
+    ProtectValue doubling 2.5 → 5.0, keeping the user-tuned net of 0.5 from
+    0.44.1 — set after observed endgame escapes — unchanged in the 1v1 case.)
     """
 
     name = "endgame_stall"
 
-    ENDGAME_1V1_FACTOR   = 0.2
-    ADVANTAGE_2V1_FACTOR = 0.2
+    ENDGAME_1V1_FACTOR   = 0.1
+    ADVANTAGE_2V1_FACTOR = 0.1
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         ctx = _ensure_turn_ctx(state)
@@ -1218,8 +1218,8 @@ class TurnContext:
       turn (:func:`_opp_neutralized_before_acting`), so its threats never land.
     * ``fake_out[slot]`` — a fresh Fake Out user threatens the field *and* its
       non-Fake-Out partner meaningfully threatens our *slot* — the condition
-      under which FakeOutModule adjusts that slot (and the FakeOutAdjuster
-      knows the multiplier it applied).
+      under which FakeOutModule discounts that slot's attacks and the
+      FakeOutProtectAdjuster boosts its Protect.
     * ``bench_alive`` / ``alive_slots`` / ``opp_alive`` — board-state counts
       behind the 1v1-endgame and 2v1-advantage rows.
     """
@@ -1891,9 +1891,8 @@ class PartnerClearsAdjuster(JointAdjuster):
     threatener**, boost the Protect ×3.0 (we survive the hit while the partner
     removes the threat).
 
-    The reason keeps the ``"protect:"`` prefix that ``_protect_is_justified``
-    consumes (though a threatened Protect is already justified by ProtectValue's
-    ``incoming_ohko:`` row, so coordination is unaffected by the move to phase 2).
+    Net beside the unconditional LoneProtect ×0.5: a threatened Protect whose
+    partner clears its threatener scores 5.0 × 0.5 × 3.0 = 7.5.
     """
 
     name = "partner_clears"
@@ -1998,87 +1997,66 @@ class OverkillAdjuster(JointAdjuster):
         return 1.0, self.FACTOR, reason       # slot_b is the wasteful doubler (default)
 
 
-class CoordinationAdjuster(JointAdjuster):
+class LoneProtectAdjuster(JointAdjuster):
     """
-    Favours *coordinated* turns — both slots attacking, or both Protecting — by
-    penalising the uncoordinated **split** where one slot throws away a turn on a
-    **gratuitous** Protect while its partner attacks.
+    IF a slot Protects AND its partner attacks, THEN that Protect ×0.5.
 
-    Rationale: in VGC doubles a double-attack (apply full pressure) or a double-
-    Protect (a deliberate stall) is usually the right play; a lone Protect
-    alongside an attacking partner is the exception — only correct when that mon
-    genuinely must shield (a real OHKO incoming, partner-clears, or a TR/TW stall
-    turn).  Those Protects carry a "justified" reason and are left untouched.  A
-    Protect with no such reason (e.g. only the FakeOut nudge) is gratuitous: the
-    pair is penalised so the slot attacks alongside its partner instead, biasing
-    the engine toward double-attack (protect less).
+    Unconditional — no exemptions (0.45.0; replaced CoordinationAdjuster, which
+    exempted "justified" Protects via reason-string sniffing).  The phase-1
+    Protect boosts were doubled to compensate (ProtectValue 2.5 → 5.0,
+    FieldCondition 3.0 → 6.0), so a Protect with a real job beside an attacker
+    nets the same as before; only the boost-then-check plumbing is gone.
 
-    A double-Protect (neither slot attacking) is never penalised; switches are
-    untouched.  Checks both orderings so it fires whichever slot holds the Protect.
+    A double-Protect (neither slot attacking) and switches are untouched.
+    Checks both orderings so it fires whichever slot holds the Protect; it can
+    never fire on both slots at once (a Protect only takes the penalty when its
+    partner attacks, and two Protects have no attacker between them).
     """
 
-    name = "coordination"
+    name = "lone_protect"
     SPLIT_PENALTY = 0.5
 
     def factor(self, state, slot_a, a0, slot_b, a1):
-        if (_is_attack(a0) and a1.move_name in _PROTECT_MOVES
-                and not _protect_is_justified(a1)):
+        if _is_attack(a0) and a1.move_name in _PROTECT_MOVES:
             return 1.0, self.SPLIT_PENALTY, (
-                f"{self.name}: gratuitous lone Protect (slot {slot_b}) beside an"
+                f"{self.name}: Protect (slot {slot_b}) beside an"
                 f" attacking partner -> x{self.SPLIT_PENALTY}")
-        if (_is_attack(a1) and a0.move_name in _PROTECT_MOVES
-                and not _protect_is_justified(a0)):
+        if _is_attack(a1) and a0.move_name in _PROTECT_MOVES:
             return self.SPLIT_PENALTY, 1.0, (
-                f"{self.name}: gratuitous lone Protect (slot {slot_a}) beside an"
+                f"{self.name}: Protect (slot {slot_a}) beside an"
                 f" attacking partner -> x{self.SPLIT_PENALTY}")
         return 1.0, 1.0, None
 
 
-class FakeOutAdjuster(JointAdjuster):
+class FakeOutProtectAdjuster(JointAdjuster):
     """
-    Ensures a pair pays the Fake-Out adjustment exactly **once**.
+    IF Fake Out is threatened AND a slot Protects AND its partner is not
+    attacking (Protecting or switching), THEN that Protect ×2.
 
-    A live Fake Out flinches exactly one of our mons.  :class:`FakeOutModule`
-    (phase 1) scores each slot in isolation, so it pessimistically discounts
-    every slot's attacks (×0.5) and boosts its Protect (×3).  Pair-wise that
-    counts the single Fake Out twice, so when a slot attacks, the *partner's*
-    multiplier is divided back out: the attacker is the one assumed to eat the
-    flinch, so the partner's attack is no longer discounted and its Protect no
-    longer earns the Fake-Out boost.  Which multiplier the partner carries
-    follows from ``ctx.fake_out_fired`` and the action itself (Protect ×3,
-    other move ×0.5) — the same rule FakeOutModule applied.
-
-    Symmetric: either slot's attack frees the other (mirror pairs score the
-    same regardless of slot order).  When both attack, one discount is kept —
-    the pair eats one flinch.  A double-Protect is untouched.
+    Checked per slot, so a double-Protect fires for both (pair ×4) — the
+    blank-the-Fake-Out-turn line.  When the partner attacks, no boost: the
+    LoneProtect / PartnerClears rules own that shape.  New in 0.45.0 —
+    replaces the old phase-1 Protect ×2 in FakeOutModule plus the joint
+    FakeOutAdjuster that divided it back out beside an attacker.
     """
 
-    name = "fake_out"
-
-    @staticmethod
-    def _applied_mult(ctx: "TurnContext", action, slot: int) -> Optional[float]:
-        """The Fake-Out multiplier FakeOutModule applied to *action* (or None)."""
-        if not ctx.fake_out_fired(slot) or not action.is_move or action.is_switch:
-            return None
-        return (FakeOutModule.PROTECT_BOOST
-                if action.move_name in _PROTECT_MOVES
-                else FakeOutModule.ATTACK_DISCOUNT)
+    name = "fake_out_protect"
+    PROTECT_BOOST = 2.0
 
     def factor(self, state, slot_a, a0, slot_b, a1):
         ctx = _ensure_turn_ctx(state)
-        if _is_attack(a0):
-            mult = self._applied_mult(ctx, a1, slot_b)
-            if mult:
-                return 1.0, 1.0 / mult, (
-                    f"{self.name}: partner (slot {slot_a}) absorbs Fake Out,"
-                    f" slot {slot_b} freed -> x{1.0 / mult:.2f}")
-        elif _is_attack(a1):
-            mult = self._applied_mult(ctx, a0, slot_a)
-            if mult:
-                return 1.0 / mult, 1.0, (
-                    f"{self.name}: partner (slot {slot_b}) absorbs Fake Out,"
-                    f" slot {slot_a} freed -> x{1.0 / mult:.2f}")
-        return 1.0, 1.0, None
+        fa = fb = 1.0
+        if (a0.move_name in _PROTECT_MOVES and not _is_attack(a1)
+                and ctx.fake_out_fired(slot_a)):
+            fa = self.PROTECT_BOOST
+        if (a1.move_name in _PROTECT_MOVES and not _is_attack(a0)
+                and ctx.fake_out_fired(slot_b)):
+            fb = self.PROTECT_BOOST
+        if fa == 1.0 and fb == 1.0:
+            return 1.0, 1.0, None
+        return fa, fb, (
+            f"{self.name}: Fake Out threatened, partner not attacking"
+            f" -> x{self.PROTECT_BOOST}")
 
 
 class SwitchCollisionAdjuster(JointAdjuster):
@@ -2153,32 +2131,22 @@ def _fake_out_threatened(state: "BattleState") -> bool:
 
 class FakeOutModule(ScoringModule):
     """
-    Adjusts scores when an opponent Fake Out user is active and has not yet
-    revealed a move this field-entry (i.e. Fake Out is still available).
+    IF an opponent Fake Out user is active and has not yet revealed a move this
+    field-entry (Fake Out still available), THEN this slot's attacks ×0.5.
 
-    In VGC doubles, Fake Out will hit exactly one of our two active mons —
-    flinching it and wasting its turn.
+    A Fake Out flinches one of our mons and wastes its turn; the ×0.5 is the
+    chance this slot's attack is the one flinched away.  Applied per slot —
+    a double attack carries it twice (accepted: both slots bear the risk).
 
-    Scoring adjustments (applied when ``ctx.fake_out_fired(slot)``):
-
-    * Protect-family moves:  ×3.0  (strong encouragement to shield at least one mon)
-    * Non-switch attacks:    ×0.5  (expected-value discount: ~50% chance this slot
-                                    is the flinch target, halving the move's value)
-    * Switch actions:        no change (switching out sidesteps Fake Out entirely)
-
-    The ×0.5 attack discount is calibrated so that a guaranteed OHKO attack
-    sits well below Protect's combined weight from FakeOutModule + ProtectModule.
-    Below OHKO level, Protect clearly wins; at OHKO level it is a genuine
-    toss-up, which reflects real-game decision complexity.
-
-    These self-only adjustments run for *every* slot (each slot is scored in
-    isolation); the joint :class:`FakeOutAdjuster` divides the partner's
-    multiplier back out so a pair pays the Fake-Out adjustment exactly once.
+    Protect and switches are untouched here.  The Protect response to Fake Out
+    is the joint :class:`FakeOutProtectAdjuster` (×2 when the partner is not
+    attacking), so it lives entirely in phase 2 — no boost-then-strip.
+    (Until 0.45.0 this module also boosted Protect ×2 and a joint FakeOutAdjuster
+    divided the partner's multiplier back out; both are gone.)
     """
 
     name = "fake_out"
 
-    PROTECT_BOOST   = 2.0
     ATTACK_DISCOUNT = 0.5
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
@@ -2186,16 +2154,12 @@ class FakeOutModule(ScoringModule):
             return
 
         for action in actions:
-            if action.move_name in _PROTECT_MOVES:
-                action.weight *= self.PROTECT_BOOST
-                action.reasons.append(
-                    f"{self.name}: Fake Out threat -> x{self.PROTECT_BOOST}"
-                )
-            elif not action.is_switch:
-                action.weight *= self.ATTACK_DISCOUNT
-                action.reasons.append(
-                    f"{self.name}: Fake Out may flinch -> x{self.ATTACK_DISCOUNT}"
-                )
+            if action.move_name in _PROTECT_MOVES or action.is_switch:
+                continue
+            action.weight *= self.ATTACK_DISCOUNT
+            action.reasons.append(
+                f"{self.name}: Fake Out may flinch -> x{self.ATTACK_DISCOUNT}"
+            )
 
 
 # Trick Room / Tailwind setters — derived from Champions usage data
@@ -2567,14 +2531,15 @@ class FieldConditionModule(ScoringModule):
       Turn 1 (turns_left == 1): Protect  → waste the last active turn
 
     Triggers when either Tailwind or Trick Room is on turn 1 or turn 3:
-    * Last turn          (turns_left == 1): x3.0
-    * Third-to-last turn (turns_left == 3): x3.0
+    * Last turn          (turns_left == 1): x6.0
+    * Third-to-last turn (turns_left == 3): x6.0
 
     The bonus is applied once regardless of how many conditions qualify —
     TW and TR do not stack with each other.
 
-    x3.0 beats a typical attack score but is weaker than a confirmed OHKO
-    (x5.0 from ThreatEliminationModule), so the bot will still finish a kill.
+    The factor doubled 3.0 → 6.0 in 0.45.0, when the phase-2 LoneProtect rule
+    became unconditional (every Protect beside an attacking partner takes ×0.5,
+    no exemptions) — a stall Protect beside an attacker still nets 3.0.
 
     Note: turns_left counts remaining turns INCLUDING the current one.
     A value of 1 means "this is the last turn the effect is active."
@@ -2582,7 +2547,7 @@ class FieldConditionModule(ScoringModule):
 
     name = "field_condition"
 
-    STALL_FACTOR = 3.0
+    STALL_FACTOR = 6.0
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         # Boost Protect on the last turn and the third-to-last turn so the bot
@@ -2743,17 +2708,19 @@ def make_engine() -> DecisionEngine:
     **Phase 2** — joint adjusters, applied by :meth:`DecisionEngine.coordinate`
     over *pairs* of candidates (the only place cross-slot effects live), in order:
 
-      Doubling -> Overkill -> Coordination -> FakeOut(free) -> SwitchCollision -> PartnerClears
+      Doubling -> Overkill -> JointSetupDenial -> LoneProtect -> FakeOutProtect
+      -> SwitchCollision -> PartnerClears
 
     The "partner clears the threatener" ×3.0 boost (PartnerClears) is phase 2
     because whether a threat is cleared depends on the partner's chosen action.
 
     The phase-2 adjusters subsume what the old greedy + ``recoordinate`` re-pass
     did by hand: the doubling adjuster's confirmed-OHKO near-veto makes the
-    spread pair win (emergent focus-fire "redirect"); the coordination adjuster
-    squeezes out a gratuitous lone Protect beside an attacker; the fake-out
-    adjuster frees the partner of the slot absorbing a Fake Out; the switch-
-    collision adjuster vetoes both slots switching to the same mon.
+    spread pair win (emergent focus-fire "redirect"); the lone-protect adjuster
+    halves any Protect beside an attacking partner; the fake-out-protect
+    adjuster boosts Protect when Fake Out is threatened and the partner is not
+    attacking; the switch-collision adjuster vetoes both slots switching to the
+    same mon.
     """
     return DecisionEngine(
         modules=[
@@ -2769,7 +2736,7 @@ def make_engine() -> DecisionEngine:
             SetupDenialModule(),          # 10: confirmed kill on a setter we outspeed?
             OppProtectRecencyModule(),    # 11: reward attacking a mon that can't Protect again
             ConsecutiveProtectModule(),   # 12: penalise back-to-back Protect (×0.2)
-            FakeOutModule(),              # 13: discount attacks / boost Protect vs fresh Fake Out
+            FakeOutModule(),              # 13: discount attacks vs fresh Fake Out (×0.5 per slot)
             FieldConditionModule(),       # 14: stall on last turn of opp Tailwind / Trick Room
             RedirectionModule(),          # 15: hedge single-target attacks vs an active redirector
             SwitchTempoModule(),          # 16: flat cost of switching (×0.8)
@@ -2782,8 +2749,8 @@ def make_engine() -> DecisionEngine:
             DoublingAdjuster(),           # both attack same target: ×0.4 flat (spread your damage)
             OverkillAdjuster(),           # partner already confirms the OHKO: ×0.05 near-veto on the doubler
             JointSetupDenialAdjuster(),   # combined min rolls KO a setter before it acts: waive doubling + ×2
-            CoordinationAdjuster(),       # gratuitous lone Protect beside an attacker: ×0.5
-            FakeOutAdjuster(),            # lower slot absorbs Fake Out → free the partner
+            LoneProtectAdjuster(),        # Protect beside an attacking partner: ×0.5 (no exemptions)
+            FakeOutProtectAdjuster(),     # Fake Out threatened + partner not attacking: Protect ×2
             SwitchCollisionAdjuster(),    # both switch to the same mon: ×0
             PartnerClearsAdjuster(),      # ×3.0 Protect when the partner's attack clears its threatener
         ],

@@ -31,8 +31,8 @@ from decision import (
     DoublingAdjuster,
     OverkillAdjuster,
     JointSetupDenialAdjuster,
-    CoordinationAdjuster,
-    FakeOutAdjuster,
+    LoneProtectAdjuster,
+    FakeOutProtectAdjuster,
     SwitchCollisionAdjuster,
     SwitchTempoModule,
     SwitchOffenseModule,
@@ -345,7 +345,9 @@ class TestFakeOutModule:
             assert a.weight == 1.0
 
     def test_incineroar_with_no_prior_move_is_threat(self):
-        """Fresh Incineroar (opp_last_moves="") → Protect boosted, attacks discounted."""
+        """Fresh Incineroar (opp_last_moves="") → attacks discounted; Protect and
+        switches untouched (0.45.0: the Protect response is the phase-2
+        FakeOutProtectAdjuster, not this module)."""
         state = make_state(
             opp_actives=[make_mon("Incineroar")],
             opp_last_moves=[""],
@@ -357,7 +359,7 @@ class TestFakeOutModule:
         attack  = next(a for a in actions if a.move_name == "Dragon Claw")
         switch  = next(a for a in actions if a.is_switch)
 
-        assert protect.weight == pytest.approx(FakeOutModule.PROTECT_BOOST)
+        assert protect.weight == 1.0   # Protect untouched in phase 1
         assert attack.weight  == pytest.approx(FakeOutModule.ATTACK_DISCOUNT)
         assert switch.weight  == 1.0   # switches unaffected
 
@@ -383,26 +385,26 @@ class TestFakeOutModule:
             assert a.weight == 1.0
 
     def test_weavile_with_no_prior_move_is_threat(self):
-        """Weavile was missing from _FAKE_OUT_USERS; now it should trigger protection."""
+        """Weavile was missing from _FAKE_OUT_USERS; now it should trigger the module."""
         state = make_state(
             opp_actives=[make_mon("Weavile")],
             opp_last_moves=[""],
         )
         actions = self._actions()
         self.module.score(state, 0, actions)
-        protect = next(a for a in actions if a.move_name == "Protect")
-        assert protect.weight == pytest.approx(FakeOutModule.PROTECT_BOOST)
+        attack = next(a for a in actions if a.move_name == "Dragon Claw")
+        assert attack.weight == pytest.approx(FakeOutModule.ATTACK_DISCOUNT)
 
     def test_tinkaton_with_no_prior_move_is_threat(self):
-        """Tinkaton should trigger fake-out protection."""
+        """Tinkaton should trigger the fake-out attack discount."""
         state = make_state(
             opp_actives=[make_mon("Tinkaton")],
             opp_last_moves=[""],
         )
         actions = self._actions()
         self.module.score(state, 0, actions)
-        protect = next(a for a in actions if a.move_name == "Protect")
-        assert protect.weight == pytest.approx(FakeOutModule.PROTECT_BOOST)
+        attack = next(a for a in actions if a.move_name == "Dragon Claw")
+        assert attack.weight == pytest.approx(FakeOutModule.ATTACK_DISCOUNT)
 
     def test_fires_unconditionally_with_weak_partner(self):
         """Gate removed (0.7.4): module fires whenever a fresh FO user is on field,
@@ -414,8 +416,8 @@ class TestFakeOutModule:
         )
         actions = self._actions()
         self.module.score(state, 0, actions)
-        protect = next(a for a in actions if a.move_name == "Protect")
-        assert protect.weight == pytest.approx(FakeOutModule.PROTECT_BOOST)
+        attack = next(a for a in actions if a.move_name == "Dragon Claw")
+        assert attack.weight == pytest.approx(FakeOutModule.ATTACK_DISCOUNT)
 
     def test_all_known_fake_out_users_present(self):
         """Spot-check that key Champions-legal Fake Out users are in _FAKE_OUT_USERS.
@@ -679,7 +681,7 @@ class TestProtectValueModule:
     # ── Reason strings ────────────────────────────────────────────────────────
 
     def test_reason_incoming_ohko_prefix(self):
-        """Row 1 reason must start with 'incoming_ohko:' (used by _protect_is_justified)."""
+        """Row 1 reason keeps the 'incoming_ohko:' prefix (log/analysis format)."""
         state   = self._state_normal()
         protect = make_action("Protect", "Protect")
 
@@ -862,8 +864,9 @@ class TestEndgameStallModule:
         assert attack.weight == pytest.approx(1.0)
 
     def test_combined_with_protect_net_in_1v1(self):
-        """Integration: ProtectValue ×2.5 then EndgameStall ×0.2 → net 0.5
-        (was ×0.4 / net 1.0 until 0.44.1 — user-tuned)."""
+        """Integration: ProtectValue ×5.0 then EndgameStall ×0.1 → net 0.5.
+        The user-tuned net of 0.5 (0.44.1) is preserved through the 0.45.0
+        constant doubling (ProtectValue 2.5→5.0, EndgameStall 0.2→0.1)."""
         state   = self._state_1v1()
         protect = make_action("Protect", "Protect")
         mock_tm = make_mock_member()
@@ -872,8 +875,10 @@ class TestEndgameStallModule:
              patch("decision.modules._opp_neutralized_before_acting", return_value=False):
             ProtectValueModule().score(state, slot=0, actions=[protect])
             self.module.score(state, slot=0, actions=[protect])
+        assert protect.weight == pytest.approx(0.5)
         assert protect.weight == pytest.approx(
-            2.5 * EndgameStallModule.ENDGAME_1V1_FACTOR)
+            ProtectValueModule.THREATENED_FACTOR
+            * EndgameStallModule.ENDGAME_1V1_FACTOR)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1190,32 +1195,35 @@ class TestJointSetupDenialAdjuster:
             assert self.adj.factor(self._state(), 0, a0, 1, a1) == (1.0, 1.0, None)
 
 
-class TestCoordinationAdjuster:
-    """Penalise the uncoordinated split: a *gratuitous* lone Protect beside an
-    attacking partner.  Justified Protects and double-Protects are untouched.
-    Checks both orderings (the Protect may be slot a or slot b)."""
-    adj = CoordinationAdjuster()
+class TestLoneProtectAdjuster:
+    """A Protect beside an attacking partner takes ×0.5 — unconditionally
+    (0.45.0: no justification exemptions; the phase-1 Protect boosts doubled to
+    compensate).  Checks both orderings (the Protect may be slot a or slot b)."""
+    adj = LoneProtectAdjuster()
 
-    def test_penalises_gratuitous_lone_protect_on_higher_slot(self):
+    def test_penalises_lone_protect_on_higher_slot(self):
         atk = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
-        protect = make_action("Protect", "Protect", weight=3.0)   # no justification
+        protect = make_action("Protect", "Protect", weight=3.0)
         fa, fb, reason = self.adj.factor(None, 0, atk, 1, protect)
         assert fa == 1.0
-        assert fb == pytest.approx(CoordinationAdjuster.SPLIT_PENALTY)
-        assert reason and "coordination" in reason
+        assert fb == pytest.approx(LoneProtectAdjuster.SPLIT_PENALTY)
+        assert reason and "lone_protect" in reason
 
-    def test_penalises_gratuitous_lone_protect_on_lower_slot(self):
+    def test_penalises_lone_protect_on_lower_slot(self):
         protect = make_action("Protect", "Protect", weight=3.0)
         atk = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
         fa, fb, _ = self.adj.factor(None, 0, protect, 1, atk)
-        assert fa == pytest.approx(CoordinationAdjuster.SPLIT_PENALTY)
+        assert fa == pytest.approx(LoneProtectAdjuster.SPLIT_PENALTY)
         assert fb == 1.0
 
-    def test_justified_protect_not_penalised(self):
+    def test_threatened_protect_also_penalised(self):
+        """0.45.0: no exemptions — a threatened Protect takes the ×0.5 too (its
+        phase-1 boost doubled to ×5, so the net beside an attacker is 2.5)."""
         atk = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
         protect = make_action("Protect", "Protect", weight=7.5)
-        protect.reasons = ["incoming_ohko: OHKO threat -> x2.5"]
-        assert self.adj.factor(None, 0, atk, 1, protect) == (1.0, 1.0, None)
+        protect.reasons = ["incoming_ohko: OHKO threat -> x5.0"]
+        fa, fb, _ = self.adj.factor(None, 0, atk, 1, protect)
+        assert fb == pytest.approx(LoneProtectAdjuster.SPLIT_PENALTY)
 
     def test_double_protect_not_penalised(self):
         p0 = make_action("Protect", "Protect", weight=3.0)
@@ -1228,12 +1236,11 @@ class TestCoordinationAdjuster:
         assert self.adj.factor(None, 0, a0, 1, a1) == (1.0, 1.0, None)
 
 
-class TestFakeOutAdjuster:
-    """A pair pays the Fake-Out adjustment exactly once: when a slot attacks,
-    the partner's Fake-Out multiplier (known from ``ctx.fake_out`` plus the
-    action itself) is divided back out — symmetric, so mirror pairs score the
-    same regardless of slot order."""
-    adj = FakeOutAdjuster()
+class TestFakeOutProtectAdjuster:
+    """IF Fake Out is threatened AND a slot Protects AND its partner is not
+    attacking, THEN that Protect ×2.  Fires per slot: a double-Protect is
+    boosted on both slots (pair ×4)."""
+    adj = FakeOutProtectAdjuster()
 
     @staticmethod
     def _fo_state():
@@ -1257,31 +1264,35 @@ class TestFakeOutAdjuster:
             opp_last_moves=[""],
         )
 
-    def test_frees_partner_when_lower_slot_attacks(self):
-        atk = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
-        freed = make_action("Close Combat", "Close Combat", target_slot=0, weight=2.5)
-        fa, fb, reason = self.adj.factor(self._fo_state(), 0, atk, 1, freed)
-        assert fa == 1.0
-        assert fb == pytest.approx(2.0)   # 1 / 0.5 — discount undone
-        assert reason and "fake_out" in reason
+    def test_double_protect_boosts_both(self):
+        p0 = make_action("Protect", "Protect", weight=1.0)
+        p1 = make_action("Protect", "Protect", weight=1.0)
+        fa, fb, reason = self.adj.factor(self._fo_state(), 0, p0, 1, p1)
+        assert fa == pytest.approx(FakeOutProtectAdjuster.PROTECT_BOOST)
+        assert fb == pytest.approx(FakeOutProtectAdjuster.PROTECT_BOOST)
+        assert reason and "fake_out_protect" in reason
 
-    def test_frees_partner_when_higher_slot_attacks(self):
-        protect = make_action("Protect", "Protect", weight=9.0)
-        atk = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
-        fa, fb, reason = self.adj.factor(self._fo_state(), 0, protect, 1, atk)
-        assert fa == pytest.approx(1.0 / 2.0)   # boost divided back out
+    def test_protect_beside_switching_partner_boosted(self):
+        protect = make_action("Protect", "Protect", weight=1.0)
+        switch = make_action("Switch Garchomp", switch_target="Garchomp", weight=0.8)
+        fa, fb, _ = self.adj.factor(self._fo_state(), 0, protect, 1, switch)
+        assert fa == pytest.approx(FakeOutProtectAdjuster.PROTECT_BOOST)
         assert fb == 1.0
-        assert reason and "fake_out" in reason
+
+    def test_protect_beside_attacking_partner_not_boosted(self):
+        protect = make_action("Protect", "Protect", weight=1.0)
+        atk = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
+        assert self.adj.factor(self._fo_state(), 0, protect, 1, atk) == (1.0, 1.0, None)
 
     def test_noop_without_fake_out_threat(self):
-        protect = make_action("Protect", "Protect", weight=3.0)
-        atk = make_action("Close Combat", "Close Combat", target_slot=0, weight=2.5)
-        assert self.adj.factor(self._no_fo_state(), 0, protect, 1, atk) == (1.0, 1.0, None)
+        p0 = make_action("Protect", "Protect", weight=1.0)
+        p1 = make_action("Protect", "Protect", weight=1.0)
+        assert self.adj.factor(self._no_fo_state(), 0, p0, 1, p1) == (1.0, 1.0, None)
 
-    def test_noop_for_attacks_without_fake_out_threat(self):
+    def test_noop_for_attacks(self):
         a0 = make_action("Wave Crash", "Wave Crash", target_slot=0, weight=5.0)
         a1 = make_action("Dragon Claw", "Dragon Claw", target_slot=1, weight=5.0)
-        assert self.adj.factor(self._no_fo_state(), 0, a0, 1, a1) == (1.0, 1.0, None)
+        assert self.adj.factor(self._fo_state(), 0, a0, 1, a1) == (1.0, 1.0, None)
 
 
 class TestSwitchCollisionAdjuster:

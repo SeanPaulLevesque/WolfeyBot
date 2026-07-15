@@ -1,5 +1,53 @@
 # WolfeyBot Changelog
 
+## 0.45.0 — 2026-07-14
+
+**Protect/Fake-Out redesign: 1 module = 1 condition set = 1 outcome** — the
+J3/J4/#13 cluster rebuilt from truth tables reviewed rule-by-rule with the
+user.  Deliberate behavior change: 183 turn-1 decision changes across the four
+snapshot rosters; validated over 554 ladder games (49.1% vs 51.2% on 0.44.1 —
+statistically a wash; the vs-Fake-Out-lead slice flat at 45%→46%).
+
+### The new rules
+
+Phase 1:
+- **FakeOutModule (#13)** is attacks-only: fresh Fake Out user on field →
+  attacks ×0.5 per slot.  A double attack pays it twice (accepted — both slots
+  bear the flinch risk).  The Protect boost is gone from phase 1.
+- **ProtectValue (#6)** ×2.5 → **×5.0**; **FieldCondition (#14)** ×3.0 →
+  **×6.0** — doubled so a Protect with a real job survives the unconditional
+  LoneProtect ×0.5 at the same net as before (2.5 / 3.0 beside an attacker).
+- **EndgameStall (#7)** ×0.2 → **×0.1** in lockstep, preserving the user-tuned
+  1v1 net of 0.5 from 0.44.1.
+
+Phase 2 (pair-only; joint adjusters no longer run for a lone active):
+- **LoneProtectAdjuster** (replaces CoordinationAdjuster): IF a slot Protects
+  AND its partner attacks THEN that Protect ×0.5 — unconditional, no
+  justification exemptions, no reason-string sniffing.
+- **FakeOutProtectAdjuster** (new): IF Fake Out threatened AND a slot Protects
+  AND its partner is not attacking THEN that Protect ×2 — fires per slot, so a
+  double-Protect gets ×4: the blank-the-Fake-Out-turn line.
+- **PartnerClearsAdjuster** unchanged (×3 when the partner's attack
+  guaranteed-OHKOs the Protect slot's threatener).
+
+### Deleted
+
+- **FakeOutAdjuster (old J4)** — the divide-the-partner's-multiplier-back-out
+  rule.  Boost-then-strip is gone end to end.
+- **`_protect_is_justified` / `_PROTECT_JUSTIFIED_PREFIXES`** (engine.py) — the
+  "justified Protect" concept and its reason-string parsing.  Data basis: in
+  5,470 modern logged decisions the non-Fake-Out justification clause never
+  decided a turn (0 flips; the only 2 "default Protects" ever chosen were
+  forced, with Protect the slot's sole legal action).
+
+### Measured consequences (554-game run, meta-team v11)
+
+- Overall 272/554 = 49.1% (old engine 174/340 = 51.2%, z≈0.6 — noise).
+- vs Fake-Out leads: 46% (was 45%).  Turn-1 shape mix barely moved.
+- The real signals are elsewhere: 7+ turn games are 248 of 554 at ≤32% win
+  (late-game bleed, worst at 10+ = 17%), and Archaludon+Pelipper is 2-12
+  despite being ahead after 3 turns in 71% of those games.
+
 ## 0.44.4 — 2026-07-13
 
 **Split `SwitchSafetyModule` (#18) into two single-concern modules** — a
