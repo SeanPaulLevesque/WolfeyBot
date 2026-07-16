@@ -897,9 +897,9 @@ class TestEndgameStallModule:
         assert attack.weight == pytest.approx(1.0)
 
     def test_combined_with_protect_net_in_1v1(self):
-        """Integration: ProtectValue ×5.0 then EndgameStall ×0.1 → net 0.5.
-        The user-tuned net of 0.5 (0.44.1) is preserved through the 0.45.0
-        constant doubling (ProtectValue 2.5→5.0, EndgameStall 0.2→0.1)."""
+        """Integration: ProtectValue ×3.0 then EndgameStall ×0.1 → net 0.3.
+        (0.45.2: the user re-tuned ProtectValue 5.0 → 3.0 after observed
+        over-protecting; the endgame net dropped 0.5 → 0.3 with it.)"""
         state   = self._state_1v1()
         protect = make_action("Protect", "Protect")
         mock_tm = make_mock_member()
@@ -908,7 +908,7 @@ class TestEndgameStallModule:
              patch("decision.modules._opp_neutralized_before_acting", return_value=False):
             ProtectValueModule().score(state, slot=0, actions=[protect])
             self.module.score(state, slot=0, actions=[protect])
-        assert protect.weight == pytest.approx(0.5)
+        assert protect.weight == pytest.approx(0.3)
         assert protect.weight == pytest.approx(
             ProtectValueModule.THREATENED_FACTOR
             * EndgameStallModule.ENDGAME_1V1_FACTOR)

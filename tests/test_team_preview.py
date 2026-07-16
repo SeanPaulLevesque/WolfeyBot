@@ -145,8 +145,40 @@ class TestSelectLeadsFallback:
 from team_preview import (
     _eval_lead_board, _score_lead_pairs, _engine_matchup_scores,
     _members_resolvable, _SWITCH_WANT_FACTOR, _ATK_FLOOR,
+    _assumed_weather_for_six,
 )
 from decision.engine import Action
+
+
+class TestAssumedWeatherForSix:
+    """The team-level weather assumption for the bring score — mega-aware via
+    assumed_forme, so a weather mega (Char-Y, Froslass-Mega) is caught even
+    though its ability lives on the mega forme."""
+
+    def test_base_ability_setters(self):
+        assert _assumed_weather_for_six(["Pelipper"]) == "rain"
+        assert _assumed_weather_for_six(["Torkoal"]) == "sun"
+
+    def test_mega_ability_setters(self):
+        # ability is on the mega forme; assumed_forme resolves to it
+        assert _assumed_weather_for_six(["Charizard"]) == "sun"    # Mega-Y Drought
+        assert _assumed_weather_for_six(["Froslass"]) == "snow"    # Mega Snow Warning
+        assert _assumed_weather_for_six(["Tyranitar"]) == "sand"
+
+    def test_no_setter_is_none(self):
+        assert _assumed_weather_for_six(["Incineroar", "Sneasler", "Garchomp"]) is None
+
+    def test_weather_moves_the_bring_score(self):
+        from unittest.mock import patch
+        from team import get_team
+        members = get_team()
+        opp = ["Pelipper", "Basculegion", "Archaludon",
+               "Rillaboom", "Amoonguss", "Kingambit"]
+        rain = _engine_matchup_scores(opp, members)
+        with patch("team_preview._assumed_weather_for_six", return_value=None):
+            dry = _engine_matchup_scores(opp, members)
+        assert rain is not None and dry is not None
+        assert rain != dry   # rain-boosted Water changes at least one matchup
 
 
 class _StubEngine:

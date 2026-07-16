@@ -1,5 +1,53 @@
 # WolfeyBot Changelog
 
+## 0.45.2 — 2026-07-16
+
+Three changes: a Protect re-tune, weather-aware team preview, and a new
+preview inspection tool.
+
+### ProtectValue re-tuned ×5.0 → ×3.0 (over-protecting)
+
+The 0.45.1 games showed heavy over-protecting, so the incoming-kill Protect
+boost drops from 5.0 to 3.0. Nets now: threatened Protect **3.0 alone / 1.5
+beside an attacking partner** / 6.0 under Fake Out with a non-attacking partner
+(was 10). Knock-on (accepted): the 1v1-endgame net drops 0.5 → 0.3
+(EndgameStall stays ×0.1) — an even stronger anti-stall than the 0.44.1 tune.
+
+81 turn-1 decision changes / 57 weight-only, uniformly toward attacks and
+switches over Protect — double-Protect cells break into protect+switch or
+attack+attack.
+
+### Team preview assumes weather (bring scoring)
+
+`_engine_matchup_scores` (which 4 to bring) was weather-blind while the
+per-pair lead board already assumed weather via the engine's
+`_assumed_weather`. New `_assumed_weather_for_six(opp)` closes the gap: a
+weather setter anywhere in the opponent six implies its weather for the whole
+bring calc (offense and defense).
+
+Mega-aware for free: `assumed_forme` resolves a weather mega that is the modal
+forme (Charizard→Mega-Y→Drought, Froslass→Mega→Snow Warning,
+Tyranitar→Mega→Sand Stream) and `_assumed_ability` returns that forme's
+ability. Using the modal forme is deliberately better than scanning all megas —
+a Charizard whose modal mega is X (Tough Claws) correctly implies no weather.
+Slowest-setter tiebreak on conflicts, mirroring the in-battle rule.
+
+Observed effect vs the rain cores we lose to (real logged sixes): vs
+Pelipper+Mega-Swampert the bring swaps Chandelure (Fire, folds in rain) for
+Decidueye-Hisui; vs Archaludon+Pelipper the bring set holds but Basculegion is
+valued up. Lead pairs unchanged (the lead board already knew). No turn-1
+snapshot impact — preview-only.
+
+### tools/preview_inspect.py (new)
+
+Explains ONE preview decision end to end — fixed command, reads
+`tools/scratch/preview.json` (a literal opponent six, or a logged battle id to
+compare against what we actually did). Prints: assumed weather, select_mega
+values, every member's bring score (mega/base) with the 4 picked, the hedged
+opponent lead-pair prediction, every C(4,2) lead-pair board score with eval
+notes, and the final bring/mega/lead. The single-matchup counterpart to
+preview_backtest.py for tuning work.
+
 ## 0.45.1 — 2026-07-15
 
 Two engine changes.

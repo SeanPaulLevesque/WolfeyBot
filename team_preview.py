@@ -265,6 +265,35 @@ def _score_lead_pairs(slots: list[int], our_members: list[TeamMember],
     return scores
 
 
+def _assumed_weather_for_six(opp_species_list: list[str]) -> Optional[str]:
+    """The weather a setter *anywhere* in the opponent six will bring — the
+    team-level assumption for scoring our bring against their plan.
+
+    Mega-aware for free: ``assumed_forme`` resolves a weather mega that is the
+    modal forme (Charizard→Mega-Y→Drought, Froslass→Mega→Snow Warning,
+    Tyranitar→Mega→Sand Stream), and ``_assumed_ability`` returns that forme's
+    ability.  Using the *modal* forme is deliberately better than scanning every
+    mega: a Charizard whose modal mega is X (Tough Claws) correctly implies **no**
+    weather.  On a conflict (rain + sun on one team) the slowest setter writes
+    last and its weather sticks — the same tiebreak as the in-battle
+    ``_assumed_weather``.  None when the six holds no weather setter.
+
+    Note this is the TEAM-level assumption used only for the bring score; the
+    per-pair lead board already gets weather from the engine's ``_assumed_weather``
+    (a setter is only up turn 1 if it's actually led)."""
+    from decision.modules import _assumed_ability, _WEATHER_SETTING_ABILITIES
+    from data import assumed_forme, base_spe
+    setters: list[tuple[int, str]] = []
+    for opp in opp_species_list:
+        af = assumed_forme(opp)
+        w = _WEATHER_SETTING_ABILITIES.get(_assumed_ability(af) or "")
+        if w:
+            setters.append((base_spe(af) or 0, w))
+    if not setters:
+        return None
+    return min(setters, key=lambda t: t[0])[1]   # slowest writes last → sticks
+
+
 def _engine_matchup_scores(opp_species_list: list[str],
                            our_members: list[TeamMember],
                            ) -> Optional[dict[int, tuple[float, float]]]:
@@ -286,6 +315,11 @@ def _engine_matchup_scores(opp_species_list: list[str],
     except Exception:
         return None
 
+    # A weather setter in the opponent six implies that weather is up for much of
+    # the game — boost/blunt Fire & Water on BOTH sides of the calc.  (0.45.2:
+    # the bring score was weather-blind while the lead board already wasn't.)
+    weather = _assumed_weather_for_six(opp_species_list)
+
     def _one_form(species: str, stats: dict, ability: str, item,
                   moves: list[str]) -> float:
         off_total = def_total = 0.0
@@ -297,12 +331,14 @@ def _engine_matchup_scores(opp_species_list: list[str],
                 our_species=species, our_stats=stats, our_moves=moves,
                 opp_species=opp_form, our_ability=ability or "",
                 our_item=item, opp_ability=opp_ab, opp_item=opp_it,
+                weather=weather,
             )
             off_total += min(res[0].hp_fraction_avg, 1.0) if res else 0.0
             thr = incoming_damage(
                 opp_species=opp_form, our_species=species, our_stats=stats,
                 opp_ability=opp_ab, opp_item=opp_it,
                 our_ability=ability or "", our_item=item,
+                weather=weather,
             )
             worst = max((t.hp_fraction_avg for t in thr), default=0.0)
             def_total += max(0.0, 1.0 - min(worst, 1.0))

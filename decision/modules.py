@@ -862,12 +862,13 @@ class ProtectValueModule(ScoringModule):
 
     One multiplicative row, applied only when `ctx.is_threatened(slot)`:
 
-    * ×5.0 — a connecting OHKO exists (basic incoming-threat boost).
-      reason: ``"incoming_ohko: OHKO threat -> x5.0"``
+    * ×3.0 — a connecting OHKO exists (basic incoming-threat boost).
+      reason: ``"incoming_ohko: OHKO threat -> x3.0"``
 
-    The factor doubled 2.5 → 5.0 in 0.45.0, when the phase-2 LoneProtect rule
-    became unconditional (every Protect beside an attacking partner takes ×0.5,
-    no exemptions) — a threatened Protect beside an attacker still nets 2.5.
+    History: 2.5 → 5.0 in 0.45.0 (doubled to survive the unconditional
+    LoneProtect ×0.5), then 5.0 → **3.0** in 0.45.2 — the 0.45.1 games showed
+    heavy over-protecting, so the user re-tuned the attack/Protect balance.
+    Nets now: threatened Protect alone 3.0; beside an attacking partner 1.5.
 
     Two siblings own the other Protect concerns (one module per concern): the
     partner-clears ×3.0 boost is :class:`PartnerClearsAdjuster` (phase 2); the
@@ -876,7 +877,7 @@ class ProtectValueModule(ScoringModule):
 
     name = "protect"
 
-    THREATENED_FACTOR    = 5.0
+    THREATENED_FACTOR    = 3.0
 
     def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
         ctx = _ensure_turn_ctx(state)
@@ -902,10 +903,11 @@ class EndgameStallModule(ScoringModule):
       * 1v1 endgame (last mon vs last mon): Protect only delays → ×0.1.
       * 2v1 numerical advantage: Protecting can't improve the outcome → ×0.1.
 
-    Net with ProtectValue's ×5.0 shield: 5.0 × 0.1 = 0.5 — decisively below
-    any real attack.  (The factors halved 0.2 → 0.1 in 0.45.0 in lockstep with
-    ProtectValue doubling 2.5 → 5.0, keeping the user-tuned net of 0.5 from
-    0.44.1 — set after observed endgame escapes — unchanged in the 1v1 case.)
+    Net with ProtectValue's ×3.0 shield: 3.0 × 0.1 = 0.3 — decisively below
+    any real attack.  (Factors halved 0.2 → 0.1 in 0.45.0 alongside
+    ProtectValue's doubling; the 0.45.2 ProtectValue re-tune to 3.0 then
+    dropped the endgame net from the old 0.5 to 0.3 — an even stronger
+    anti-stall, in line with the user's over-protecting read.)
     """
 
     name = "endgame_stall"
@@ -1925,7 +1927,7 @@ class PartnerClearsAdjuster(JointAdjuster):
     removes the threat).
 
     Net beside the unconditional LoneProtect ×0.5: a threatened Protect whose
-    partner clears its threatener scores 5.0 × 0.5 × 3.0 = 7.5.
+    partner clears its threatener scores 3.0 × 0.5 × 3.0 = 4.5.
     """
 
     name = "partner_clears"
