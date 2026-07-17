@@ -181,6 +181,60 @@ class TestAssumedWeatherForSix:
         assert rain != dry   # rain-boosted Water changes at least one matchup
 
 
+class TestExperimentKnobs:
+    """The preview experiment knobs (tools/preview_ab.py) — defaults must be
+    behavior-neutral; non-defaults must actually move the scores."""
+
+    _OPP = ["Charizard", "Sneasler", "Incineroar",
+            "Farigiraf", "Kingambit", "Garchomp"]   # Charizard → Mega-Y assumed
+
+    def test_default_knobs_are_neutral(self):
+        """All knobs at their shipped defaults — sanity: they ARE the defaults.
+        (_OPP_MEGA_WEIGHT shipped at 1.5 in 0.45.3 after the A/B eyeball.)"""
+        import team_preview as tp
+        assert tp._OPP_MEGA_WEIGHT == 1.5
+        assert (tp._OFF_WEIGHT, tp._DEF_WEIGHT) == (2.0, 1.0)
+        assert tp._LEAD_COVERAGE_FACTOR == 1.0
+        assert tp._PAIR_PRIOR_POWER == 1.0
+
+    def test_opp_mega_weight_moves_the_bring_score(self):
+        from unittest.mock import patch
+        from team import get_team
+        members = get_team()
+        base = _engine_matchup_scores(self._OPP, members)
+        with patch("team_preview._OPP_MEGA_WEIGHT", 2.0):
+            weighted = _engine_matchup_scores(self._OPP, members)
+        assert base is not None and weighted is not None
+        assert base != weighted   # the assumed Mega-Y matchup counts double
+
+    def test_off_def_weights_move_the_bring_score(self):
+        from unittest.mock import patch
+        from team import get_team
+        members = get_team()
+        base = _engine_matchup_scores(self._OPP, members)
+        with patch("team_preview._OFF_WEIGHT", 1.0):
+            even = _engine_matchup_scores(self._OPP, members)
+        assert base != even
+
+    def test_coverage_factor_fires_on_same_target(self):
+        """Both slots' best attack aimed at the same opponent → pair scaled by
+        the knob (stub-engine path, mirroring TestEvalLeadBoard)."""
+        from unittest.mock import patch
+        a0 = Action(label="Hit", move_name="Hit", weight=5.0, target_slot=0)
+        b0 = Action(label="Hit", move_name="Hit", weight=4.0, target_slot=0)
+        engine = _StubEngine({0: [a0], 1: [b0]})
+        lead_a = make_member("MonA", ["Hit"], stats={"hp": 100})
+        lead_b = make_member("MonB", ["Hit"], stats={"hp": 100})
+        base, _, _ = _eval_lead_board(engine, lead_a, lead_b, [],
+                                      ["OppA", "OppB"], None)
+        with patch("team_preview._LEAD_COVERAGE_FACTOR", 0.5):
+            halved, _, notes = _eval_lead_board(engine, lead_a, lead_b, [],
+                                                ["OppA", "OppB"], None)
+        assert base == pytest.approx(20.0)          # 5 × 4, no penalty at default
+        assert halved == pytest.approx(base * 0.5)
+        assert any("same mon" in n for n in notes)
+
+
 class _StubEngine:
     """scored_actions stub: returns a fixed ranked list per slot."""
     def __init__(self, per_slot: dict[int, list[Action]]):

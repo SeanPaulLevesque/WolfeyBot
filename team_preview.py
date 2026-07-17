@@ -50,6 +50,22 @@ _DOOMED_LEAD_FACTOR = 0.25  # lead slot the board facts say is KO'd before it
                             # overkill read and went 3-15 vs Swampert+Pelipper.)
 _ATK_FLOOR = 0.05           # slot with no usable attack still scores something
 
+# ── Experiment knobs (defaults = shipped behavior; tools/preview_ab.py sets
+#    non-default values at runtime to eyeball candidate changes) ───────────────
+_OPP_MEGA_WEIGHT = 1.5      # weight of the opponent's assumed mega in the bring
+                            # average — their mega is the team's centerpiece, so
+                            # its matchup counts extra ("address the biggest
+                            # threat").  Shipped at 1.5 in 0.45.3 after the A/B
+                            # eyeball: moved 2/6 curated sixes, both credibly
+                            # (Greninja out of sun brings); ×2 added nothing ×1.5
+                            # hadn't already done
+_OFF_WEIGHT = 2.0           # bring combiner: offense weight …
+_DEF_WEIGHT = 1.0           # … and defense weight (2:1 shipped)
+_LEAD_COVERAGE_FACTOR = 1.0 # pair penalty when BOTH leads' best attack answers
+                            # the SAME opponent (the other gets a free turn)
+_PAIR_PRIOR_POWER = 1.0     # exponent on the empirical pair prior (>1 = lean
+                            # harder on our own observed per-pair W-L)
+
 
 def _members_resolvable(members: list[TeamMember]) -> bool:
     """True when every member resolves through team.find_member — the engine
@@ -126,6 +142,9 @@ def _eval_lead_board(engine, lead_a: TeamMember, lead_b: TeamMember,
       before moving concedes the slot, so preview punishes it much harder.
     * ``×_SWITCH_WANT_FACTOR`` when a **switch outweighs every stay action** —
       the engine's own verdict that this mon doesn't want to be on this board.
+    * ``×_LEAD_COVERAGE_FACTOR`` (once, on the pair) when both leads' best
+      attack targets the **same** opponent — the other opponent gets a free
+      turn (experiment knob, ×1.0 shipped).
 
     Pair score = slot values multiplied (mirrors the joint engine: one dead
     slot should sink the pair, not average out).
@@ -136,11 +155,14 @@ def _eval_lead_board(engine, lead_a: TeamMember, lead_b: TeamMember,
                            designated_mega, **field)
     slot_vals: list[float] = []
     notes: list[str] = []
+    best_targets: list[Optional[int]] = []
     for slot, member in ((0, lead_a), (1, lead_b)):
         ranked = engine.scored_actions(state, slot)
-        atk = max((a.weight for a in ranked
-                   if a.is_move and a.move_name not in _PROTECT_MOVES),
-                  default=0.0)
+        best_atk = max((a for a in ranked
+                        if a.is_move and a.move_name not in _PROTECT_MOVES),
+                       key=lambda a: a.weight, default=None)
+        atk = best_atk.weight if best_atk else 0.0
+        best_targets.append(best_atk.target_slot if best_atk else None)
         stay = max((a.weight for a in ranked if not a.is_switch), default=0.0)
         sw = max((a.weight for a in ranked if a.is_switch), default=0.0)
         val = max(atk, _ATK_FLOOR)
@@ -153,7 +175,15 @@ def _eval_lead_board(engine, lead_a: TeamMember, lead_b: TeamMember,
             notes.append(f"{member.name}: engine prefers switching out "
                          f"(sw {sw:.2f} > stay {stay:.2f})")
         slot_vals.append(val)
-    return slot_vals[0] * slot_vals[1], slot_vals, notes
+    pair = slot_vals[0] * slot_vals[1]
+    if (_LEAD_COVERAGE_FACTOR != 1.0
+            and best_targets[0] is not None
+            and best_targets[0] == best_targets[1]):
+        pair *= _LEAD_COVERAGE_FACTOR
+        tgt = (opp_pair[best_targets[0]]
+               if best_targets[0] < len(opp_pair) else "?")
+        notes.append(f"both leads' best answer is the same mon ({tgt})")
+    return pair, slot_vals, notes
 
 
 def _preview_mega_for(pair: tuple[TeamMember, TeamMember],
@@ -249,7 +279,7 @@ def _score_lead_pairs(slots: list[int], our_members: list[TeamMember],
             log_score += weight * math.log(max(total / len(variants), 1e-6))
         score = math.exp(log_score)
         if team_spec is not None:
-            prior = pair_factor(team_spec, ma.name, mb.name)
+            prior = pair_factor(team_spec, ma.name, mb.name) ** _PAIR_PRIOR_POWER
             if prior != 1.0:
                 score *= prior
                 all_notes.append(f"pair prior x{prior:.2f}")
@@ -322,18 +352,21 @@ def _engine_matchup_scores(opp_species_list: list[str],
 
     def _one_form(species: str, stats: dict, ability: str, item,
                   moves: list[str]) -> float:
-        off_total = def_total = 0.0
+        off_total = def_total = wsum = 0.0
         for opp in opp_species_list:
             opp_form = assumed_forme(opp)
             opp_ab = _assumed_ability(opp_form) or ""
             opp_it = _assumed_item(opp_form, frozenset())
+            # The opponent's assumed mega is their designated biggest threat —
+            # weight its matchup by _OPP_MEGA_WEIGHT (×1.5 shipped, 0.45.3).
+            w = _OPP_MEGA_WEIGHT if "-Mega" in opp_form else 1.0
             res = outgoing_damage(
                 our_species=species, our_stats=stats, our_moves=moves,
                 opp_species=opp_form, our_ability=ability or "",
                 our_item=item, opp_ability=opp_ab, opp_item=opp_it,
                 weather=weather,
             )
-            off_total += min(res[0].hp_fraction_avg, 1.0) if res else 0.0
+            off_total += w * (min(res[0].hp_fraction_avg, 1.0) if res else 0.0)
             thr = incoming_damage(
                 opp_species=opp_form, our_species=species, our_stats=stats,
                 opp_ability=opp_ab, opp_item=opp_it,
@@ -341,11 +374,12 @@ def _engine_matchup_scores(opp_species_list: list[str],
                 weather=weather,
             )
             worst = max((t.hp_fraction_avg for t in thr), default=0.0)
-            def_total += max(0.0, 1.0 - min(worst, 1.0))
-        n = max(len(opp_species_list), 1)
-        # offense ×2 + defense ×1 — the weighting the legacy scorer used,
-        # kept as the engine combiner's own constants since cleanup C.
-        return 2.0 * (off_total / n) + 1.0 * (def_total / n)
+            def_total += w * max(0.0, 1.0 - min(worst, 1.0))
+            wsum += w
+        n = max(wsum, 1e-9)
+        # offense ×2 + defense ×1 shipped — the weighting the legacy scorer
+        # used, kept as the combiner's constants (knobs for experiments).
+        return _OFF_WEIGHT * (off_total / n) + _DEF_WEIGHT * (def_total / n)
 
     out: dict[int, tuple[float, float]] = {}
     for i, m in enumerate(our_members, start=1):

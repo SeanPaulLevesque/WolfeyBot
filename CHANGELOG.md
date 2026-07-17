@@ -1,5 +1,46 @@
 # WolfeyBot Changelog
 
+## 0.45.3 — 2026-07-17
+
+Preview A/B harness + first shipped result: the opponent's mega counts ×1.5 in
+the bring score.
+
+### Opponent-mega weight ×1.5 (shipped default)
+
+`_OPP_MEGA_WEIGHT = 1.5` — in the bring scorer's per-opponent average
+(`_engine_matchup_scores._one_form`, now a weighted mean), the opponent whose
+`assumed_forme` is a `-Mega` counts 1.5×: their mega is the team's centerpiece,
+so addressing it matters more than the average matchup.  A/B eyeball on 6
+curated sixes: moved 2 (both sun teams, both credibly — Greninja dropped from
+the bring, the Rock/bulk answers promoted, e.g. vs Pyroar/Torkoal sun the lead
+flips to Aerodactyl+Chandelure); ×2 added nothing ×1.5 hadn't.  Preview-only —
+zero turn-1 snapshot impact.
+
+### Experiment knobs + tools/preview_ab.py (new)
+
+Five runtime knobs in team_preview.py (all others default to shipped
+behavior): `_OPP_MEGA_WEIGHT`, `_OFF_WEIGHT`/`_DEF_WEIGHT` (bring combiner,
+2:1), `_LEAD_COVERAGE_FACTOR` (both leads' best attack answers the same mon —
+new rule, ×1.0 = off), `_PAIR_PRIOR_POWER` (exponent on the empirical pair
+prior).  `tools/preview_ab.py` (fixed command) reads
+`tools/scratch/preview_ab.json` — opponent sixes × variants as generic
+`"module.attr": value` overrides applied via setattr in try/finally — and
+prints a bring/mega/lead table per six with changed cells marked.  New
+experiments are a JSON edit, not code.
+
+### A/B findings recorded for the next round
+
+- **Penalty teeth (doomed 0.1 / switch-want 0.25) cannot fix the rain-lead
+  pathology by construction**: on the Grimmsnarl/Pelipper/Swampert rain six the
+  chosen Basculegion+Greninja pair carries doomed + 2× switch-want + a worse
+  prior and still beats the only clean pair (Kingambit+Basculegion) 335 vs 71 —
+  the raw kill-stack gap is ~85× and the hedged geometric mean dilutes each
+  flag to its board-probability share.  The slot-value scale (unbounded best
+  attack weight) is the real problem; a bounded/log-damped slot value is the
+  next candidate experiment.
+- urgency ×3, coverage ×0.5, prior², off:def 1:1 — no decision changes on the
+  curated set (off:def 1:1 tracked the mega weight's flips where they occurred).
+
 ## 0.45.2 — 2026-07-16
 
 Three changes: a Protect re-tune, weather-aware team preview, and a new
