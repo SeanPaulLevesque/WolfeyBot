@@ -451,64 +451,68 @@
   },
   "meta-team@v11": {
     "Aerodactyl|Greninja": {
-      "w": 13,
-      "g": 25
+      "w": 17,
+      "g": 38
     },
     "Aerodactyl|Basculegion": {
-      "w": 113,
-      "g": 243
+      "w": 139,
+      "g": 290
     },
     "Greninja|Kingambit": {
-      "w": 77,
-      "g": 136
+      "w": 89,
+      "g": 151
     },
     "Basculegion|Greninja": {
-      "w": 100,
-      "g": 230
+      "w": 113,
+      "g": 267
     },
     "Greninja|Heliolisk": {
       "w": 0,
       "g": 3
     },
     "Aerodactyl|Kingambit": {
-      "w": 26,
-      "g": 54
+      "w": 39,
+      "g": 74
     },
     "Basculegion|Decidueye-Hisui": {
-      "w": 18,
-      "g": 44
+      "w": 23,
+      "g": 51
     },
     "Decidueye-Hisui|Kingambit": {
-      "w": 16,
-      "g": 30
+      "w": 18,
+      "g": 34
     },
     "Basculegion|Kingambit": {
-      "w": 37,
-      "g": 73
+      "w": 50,
+      "g": 93
     },
     "Aerodactyl|Chandelure": {
-      "w": 38,
-      "g": 67
+      "w": 43,
+      "g": 78
     },
     "Decidueye-Hisui|Greninja": {
-      "w": 14,
-      "g": 31
+      "w": 15,
+      "g": 35
     },
     "Chandelure|Kingambit": {
-      "w": 15,
-      "g": 21
-    },
-    "Basculegion|Chandelure": {
-      "w": 10,
-      "g": 23
-    },
-    "Chandelure|Greninja": {
-      "w": 13,
+      "w": 20,
       "g": 28
     },
+    "Basculegion|Chandelure": {
+      "w": 11,
+      "g": 26
+    },
+    "Chandelure|Greninja": {
+      "w": 16,
+      "g": 36
+    },
     "Aerodactyl|Decidueye-Hisui": {
-      "w": 9,
-      "g": 15
+      "w": 11,
+      "g": 17
+    },
+    "Chandelure|Decidueye-Hisui": {
+      "w": 0,
+      "g": 1
     }
   }
 }
