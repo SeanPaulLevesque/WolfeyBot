@@ -75,9 +75,8 @@ Sorted by net (KOs - faints). KDR = KOs/faints (∞ = no faints). *WR (brought)/
 | Mon | Bring | Lead | WR (brought) | WR (led) | KOs | Faints | Net | KDR |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
 | Basculegion | 94% | 67% | 65% | 65% | 58 | 21 | +37 | 2.76 |
-| Floette | 0% | 0% | 0% | — | 37 | 13 | +24 | 2.85 |
+| Floette-Eternal | 98% | 76% | 64% | 62% | 37 | 19 | +18 | 1.95 |
 | Arcanine-Hisui | 100% | 47% | 65% | 67% | 35 | 31 | +4 | 1.13 |
-| Floette-Eternal | 98% | 76% | 64% | 62% | 0 | 0 | +0 | 0.00 |
 | Salazzle | 6% | 4% | 67% | 100% | 3 | 3 | +0 | 1.00 |
 | Froslass | 4% | 2% | 100% | 100% | 1 | 2 | -1 | 0.50 |
 | Kingambit | 98% | 4% | 64% | 50% | 20 | 24 | -4 | 0.83 |
@@ -147,12 +146,11 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 | Mon | Moves (chosen count) | Lowest |
 |---|---|---|
 | Arcanine-Hisui | Flare Blitz 56, Head Smash 32, Close Combat 3 | **Close Combat 3** |
-| Floette-Eternal | Moonblast 20, Dazzling Gleam 17, Light of Ruin 12, Protect 1 | **Protect 1** |
+| Floette-Eternal | Dazzling Gleam 38, Moonblast 37, Light of Ruin 35, Protect 8 | **Protect 8** |
 | Kingambit | Kowtow Cleave 75, Protect 21, Iron Head 10, Brick Break 6 | **Brick Break 6** |
 | Basculegion | Wave Crash 54, Last Respects 38, Aqua Jet 25, Protect 10 | **Protect 10** |
 | Salazzle | Heat Wave 4, Sludge Bomb 4, Protect 1 | **Protect 1** |
 | Froslass | Blizzard 3, Weather Ball 1, Protect 1 | **Weather Ball 1** |
-| Floette | Light of Ruin 23, Dazzling Gleam 21, Moonblast 17, Protect 7 | **Protect 7** |
 
 ## Game length
 
@@ -214,7 +212,7 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 
 *Each case is a **gap** (actionable) or **accepted** (explained, with reason). Goal: gaps to zero; accepted rows stay so the checks keep running.*
 
-**Offense** 7 (7 gaps) | **Defense** 7 (4 gaps) | **Turn order** 19 misreads (0 gaps) | **Immunity** 0 (0 gaps)
+**Offense** 7 (7 gaps) | **Defense** 9 (5 gaps) | **Turn order** 24 misreads (0 gaps) | **Immunity** 0 (0 gaps)
 
 ### Defensive mis-model
 *Incoming hits >slop above prediction (crits/misses excluded).*
@@ -223,11 +221,13 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 |---|---|---|--:|--:|---|
 | Primarina | Hyper Voice | Arcanine-Hisui | 20% | 93% | gap<!-- 2652323718:t1 --> |
 | Mamoswine | Earthquake | Kingambit | 57% | 84% | gap<!-- 2652300673:t2 --> |
+| Lucario-Mega | Flash Cannon | Floette-Mega | 75% | 100% | gap<!-- 2652319529:t3 --> |
 | Serperior | Leaf Storm | Kingambit | 71% | 92% | gap<!-- 2652335654:t5 --> |
 | Floette-Mega | Moonblast | Floette-Mega | 44% | 61% | gap<!-- 2652320275:t2 --> |
 | Garchomp | Shadow Ball | Basculegion | n/a | 100% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2652320275:t1 --> |
 | Mimikyu-Busted | Shadow Claw | Basculegion | n/a | 78% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2652315244:t2 --> |
 | Mamoswine | Knock Off | Basculegion | n/a | 100% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2652300673:t3 --> |
+| Staraptor-Mega | Final Gambit | Floette-Mega | n/a | 100% | accepted: unassessed move (off-meta / below usage cutoff)<!-- 2652334732:t1 --> |
 
 ### Offensive mis-model
 *Our outgoing damage vs actual (|error| > slop). Dir = over/under.*
@@ -247,14 +247,15 @@ Times each move was chosen (excludes switches). **Lowest** = swap candidate.
 
 | Result | Count | Share |
 |---|--:|--:|
-| exact | 20 | 51% |
-| off by 1 | 16 | 41% |
-| off by 2+ | 3 | 8% |
+| exact | 21 | 47% |
+| off by 1 | 20 | 44% |
+| off by 2+ | 4 | 9% |
 
 Off-by-2+ misreads (board state at the misread turn; *Predicted* = where we expected the flagged mon, *Actual* = the real resolution order):
 
 | Turn | my[a] | my[b] | opp[a] | opp[b] | TR | TW | Predicted | Actual order | Disposition |
 |--:|---|---|---|---|:-:|:-:|---|---|---|
-| 2 | Floette | Basculegion | Pelipper | Archaludon | - | opp | my[b] 4/4 | my[b] > opp[b] > opp[a] > my[a] | accepted: priority (lower-priority move resolved behind)<!-- 2652311939:t2 --> |
+| 2 | Floette-Eternal | Basculegion | Pelipper | Archaludon | - | opp | my[b] 4/4 | my[b] > opp[b] > opp[a] > my[a] | accepted: priority (lower-priority move resolved behind)<!-- 2652311939:t2 --> |
+| 1 | Floette-Eternal | Basculegion | Swampert | Sableye | - | - | my[a] 1/4 | opp[b] > opp[a] > my[b] > my[a] | accepted: priority (higher-priority move resolved ahead)<!-- 2652318707:t1 --> |
 | 2 | Basculegion | Kingambit | Mimikyu-Busted | Empoleon | yes | - | my[a] 4/4 | opp[b] > my[a] > my[b] > opp[a] | accepted: priority (lower-priority move resolved behind)<!-- 2652315244:t2 --> |
-| 1 | Floette-Eternal | Arcanine-Hisui | Charizard | Whimsicott | - | - | my[b] 1/4 | opp[b] > opp[a] > my[b] > my:Floette | accepted: priority (higher-priority move resolved ahead)<!-- 2652342997:t1 --> |
+| 1 | Floette-Eternal | Arcanine-Hisui | Charizard | Whimsicott | - | - | my[b] 1/4 | opp[b] > opp[a] > my[b] > my[a] | accepted: priority (higher-priority move resolved ahead)<!-- 2652342997:t1 --> |

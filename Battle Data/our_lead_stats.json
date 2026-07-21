@@ -517,16 +517,16 @@
   },
   "off-meta-team@v2": {
     "Arcanine-Hisui|Basculegion": {
-      "w": 6,
-      "g": 9
+      "w": 35,
+      "g": 58
     },
     "Basculegion|Floette-Eternal": {
-      "w": 15,
-      "g": 24
+      "w": 41,
+      "g": 85
     },
     "Arcanine-Hisui|Floette-Eternal": {
-      "w": 8,
-      "g": 13
+      "w": 40,
+      "g": 81
     },
     "Arcanine-Hisui|Froslass": {
       "w": 1,
@@ -534,17 +534,21 @@
     },
     "Arcanine-Hisui|Salazzle": {
       "w": 1,
-      "g": 1
+      "g": 2
     },
     "Floette-Eternal|Salazzle": {
       "w": 1,
-      "g": 1
+      "g": 2
     },
     "Basculegion|Kingambit": {
-      "w": 1,
-      "g": 1
+      "w": 8,
+      "g": 13
     },
     "Floette-Eternal|Kingambit": {
+      "w": 6,
+      "g": 7
+    },
+    "Arcanine-Hisui|Kingambit": {
       "w": 0,
       "g": 1
     }
