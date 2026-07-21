@@ -299,6 +299,23 @@ def _resolve_name(name: str) -> Optional[str]:
     return None
 
 
+# The Floette line breaks the mega naming conventions in BOTH directions: the
+# dex's only base forme is "Floette-Eternal" (Floettite → "Floette-Mega"), so
+# the naive "-Mega" strip invents a nonexistent "Floette" (splitting every
+# identity tally — report rows, usage aggregation, membership sets), and the
+# "{base}-Mega" construction invents "Floette-Eternal-Mega" (so the line's mega
+# was never inferred for an opponent).  One canonical pair of maps repairs both;
+# a future irregular line is one entry in each.
+_MEGA_BASE_OVERRIDES: dict[str, str] = {"Floette": "Floette-Eternal"}
+_MEGA_STEM_OVERRIDES: dict[str, str] = {"Floette-Eternal": "Floette"}
+
+
+def _mega_candidates(name: str) -> list[str]:
+    """The usage-entry names *name*'s mega formes would file under."""
+    stem = _MEGA_STEM_OVERRIDES.get(name, name)
+    return [f"{stem}-Mega", f"{stem}-Mega-X", f"{stem}-Mega-Y"]
+
+
 def base_forme(name: str) -> str:
     """Strip a Mega suffix so two names referring to the same line compare equal.
 
@@ -310,14 +327,17 @@ def base_forme(name: str) -> str:
     same species, ignoring mega state?".
 
     Base and Mega share a movepool, so this is correct for move-level matching too.
-    Non-mega names (and unknown names) resolve to themselves.
+    Non-mega names (and unknown names) resolve to themselves.  Lines whose true
+    base is not the string-stripped name resolve through
+    ``_MEGA_BASE_OVERRIDES`` (``"Floette-Mega"`` → ``"Floette-Eternal"``).
     """
     if not name:
         return name
     for suf in ("-Mega-X", "-Mega-Y", "-Mega"):
         if name.endswith(suf):
-            return name[:-len(suf)]
-    return name
+            stripped = name[:-len(suf)]
+            return _MEGA_BASE_OVERRIDES.get(stripped, stripped)
+    return _MEGA_BASE_OVERRIDES.get(name, name)
 
 
 def assumed_forme(name: str) -> str:
@@ -332,8 +352,7 @@ def assumed_forme(name: str) -> str:
     _load()
     base = _SETS.get(name)
     megas = [(k, _SETS[k]["raw_count"])
-             for k in (f"{name}-Mega", f"{name}-Mega-X", f"{name}-Mega-Y")
-             if k in _SETS]
+             for k in _mega_candidates(name) if k in _SETS]
     if not megas:
         return name
     base_count = base["raw_count"] if base else 0
@@ -354,8 +373,7 @@ def default_mega_forme(base: str) -> Optional[str]:
     """
     _load()
     megas = [(k, _SETS[k]["raw_count"])
-             for k in (f"{base}-Mega", f"{base}-Mega-X", f"{base}-Mega-Y")
-             if k in _SETS]
+             for k in _mega_candidates(base) if k in _SETS]
     if not megas:
         return None
     return max(megas, key=lambda t: t[1])[0]

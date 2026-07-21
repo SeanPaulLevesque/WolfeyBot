@@ -317,6 +317,29 @@ class TestAssumedForme:
         assert assumed_forme("Fakemon") == "Fakemon"
 
 
+class TestFloetteLine:
+    """The Floette line breaks both mega naming conventions: its only base
+    forme is Floette-Eternal (Floettite → Floette-Mega — no plain 'Floette'
+    exists in the dex).  The override maps must repair both directions."""
+
+    def test_base_forme_folds_mega_to_eternal(self):
+        from data import base_forme
+        assert base_forme("Floette-Mega") == "Floette-Eternal"
+
+    def test_base_forme_folds_bare_floette_to_eternal(self):
+        from data import base_forme
+        assert base_forme("Floette") == "Floette-Eternal"
+
+    def test_base_forme_regular_lines_unchanged(self):
+        from data import base_forme
+        assert base_forme("Charizard-Mega-Y") == "Charizard"
+        assert base_forme("Floette-Eternal") == "Floette-Eternal"
+
+    def test_mega_inference_finds_floette_mega(self):
+        from data.sets import default_mega_forme
+        assert default_mega_forme("Floette-Eternal") == "Floette-Mega"
+
+
 class TestMegaStones:
     """mega_stones() is derived from the data (every -Mega entry's top item),
     not from a name-suffix heuristic."""

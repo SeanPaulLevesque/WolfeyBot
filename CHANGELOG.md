@@ -1,5 +1,42 @@
 # WolfeyBot Changelog
 
+## 0.45.4 — 2026-07-20
+
+**Floette line forme resolution fixed** — the only split-identity mega line in
+the format.
+
+The dex has no plain "Floette": the line's base forme is **Floette-Eternal**
+(Floettite → **Floette-Mega**), which broke both mega naming conventions:
+
+- `base_forme("Floette-Mega")` string-stripped to the nonexistent "Floette",
+  splitting every identity tally — team-report roster rows (Floette-Eternal
+  showed 0 KOs while a phantom "Floette" row held them; true faints were
+  under-counted 13 vs 19), usage aggregation, and membership sets
+  (`_SELF_BOOST_SETTER_SPECIES` held "Floette").
+- `assumed_forme` / `default_mega_forme` constructed "Floette-Eternal-Mega"
+  (nonexistent) and never found "Floette-Mega" — so an **opponent's** pre-mega
+  Floette-Eternal was modeled at base stats/ability in team preview and in all
+  decision-time facts until its mega registered on the field.  98.5% of ladder
+  Floettes are the mega (raw counts 239,898 vs 3,792), with Fairy Aura.  The
+  stone-revealed and post-`detailschange` paths were always correct; the
+  pre-reveal window (preview + first contact) was not.
+
+Fix in `data/sets.py`, the canonical layer: `_MEGA_BASE_OVERRIDES`
+("Floette" → "Floette-Eternal", applied in `base_forme`) and
+`_MEGA_STEM_OVERRIDES` ("Floette-Eternal" → "Floette", used by the new
+`_mega_candidates` helper that `assumed_forme` / `default_mega_forme` now
+share).  A future irregular line is one entry in each map.
+
+Audited all 75 mega formes: 21 others lack a base data entry, but those are
+mega-only-in-format mons (Lopunny, Heracross, …) whose pre-mega on-field name
+equals the stripped key — single identity, already handled by the
+`<name>-Mega` resolution rule.  Floette was the only split line.
+
+Verified end-to-end: `_assumed_species(opp Floette-Eternal)` → Floette-Mega,
+`_effective_ability` → Fairy Aura; off-meta v2 report regenerated with one
+merged Floette-Eternal row (37 KOs / 19 faints, KDR 1.95).  +4 tests; zero
+turn-1 snapshot impact (no Floette in the scenario pool).
+
 ## 0.45.3 — 2026-07-17
 
 Preview A/B harness + first shipped result: the opponent's mega counts ×1.5 in
