@@ -552,5 +552,39 @@
       "w": 0,
       "g": 1
     }
+  },
+  "off-meta-team@v3": {
+    "Basculegion|Floette-Eternal": {
+      "w": 2,
+      "g": 7
+    },
+    "Arcanine-Hisui|Floette-Eternal": {
+      "w": 14,
+      "g": 26
+    },
+    "Arcanine-Hisui|Basculegion": {
+      "w": 2,
+      "g": 8
+    },
+    "Kingambit|Milotic": {
+      "w": 1,
+      "g": 1
+    },
+    "Basculegion|Kingambit": {
+      "w": 2,
+      "g": 2
+    },
+    "Chandelure|Floette-Eternal": {
+      "w": 0,
+      "g": 1
+    },
+    "Floette-Eternal|Milotic": {
+      "w": 0,
+      "g": 2
+    },
+    "Floette-Eternal|Kingambit": {
+      "w": 0,
+      "g": 1
+    }
   }
 }
