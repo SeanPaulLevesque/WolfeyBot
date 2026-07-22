@@ -1,5 +1,38 @@
 # WolfeyBot Changelog
 
+## 0.45.5 — 2026-07-21
+
+Two new phase-1 modules for doubles-specific move value the single-target
+DamageOutput (#1) couldn't see.
+
+### #21 Spread — credit a spread move for the second foe
+
+DamageOutput scored a spread move on its *best* foe only (`max`), so a spread
+OHKO-that-also-chips tied a single-target kill and a 60%/60% spread lost to a
+single 75%. SpreadModule multiplies in ×(1 + 0.5 × Σ capped-damage to every
+live foe except the best) — the splash the primary score ignored. Uses the new
+shared `_outgoing_fraction` (extracted from DamageOutput's `_frac`, so the two
+targets are scored with identical modifiers; DamageOutput behavior unchanged).
+Inert with <2 live foes; single-target/status/Protect/switch untouched.
+
+### #22 MoveDrawback — tiny recoil tiebreak
+
+A recoil move (`move_has_flag(m, "recoil")`) ×0.99 — deliberately tiny: it only
+decides genuine ties (chiefly the lethal cap-tie where DamageOutput gives a
+recoil and a clean move the same weight), never suppresses a recoil move that
+clearly out-damages. **Rock Head holders exempt** (recoil negated — reads the
+mega-aware `_our_ability_for_damage`, so Arcanine-Hisui pays nothing). Recoil
+only, per the design call.
+
+### Behavior impact (turn-1 snapshots)
+
+28 decision changes / 285 weight-only. All 28 flips are the recoil tiebreak —
+Wave Crash → a clean super-effective move (e.g. Psychic Fangs, 4× on Sneasler)
+at an OHKO tie: a strict improvement, since the old pick was arbitrary list
+order. The spread module shows as weight-only in the fixed scenario (its
+opponents don't produce a spread flip) but will change live picks (the 60%/60%
+case). +9 tests; suite 1990 green.
+
 ## 0.45.4 — 2026-07-20
 
 **Floette line forme resolution fixed** — the only split-identity mega line in

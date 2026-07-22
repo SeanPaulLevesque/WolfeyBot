@@ -22,6 +22,7 @@ from typing import Callable, Optional, TYPE_CHECKING
 
 from data import (
     move_category as get_move_category,
+    is_spread_move as _is_spread_move, move_has_flag as _move_has_flag,
     get_species as _get_species, base_spe as _base_spe,
     WEATHER_SPEED_ABILITIES as _WEATHER_SPEED_ABILITIES,
     ability_distribution as _ability_distribution,
@@ -556,6 +557,31 @@ def _assumed_weather(state: "BattleState") -> Optional[str]:
 # ══════════════════════════════════════════════════════════════════════════════
 
 
+def _outgoing_fraction(state: "BattleState", mon, tm, stats, ally_faints: int,
+                       move_name: str, opp_slot: int) -> float:
+    """Average damage fraction of our *mon*'s *move_name* vs opponent *opp_slot*.
+
+    The single source of the per-move damage number — DamageOutputModule (best
+    foe) and SpreadModule (the splashed foe) both call this, so a spread move's
+    two-target credit is computed with the exact same modifiers as its primary.
+    Returns 0.0 for a dead / absent target."""
+    opp = (state.opp_actives[opp_slot]
+           if 0 <= opp_slot < len(state.opp_actives) else None)
+    if opp is None or opp.fainted:
+        return 0.0
+    results = outgoing_damage(
+        our_species=mon.species, our_stats=stats, our_moves=[move_name],
+        opp_species=_defense_species(opp),
+        our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega),
+        our_item=_our_item(mon),
+        ally_faint_count=ally_faints,
+        **_field_kwargs(state),
+        **_outgoing_attacker_mods(mon),
+        **_outgoing_defender_mods(state, opp),
+    )
+    return results[0].hp_fraction_avg if results else 0.0
+
+
 class DamageOutputModule(ScoringModule):
     """
     Up-weights moves proportional to the damage they deal.
@@ -611,25 +637,8 @@ class DamageOutputModule(ScoringModule):
         ally_faints = sum(1 for p in state.my_team if p.fainted)
 
         def _frac(move_name: str, opp_slot: int) -> float:
-            """Average damage fraction of *move_name* against opponent *opp_slot*."""
-            opp = (state.opp_actives[opp_slot]
-                   if 0 <= opp_slot < len(state.opp_actives) else None)
-            if opp is None or opp.fainted:
-                return 0.0
-            # Attacker/defender damage modifiers (boosts, status, HP, screens, …)
-            # come from the shared mod helpers so this stays in sync with every
-            # other outgoing_damage caller (e.g. SwitchOffense #17).
-            results = outgoing_damage(
-                our_species=mon.species, our_stats=stats, our_moves=[move_name],
-                opp_species=_defense_species(opp),
-                our_ability=_our_ability_for_damage(tm, mon.species, state.designated_mega),
-                our_item=_our_item(mon),
-                ally_faint_count=ally_faints,
-                **_field_kwargs(state),
-                **_outgoing_attacker_mods(mon),
-                **_outgoing_defender_mods(state, opp),
-            )
-            return results[0].hp_fraction_avg if results else 0.0
+            return _outgoing_fraction(state, mon, tm, stats, ally_faints,
+                                      move_name, opp_slot)
 
         live = [i for i, o in enumerate(state.opp_actives)
                 if o is not None and not o.fainted]
@@ -668,6 +677,87 @@ class DamageOutputModule(ScoringModule):
                 f"{self.name}: {fraction:.0%} HP -> x{factor:.2f}"
                 + (" (overkill capped)" if fraction > 1.0 else "")
             )
+
+
+class SpreadModule(ScoringModule):
+    """Credit a spread move for the **second** foe it hits.
+
+    DamageOutput (#1) scores a spread move on its *best* foe only — so a move
+    that OHKOs one target and chips the other ties a single-target kill, and a
+    move doing 60%/60% loses to a single 75%.  The whole point of a spread move
+    (two Sashes broken, two threats pressured) was invisible.
+
+    This module multiplies in ``(1 + SPREAD_BONUS × Σ splash)`` where *splash*
+    is the capped damage fraction to every live foe **other than the best** —
+    the same per-foe number DamageOutput credits for the primary, via the shared
+    ``_outgoing_fraction``.  Half credit (0.5): the splash is bonus, not the
+    primary kill.  Single-target moves, status, Protect and switches untouched;
+    inert when only one foe is live (nothing to splash onto)."""
+
+    name = "spread"
+    SPREAD_BONUS = 0.5
+
+    def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
+        mon = state.my_actives[slot] if slot < len(state.my_actives) else None
+        if mon is None:
+            return
+        tm = find_member(mon.species)
+        stats = _our_stats(state, slot)
+        if tm is None or stats is None:
+            return
+        live = [i for i, o in enumerate(state.opp_actives)
+                if o is not None and not o.fainted]
+        if len(live) < 2:
+            return   # no second target to credit
+        ally_faints = sum(1 for p in state.my_team if p.fainted)
+        for action in actions:
+            if not action.is_move or not _is_spread_move(action.move_name):
+                continue
+            fracs = sorted(
+                (min(_outgoing_fraction(state, mon, tm, stats, ally_faints,
+                                        action.move_name, i), 1.0) for i in live),
+                reverse=True)
+            splash = sum(fracs[1:])   # every foe except the best (already scored)
+            if splash <= 0.0:
+                continue
+            factor = 1.0 + self.SPREAD_BONUS * splash
+            action.weight *= factor
+            action.reasons.append(
+                f"{self.name}: also hits {len(fracs) - 1} more foe "
+                f"({splash:.0%} splash) -> x{factor:.2f}")
+
+
+class MoveDrawbackModule(ScoringModule):
+    """Break a tie **away** from a self-harming move.
+
+    A recoil move (Light of Ruin, Wave Crash, …) costs the user HP that its
+    damage number doesn't reflect, so when it's otherwise equal to a clean move
+    — most sharply when both OHKO and DamageOutput caps them to the same weight
+    — the clean move should win.  A deliberately tiny ×``RECOIL_PENALTY``: it
+    only decides genuine ties (Light of Ruin still wins when it clearly
+    out-damages), it never meaningfully suppresses a recoil move.
+
+    **Rock Head negates recoil**, so a Rock-Head holder (Arcanine-Hisui) pays
+    no penalty on its recoil moves — they are free for it.  Reads the
+    damage-active ability (mega-aware)."""
+
+    name = "drawback"
+    RECOIL_PENALTY = 0.99   # tiebreak only — favour the non-recoil move at parity
+
+    def score(self, state: "BattleState", slot: int, actions: list[Action]) -> None:
+        mon = state.my_actives[slot] if slot < len(state.my_actives) else None
+        if mon is None:
+            return
+        tm = find_member(mon.species)
+        ability = (_our_ability_for_damage(tm, mon.species, state.designated_mega)
+                   if tm else (mon.ability or ""))
+        if ability == "Rock Head":
+            return   # recoil negated — no drawback
+        for action in actions:
+            if action.is_move and _move_has_flag(action.move_name, "recoil"):
+                action.weight *= self.RECOIL_PENALTY
+                action.reasons.append(
+                    f"{self.name}: recoil -> x{self.RECOIL_PENALTY}")
 
 
 class ThreatEliminationModule(ScoringModule):
@@ -2789,7 +2879,7 @@ def make_engine() -> DecisionEngine:
       PriorityBlock -> ProtectValue -> EndgameStall -> TurnOrder -> Urgency ->
       Setup Denial -> OppProtectRecency -> ConsecutiveProtect -> FakeOut ->
       FieldCondition -> Redirection -> SwitchTempo -> SwitchOffense ->
-      SwitchEscape -> SwitchDanger -> BoostedTarget
+      SwitchEscape -> SwitchDanger -> BoostedTarget -> Spread -> MoveDrawback
 
     Each module multiplies the candidate's weight from precomputed TurnContext
     facts and the candidate itself — none reads the running weight or another
@@ -2836,6 +2926,8 @@ def make_engine() -> DecisionEngine:
             SwitchEscapeModule(),         # 18: bail a doomed mon into a surviving switch-in (×4.0)
             SwitchDangerModule(),         # 19: switch-in itself OHKO'd → soft discount (×0.3)
             BoostedTargetModule(),        # 20: prioritise boosted targets ×(1 + 0.4×stages)
+            SpreadModule(),               # 21: credit a spread move for the 2nd foe it hits
+            MoveDrawbackModule(),         # 22: tiny recoil tiebreak (Rock Head exempt)
         ],
         joint=[
             DoublingAdjuster(),           # both attack same target: ×0.4 flat (spread your damage)

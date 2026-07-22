@@ -7,7 +7,7 @@ WolfeyBot is a Gen 9 VGC doubles bot that plays on Pokémon Showdown in the
 2026-06-17 (`BATTLE_FORMAT` in `main.py` is `gen9championsvgc2026regmb`); the
 data/usage layer runs on the real Smogon **M-B** dumps since 0.37.0. It
 connects via WebSocket, parses the battle protocol, and chooses moves using a
-two-phase scoring engine (20 per-slot modules + 7 joint adjusters; see the
+two-phase scoring engine (22 per-slot modules + 7 joint adjusters; see the
 pipeline section below).
 
 ---
@@ -43,7 +43,7 @@ to make green by editing expectations. This is a hard rule:
 | `main.py` | WebSocket client — connects to Showdown, drives the game loop |
 | `battle.py` / `battle_state.py` | `BattleState` and `Pokemon` dataclasses; battle protocol parser |
 | `decision/engine.py` | `Action`, `ScoringModule`, `DecisionEngine`, `_build_actions` |
-| `decision/modules.py` | All 20 per-slot modules + 7 joint adjusters + `make_engine()` factory |
+| `decision/modules.py` | All 22 per-slot modules + 7 joint adjusters + `make_engine()` factory |
 | `team.py` | `find_member(species)` + active-team selector (`set_active_team`, `get_team`, `list_teams`, `validate_team`, `resolve_team_spec`) |
 | `teams/` | Named ladder teams for A/B testing: `teams/<name>/v<n>.txt` pastes + `teams.json` manifest (name → label, account, current version). See `teams/README.md` |
 | `snapshots/` | Decision-snapshot regression subsystem: `baseline_team.txt` (frozen baseline roster, the no-`--team` fallback) + `<scenario>/<team>.md` generated tables |
@@ -73,7 +73,7 @@ target* is part of the action's identity — not a field that modules pick and
 overwrite. Spread/status/self moves and switches are single candidates
 (`target_slot=None`).
 
-### Phase 1 — per-slot scoring (20 modules)
+### Phase 1 — per-slot scoring (22 modules)
 Each candidate starts at `weight = 1.0`; modules multiply — never add. A slot is
 scored **in isolation** (blind to the partner) over its own candidates. The
 numbering matches `docs/DECISION_ARCHITECTURE.md` and the `make_engine` list, but
@@ -103,6 +103,8 @@ reasons, so the order is for readability only.
 | 18 | SwitchEscape | Bail a doomed current mon into safety: ×4.0 when the current mon faces a connecting OHKO **and** the switch-in survives. One `_switch_in_survives` board check (shared with #19); it and the active-mon threat facts in `build_turn_context` are full-modifier-aware via the shared `_incoming_attacker_mods(opp)` / `_incoming_defender_mods(state, mon)` helpers — so a +Atk foe / our screens / our boosts all count. Split out of the old SwitchSafety (0.44.4) |
 | 19 | SwitchDanger | Don't land into a waiting KO: ×0.3 when the switch-in is itself OHKO'd — a soft discount, not a veto. Reads the same `_switch_in_survives` check as #18; the same-bench-mon collision is phase 2 (SwitchCollisionAdjuster). Split out of the old SwitchSafety (0.44.4) |
 | 20 | BoostedTarget | Attacks aimed at a stat-boosted opponent ×(1 + 0.4 × Σ positive stages) — 1 stage ×1.4, 2 ×1.8. Punish the snowball (endgame autopsy: opp boosted in 61% of late loss-turns vs 38% in wins). Positive stages only (accuracy/evasion count); spread attacks take the most-boosted live foe; Protect/switches untouched |
+| 21 | Spread | Credit a spread move (`is_spread_move`) for the **second** foe it hits: ×(1 + 0.5 × Σ capped-damage to every live foe **except the best**). #1 DamageOutput scored only the best foe (`max`), so a spread OHKO that also chips, or a 60%/60% spread, was invisible; this makes spreading beat a marginally bigger single hit. Uses the shared `_outgoing_fraction` (same calc as #1). Inert with <2 live foes; single-target/status/Protect/switch untouched |
+| 22 | MoveDrawback | Tiny recoil tiebreak: a recoil move (`move_has_flag(m, "recoil")`) ×0.99 — favours a clean move over Light of Ruin / Wave Crash **only at parity** (esp. the lethal cap-tie), never suppresses a recoil move that clearly out-damages. **Rock Head holders exempt** (recoil negated; reads the mega-aware `_our_ability_for_damage`). Recoil-only by design |
 
 ### Phase 2 — joint coordination (`DecisionEngine.coordinate`)
 Phase 1 yields a ranked candidate list per slot. `coordinate` then picks the
@@ -302,7 +304,7 @@ rm) stays manual on purpose.
 ## Compact instructions
 
 When compacting, always preserve:
-- The two-phase pipeline (20 per-slot modules multiply → `coordinate` argmax
+- The two-phase pipeline (22 per-slot modules multiply → `coordinate` argmax
   over pairs) and the Key-invariants section above
 - Any weight bug under investigation and which matchups reproduce it
 - Key file paths and the test-BattleState / scored_actions API patterns

@@ -23,6 +23,8 @@ from decision import (
     _FAKE_OUT_USERS,
     FakeOutModule,
     _immune_to_fake_out,
+    SpreadModule,
+    MoveDrawbackModule,
     FieldConditionModule,
     OppProtectRecencyModule,
     ProtectValueModule,
@@ -3709,3 +3711,81 @@ class TestBoostedTargetModule:
             actions=[make_action("Rock Slide", "Rock Slide", weight=2.0)],
         )
         assert acts[0].weight == pytest.approx(2.0 * 1.8)
+
+
+class TestSpreadModule:
+    """A spread move gets ×(1 + 0.5 × splash) for the foes it hits beyond the
+    best one (the best is already credited by DamageOutput #1)."""
+
+    module = SpreadModule()
+
+    def _state(self, n_foes=2):
+        opps = [make_mon("Incineroar", side="p2"), make_mon("Garchomp", side="p2")]
+        return make_state(
+            my_actives=[make_mon("Aerodactyl")],
+            my_team=[make_mon("Aerodactyl")],
+            opp_actives=opps[:n_foes],
+        )
+
+    def test_credits_second_foe(self):
+        action = make_action("Rock Slide", "Rock Slide", weight=3.0)   # spread
+        tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=tm), \
+             patch("decision.modules._our_stats", return_value={"hp": 100}), \
+             patch("decision.modules._outgoing_fraction", side_effect=[0.8, 0.4]):
+            self.module.score(self._state(), 0, [action])
+        assert action.weight == pytest.approx(3.0 * (1 + 0.5 * 0.4))   # splash 0.4
+        assert any("spread" in r for r in action.reasons)
+
+    def test_splash_capped_at_lethal(self):
+        action = make_action("Rock Slide", "Rock Slide", weight=1.0)
+        tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=tm), \
+             patch("decision.modules._our_stats", return_value={"hp": 100}), \
+             patch("decision.modules._outgoing_fraction", side_effect=[1.5, 1.5]):
+            self.module.score(self._state(), 0, [action])
+        assert action.weight == pytest.approx(1 + 0.5 * 1.0)   # splash capped to 1.0
+
+    def test_single_target_move_untouched(self):
+        action = make_action("Moonblast", "Moonblast", target_slot=0, weight=3.0)
+        tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=tm), \
+             patch("decision.modules._our_stats", return_value={"hp": 100}):
+            self.module.score(self._state(), 0, [action])
+        assert action.weight == 3.0
+
+    def test_inert_with_one_live_foe(self):
+        action = make_action("Rock Slide", "Rock Slide", weight=3.0)
+        tm = make_mock_member()
+        with patch("decision.modules.find_member", return_value=tm), \
+             patch("decision.modules._our_stats", return_value={"hp": 100}):
+            self.module.score(self._state(n_foes=1), 0, [action])
+        assert action.weight == 3.0   # nothing to splash onto
+
+
+class TestMoveDrawbackModule:
+    """A tiny recoil tiebreak (×0.99); Rock Head exempt; non-recoil untouched."""
+
+    module = MoveDrawbackModule()
+
+    def _score(self, action, ability):
+        state = make_state(my_actives=[make_mon("Floette-Eternal")])
+        with patch("decision.modules.find_member", return_value=make_mock_member()), \
+             patch("decision.modules._our_ability_for_damage", return_value=ability):
+            self.module.score(state, 0, [action])
+
+    def test_recoil_move_penalised(self):
+        action = make_action("Light of Ruin", "Light of Ruin", target_slot=0, weight=5.0)
+        self._score(action, "Fairy Aura")
+        assert action.weight == pytest.approx(5.0 * MoveDrawbackModule.RECOIL_PENALTY)
+        assert any("recoil" in r for r in action.reasons)
+
+    def test_rock_head_exempt(self):
+        action = make_action("Head Smash", "Head Smash", target_slot=0, weight=5.0)
+        self._score(action, "Rock Head")
+        assert action.weight == 5.0   # Rock Head negates recoil
+
+    def test_non_recoil_move_untouched(self):
+        action = make_action("Moonblast", "Moonblast", target_slot=0, weight=5.0)
+        self._score(action, "Fairy Aura")
+        assert action.weight == 5.0

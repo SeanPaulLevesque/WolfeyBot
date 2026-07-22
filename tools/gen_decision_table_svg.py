@@ -35,6 +35,7 @@ from decision.modules import (  # noqa: E402
     DoublingAdjuster as _Dbl, OverkillAdjuster as _Ovk,
     PartnerClearsAdjuster as _PC, LoneProtectAdjuster as _LP,
     FakeOutProtectAdjuster as _FOP,
+    SpreadModule as _Spr, MoveDrawbackModule as _Dbk,
     SETUP_URGENCY, SETUP_DENIAL, BOOST_TARGET_FACTOR,
 )
 
@@ -113,6 +114,12 @@ ROWS = [
     ("20",  "Boosted target",         ("span6", f"×(1 + {BOOST_TARGET_FACTOR:g}×stages)"), ["—", "—", "—"],
      "attacks into a stat-boosted opponent, per positive stage on the target — 1 stage ×1.4, "
      "2 ×1.8; punish the snowball before it rolls"),
+    ("21",  "Spread coverage",        ("cells", f"×(1 + {_Spr.SPREAD_BONUS:g}×splash)"), ["—", "—", "—"],
+     "a spread move also hits the 2nd foe — credit its (capped) damage on top of the best "
+     "foe that row 1 already scored, so spreading beats a marginally bigger single hit"),
+    ("22",  "Move drawback",          ("cells", _x(_Dbk.RECOIL_PENALTY)), ["—", "—", "—"],
+     "tiny recoil tiebreak — favour a clean move over a recoil move (Light of Ruin, Wave Crash) "
+     "only when otherwise equal; Rock Head holders exempt (recoil negated)"),
     (SECTION, "Phase 2 — joint adjusters (applied to the chosen pair)", None, None, None),
     ("J1",  "doubling up",            ("span6", _x(_Dbl.DOUBLING_FACTOR)), ["—", "—", "—"],
      "flat penalty when both slots attack the same target — the spread-your-damage tax"),

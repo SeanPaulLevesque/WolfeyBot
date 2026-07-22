@@ -31,6 +31,8 @@ from decision.modules import (  # noqa: F401
     UrgencyModule,
     SetupDenialModule,
     BoostedTargetModule,
+    SpreadModule,
+    MoveDrawbackModule,
     SetupType,
     _SETUP_TYPES,
     _SELF_BOOST_SETTER_SPECIES,

@@ -1,6 +1,6 @@
 # Turn 1 First-Turn Decision Summary
 
-Engine v0.45.4 | Turn 1 opening, 100% HP, no field effects, no revealed moves
+Engine v0.45.5 | Turn 1 opening, 100% HP, no field effects, no revealed moves
 
 > **Joint selection.** Each slot's `(move, target)` candidates are scored
 > independently (phase 1); `DecisionEngine.coordinate` then picks the
@@ -73,26 +73,26 @@ Bench: Arcanine-Hisui, Aegislash, Dragonite, Pelipper
 
 | # | Opp [A] | Opp [B] | Gallade [A] | Basculegion [B] |
 |---|---|---|---|---|
-| 3.1 | Incineroar | Sneasler | Sacred Sword → Incineroar `15.00` | Wave Crash → Sneasler `20.00` |
-| 3.2 | Incineroar | Whimsicott | Psycho Cut → Whimsicott `4.93` | Wave Crash → Incineroar `40.00` |
-| 3.3 | Incineroar | Garchomp | Sacred Sword → Incineroar `15.00` | Wave Crash → Garchomp `4.00` |
-| 3.4 | Incineroar | Farigiraf | Sacred Sword → Incineroar `40.00` | Wave Crash → Farigiraf `9.53` |
-| 3.5 | Incineroar | Kingambit | Sacred Sword → Kingambit `20.00` | Wave Crash → Incineroar `30.00` |
-| 3.6 | Incineroar | Aerodactyl | Switch → Arcanine-Hisui `6.81` | Wave Crash → Incineroar `40.00` |
-| 3.7 | Farigiraf | Sneasler | Psycho Cut → Sneasler `30.00` | Wave Crash → Farigiraf `6.36` |
-| 3.8 | Farigiraf | Garchomp | Sacred Sword → Farigiraf `7.06` | Wave Crash → Farigiraf `12.71` |
-| 3.9 | Whimsicott | Garchomp | Psycho Cut → Whimsicott `6.58` | Wave Crash → Garchomp `6.00` |
-| 3.10 | Whimsicott | Kingambit | Sacred Sword → Kingambit `60.00` | Wave Crash → Whimsicott `6.20` |
-| 3.11 | Sneasler | Garchomp | Psycho Cut → Sneasler `10.00` | Wave Crash → Garchomp `3.00` |
-| 3.12 | Sneasler | Kingambit | Sacred Sword → Kingambit `15.00` | Wave Crash → Sneasler `20.00` |
-| 3.13 | Aerodactyl | Garchomp | Switch → Pelipper `3.32` | Wave Crash → Aerodactyl `6.00` |
-| 3.14 | Lopunny | Garchomp | Sacred Sword → Lopunny `10.00` | Wave Crash → Garchomp `1.50` |
+| 3.1 | Incineroar | Sneasler | Sacred Sword → Incineroar `15.00` | Wave Crash → Sneasler `19.80` |
+| 3.2 | Incineroar | Whimsicott | Psycho Cut → Whimsicott `4.93` | Wave Crash → Incineroar `39.60` |
+| 3.3 | Incineroar | Garchomp | Sacred Sword → Incineroar `15.00` | Wave Crash → Garchomp `3.96` |
+| 3.4 | Incineroar | Farigiraf | Sacred Sword → Incineroar `40.00` | Wave Crash → Farigiraf `9.44` |
+| 3.5 | Incineroar | Kingambit | Sacred Sword → Kingambit `20.00` | Wave Crash → Incineroar `29.70` |
+| 3.6 | Incineroar | Aerodactyl | Switch → Arcanine-Hisui `6.81` | Wave Crash → Incineroar `39.60` |
+| 3.7 | Farigiraf | Sneasler | Psycho Cut → Sneasler `30.00` | Wave Crash → Farigiraf `6.29` |
+| 3.8 | Farigiraf | Garchomp | Sacred Sword → Farigiraf `7.06` | Wave Crash → Farigiraf `12.59` |
+| 3.9 | Whimsicott | Garchomp | Psycho Cut → Whimsicott `6.58` | Wave Crash → Garchomp `5.94` |
+| 3.10 | Whimsicott | Kingambit | Sacred Sword → Kingambit `60.00` | Wave Crash → Whimsicott `6.14` |
+| 3.11 | Sneasler | Garchomp | Psycho Cut → Sneasler `10.00` | Wave Crash → Garchomp `2.97` |
+| 3.12 | Sneasler | Kingambit | Sacred Sword → Kingambit `15.00` | Wave Crash → Sneasler `19.80` |
+| 3.13 | Aerodactyl | Garchomp | Switch → Pelipper `3.32` | Aqua Jet → Aerodactyl `6.00` |
+| 3.14 | Lopunny | Garchomp | Sacred Sword → Lopunny `10.00` | Wave Crash → Garchomp `1.48` |
 | 3.15 | Weavile | Garchomp | Sacred Sword → Weavile `2.00` | Switch → Aegislash `3.20` |
-| 3.16 | Talonflame | Garchomp | Protect → ? `4.50` | Wave Crash → Talonflame `30.00` |
-| 3.17 | Charizard | Incineroar | Sacred Sword → Incineroar `15.00` | Wave Crash → Charizard `20.00` |
-| 3.18 | Rotom-Wash | Garchomp | Leaf Blade → Rotom-Wash `20.00` | Wave Crash → Garchomp `3.00` |
-| 3.19 | Glimmora | Incineroar | Sacred Sword → Incineroar `20.00` | Wave Crash → Glimmora `4.00` |
-| 3.20 | Pelipper | Dragonite | Psycho Cut → Dragonite `4.16` | Wave Crash → Pelipper `5.89` |
+| 3.16 | Talonflame | Garchomp | Protect → ? `4.50` | Wave Crash → Talonflame `29.70` |
+| 3.17 | Charizard | Incineroar | Sacred Sword → Incineroar `15.00` | Wave Crash → Charizard `19.80` |
+| 3.18 | Rotom-Wash | Garchomp | Leaf Blade → Rotom-Wash `20.00` | Wave Crash → Garchomp `2.97` |
+| 3.19 | Glimmora | Incineroar | Sacred Sword → Incineroar `20.00` | Wave Crash → Glimmora `3.96` |
+| 3.20 | Pelipper | Dragonite | Psycho Cut → Dragonite `4.16` | Wave Crash → Pelipper `5.83` |
 
 ---
 
@@ -185,25 +185,25 @@ Bench: Gallade, Aegislash, Dragonite, Pelipper
 
 | # | Opp [A] | Opp [B] | Arcanine-Hisui [A] | Basculegion [B] |
 |---|---|---|---|---|
-| 7.1 | Incineroar | Sneasler | Switch → Gallade `11.01` | Wave Crash → Incineroar `20.00` |
-| 7.2 | Incineroar | Whimsicott | Head Smash → Whimsicott `6.00` | Wave Crash → Incineroar `40.00` |
-| 7.3 | Incineroar | Garchomp | Switch → Gallade `3.20` | Wave Crash → Incineroar `20.00` |
-| 7.4 | Incineroar | Farigiraf | Head Smash → Incineroar `40.00` | Wave Crash → Farigiraf `9.53` |
+| 7.1 | Incineroar | Sneasler | Switch → Gallade `11.01` | Wave Crash → Incineroar `19.80` |
+| 7.2 | Incineroar | Whimsicott | Head Smash → Whimsicott `6.00` | Wave Crash → Incineroar `39.60` |
+| 7.3 | Incineroar | Garchomp | Switch → Gallade `3.20` | Wave Crash → Incineroar `19.80` |
+| 7.4 | Incineroar | Farigiraf | Head Smash → Incineroar `40.00` | Wave Crash → Farigiraf `9.44` |
 | 7.5 | Incineroar | Kingambit | Head Smash → Incineroar `20.00` | Switch → Gallade `4.27` |
-| 7.6 | Incineroar | Aerodactyl | Head Smash → Incineroar `30.00` | Wave Crash → Aerodactyl `8.00` |
-| 7.7 | Farigiraf | Sneasler | Switch → Gallade `11.80` | Wave Crash → Sneasler `40.00` |
-| 7.8 | Farigiraf | Garchomp | Switch → Gallade `3.65` | Wave Crash → Garchomp `8.00` |
-| 7.9 | Whimsicott | Garchomp | Extreme Speed → Whimsicott `3.69` | Wave Crash → Garchomp `6.00` |
+| 7.6 | Incineroar | Aerodactyl | Head Smash → Incineroar `30.00` | Aqua Jet → Aerodactyl `8.00` |
+| 7.7 | Farigiraf | Sneasler | Switch → Gallade `11.80` | Wave Crash → Sneasler `39.60` |
+| 7.8 | Farigiraf | Garchomp | Switch → Gallade `3.65` | Wave Crash → Garchomp `7.92` |
+| 7.9 | Whimsicott | Garchomp | Extreme Speed → Whimsicott `3.69` | Wave Crash → Garchomp `5.94` |
 | 7.10 | Whimsicott | Kingambit | Head Smash → Whimsicott `12.00` | Switch → Gallade `7.34` |
-| 7.11 | Sneasler | Garchomp | Switch → Gallade `11.80` | Wave Crash → Sneasler `15.00` |
+| 7.11 | Sneasler | Garchomp | Switch → Gallade `11.80` | Wave Crash → Sneasler `14.85` |
 | 7.12 | Sneasler | Kingambit | Protect → ? `6.00` | Switch → Gallade `9.53` |
 | 7.13 | Aerodactyl | Garchomp | Extreme Speed → Aerodactyl `2.44` | Aqua Jet → Aerodactyl `12.00` |
-| 7.14 | Lopunny | Garchomp | Switch → Gallade `6.62` | Wave Crash → Lopunny `7.50` |
+| 7.14 | Lopunny | Garchomp | Switch → Gallade `6.62` | Wave Crash → Lopunny `7.42` |
 | 7.15 | Weavile | Garchomp | Protect → ? `6.00` | Switch → Gallade `12.78` |
-| 7.16 | Talonflame | Garchomp | Switch → Aegislash `3.20` | Wave Crash → Talonflame `30.00` |
-| 7.17 | Charizard | Incineroar | Head Smash → Incineroar `20.00` | Wave Crash → Charizard `20.00` |
-| 7.18 | Rotom-Wash | Garchomp | Switch → Gallade `4.04` | Wave Crash → Garchomp `3.00` |
-| 7.19 | Glimmora | Incineroar | Head Smash → Incineroar `20.00` | Wave Crash → Glimmora `4.00` |
+| 7.16 | Talonflame | Garchomp | Switch → Aegislash `3.20` | Wave Crash → Talonflame `29.70` |
+| 7.17 | Charizard | Incineroar | Head Smash → Incineroar `20.00` | Wave Crash → Charizard `19.80` |
+| 7.18 | Rotom-Wash | Garchomp | Switch → Gallade `4.04` | Wave Crash → Garchomp `2.97` |
+| 7.19 | Glimmora | Incineroar | Head Smash → Incineroar `20.00` | Wave Crash → Glimmora `3.96` |
 | 7.20 | Pelipper | Dragonite | Head Smash → Pelipper `16.00` | Aqua Jet → Pelipper `4.97` |
 
 ---
@@ -269,26 +269,26 @@ Bench: Gallade, Arcanine-Hisui, Dragonite, Pelipper
 
 | # | Opp [A] | Opp [B] | Aegislash [A] | Basculegion [B] |
 |---|---|---|---|---|
-| 10.1 | Incineroar | Sneasler | Switch → Gallade `3.16` | Wave Crash → Incineroar `30.00` |
-| 10.2 | Incineroar | Whimsicott | Iron Head → Whimsicott `4.86` | Wave Crash → Incineroar `60.00` |
-| 10.3 | Incineroar | Garchomp | Poltergeist → Garchomp `1.52` | Wave Crash → Incineroar `30.00` |
-| 10.4 | Incineroar | Farigiraf | Iron Head → Farigiraf `2.44` | Wave Crash → Incineroar `80.00` |
-| 10.5 | Incineroar | Kingambit | Switch → Gallade `7.83` | Wave Crash → Incineroar `8.00` |
-| 10.6 | Incineroar | Aerodactyl | Iron Head → Aerodactyl `5.20` | Wave Crash → Incineroar `60.00` |
-| 10.7 | Farigiraf | Sneasler | Switch → Gallade `3.16` | Wave Crash → Sneasler `60.00` |
-| 10.8 | Farigiraf | Garchomp | Poltergeist → Garchomp `4.04` | Wave Crash → Farigiraf `9.53` |
-| 10.9 | Whimsicott | Garchomp | Iron Head → Whimsicott `4.86` | Wave Crash → Garchomp `8.00` |
+| 10.1 | Incineroar | Sneasler | Switch → Gallade `3.16` | Wave Crash → Incineroar `29.70` |
+| 10.2 | Incineroar | Whimsicott | Iron Head → Whimsicott `4.86` | Wave Crash → Incineroar `59.40` |
+| 10.3 | Incineroar | Garchomp | Poltergeist → Garchomp `1.52` | Wave Crash → Incineroar `29.70` |
+| 10.4 | Incineroar | Farigiraf | Iron Head → Farigiraf `2.44` | Wave Crash → Incineroar `79.20` |
+| 10.5 | Incineroar | Kingambit | Switch → Gallade `7.83` | Wave Crash → Incineroar `7.92` |
+| 10.6 | Incineroar | Aerodactyl | Iron Head → Aerodactyl `5.20` | Wave Crash → Incineroar `59.40` |
+| 10.7 | Farigiraf | Sneasler | Switch → Gallade `3.16` | Wave Crash → Sneasler `59.40` |
+| 10.8 | Farigiraf | Garchomp | Poltergeist → Garchomp `4.04` | Wave Crash → Farigiraf `9.44` |
+| 10.9 | Whimsicott | Garchomp | Iron Head → Whimsicott `4.86` | Wave Crash → Garchomp `7.92` |
 | 10.10 | Whimsicott | Kingambit | Iron Head → Whimsicott `6.48` | Switch → Gallade `7.34` |
-| 10.11 | Sneasler | Garchomp | Switch → Gallade `3.16` | Wave Crash → Sneasler `20.00` |
-| 10.12 | Sneasler | Kingambit | Switch → Gallade `12.63` | Wave Crash → Sneasler `6.00` |
-| 10.13 | Aerodactyl | Garchomp | Iron Head → Aerodactyl `5.20` | Wave Crash → Garchomp `8.00` |
-| 10.14 | Lopunny | Garchomp | Switch → Gallade `7.41` | Wave Crash → Lopunny `10.00` |
+| 10.11 | Sneasler | Garchomp | Switch → Gallade `3.16` | Wave Crash → Sneasler `19.80` |
+| 10.12 | Sneasler | Kingambit | Switch → Gallade `12.63` | Wave Crash → Sneasler `5.94` |
+| 10.13 | Aerodactyl | Garchomp | Iron Head → Aerodactyl `5.20` | Wave Crash → Garchomp `7.92` |
+| 10.14 | Lopunny | Garchomp | Switch → Gallade `7.41` | Wave Crash → Lopunny `9.90` |
 | 10.15 | Weavile | Garchomp | Sacred Sword → Weavile `3.00` | Switch → Gallade `12.78` |
-| 10.16 | Talonflame | Garchomp | Poltergeist → Garchomp `3.03` | Wave Crash → Talonflame `40.00` |
-| 10.17 | Charizard | Incineroar | Switch → Arcanine-Hisui `14.31` | Wave Crash → Charizard `30.00` |
-| 10.18 | Rotom-Wash | Garchomp | Poltergeist → Rotom-Wash `1.89` | Wave Crash → Garchomp `4.00` |
-| 10.19 | Glimmora | Incineroar | Iron Head → Glimmora `2.05` | Wave Crash → Incineroar `30.00` |
-| 10.20 | Pelipper | Dragonite | Poltergeist → Dragonite `1.82` | Wave Crash → Pelipper `7.85` |
+| 10.16 | Talonflame | Garchomp | Poltergeist → Garchomp `3.03` | Wave Crash → Talonflame `39.60` |
+| 10.17 | Charizard | Incineroar | Switch → Arcanine-Hisui `14.31` | Wave Crash → Charizard `29.70` |
+| 10.18 | Rotom-Wash | Garchomp | Poltergeist → Rotom-Wash `1.89` | Wave Crash → Garchomp `3.96` |
+| 10.19 | Glimmora | Incineroar | Iron Head → Glimmora `2.05` | Wave Crash → Incineroar `29.70` |
+| 10.20 | Pelipper | Dragonite | Poltergeist → Dragonite `1.82` | Wave Crash → Pelipper `7.77` |
 
 ---
 
@@ -353,25 +353,25 @@ Bench: Gallade, Arcanine-Hisui, Aegislash, Pelipper
 
 | # | Opp [A] | Opp [B] | Basculegion [A] | Dragonite [B] |
 |---|---|---|---|---|
-| 13.1 | Incineroar | Sneasler | Wave Crash → Incineroar `20.00` | Air Slash → Sneasler `30.00` |
-| 13.2 | Incineroar | Whimsicott | Wave Crash → Incineroar `40.00` | Air Slash → Whimsicott `12.00` |
-| 13.3 | Incineroar | Garchomp | Wave Crash → Incineroar `20.00` | Dragon Pulse → Garchomp `6.00` |
-| 13.4 | Incineroar | Farigiraf | Wave Crash → Incineroar `60.00` | Dragon Pulse → Farigiraf `8.36` |
-| 13.5 | Incineroar | Kingambit | Wave Crash → Incineroar `6.00` | Dragon Pulse → Kingambit `2.63` |
-| 13.6 | Incineroar | Aerodactyl | Wave Crash → Incineroar `40.00` | Dragon Pulse → Aerodactyl `8.80` |
-| 13.7 | Farigiraf | Sneasler | Wave Crash → Farigiraf `6.36` | Air Slash → Sneasler `60.00` |
-| 13.8 | Farigiraf | Garchomp | Wave Crash → Farigiraf `6.36` | Dragon Pulse → Farigiraf `12.54` |
-| 13.9 | Whimsicott | Garchomp | Wave Crash → Garchomp `6.00` | Air Slash → Whimsicott `8.00` |
+| 13.1 | Incineroar | Sneasler | Wave Crash → Incineroar `19.80` | Air Slash → Sneasler `30.00` |
+| 13.2 | Incineroar | Whimsicott | Wave Crash → Incineroar `39.60` | Air Slash → Whimsicott `12.00` |
+| 13.3 | Incineroar | Garchomp | Wave Crash → Incineroar `19.80` | Dragon Pulse → Garchomp `6.00` |
+| 13.4 | Incineroar | Farigiraf | Wave Crash → Incineroar `59.40` | Dragon Pulse → Farigiraf `8.36` |
+| 13.5 | Incineroar | Kingambit | Wave Crash → Incineroar `5.94` | Dragon Pulse → Kingambit `2.63` |
+| 13.6 | Incineroar | Aerodactyl | Wave Crash → Incineroar `39.60` | Dragon Pulse → Aerodactyl `8.80` |
+| 13.7 | Farigiraf | Sneasler | Wave Crash → Farigiraf `6.29` | Air Slash → Sneasler `60.00` |
+| 13.8 | Farigiraf | Garchomp | Wave Crash → Farigiraf `6.29` | Dragon Pulse → Farigiraf `12.54` |
+| 13.9 | Whimsicott | Garchomp | Wave Crash → Garchomp `5.94` | Air Slash → Whimsicott `8.00` |
 | 13.10 | Whimsicott | Kingambit | Switch → Gallade `7.34` | Air Slash → Whimsicott `12.00` |
-| 13.11 | Sneasler | Garchomp | Wave Crash → Sneasler `15.00` | Dragon Pulse → Garchomp `4.00` |
+| 13.11 | Sneasler | Garchomp | Wave Crash → Sneasler `14.85` | Dragon Pulse → Garchomp `4.00` |
 | 13.12 | Sneasler | Kingambit | Switch → Gallade `9.53` | Air Slash → Sneasler `30.00` |
-| 13.13 | Aerodactyl | Garchomp | Wave Crash → Aerodactyl `6.00` | Dragon Pulse → Garchomp `8.00` |
-| 13.14 | Lopunny | Garchomp | Wave Crash → Lopunny `7.50` | Dragon Pulse → Garchomp `4.00` |
+| 13.13 | Aerodactyl | Garchomp | Aqua Jet → Aerodactyl `6.00` | Dragon Pulse → Garchomp `8.00` |
+| 13.14 | Lopunny | Garchomp | Wave Crash → Lopunny `7.42` | Dragon Pulse → Garchomp `4.00` |
 | 13.15 | Weavile | Garchomp | Switch → Gallade `12.78` | Dragon Pulse → Garchomp `4.00` |
-| 13.16 | Talonflame | Garchomp | Wave Crash → Talonflame `30.00` | Dragon Pulse → Garchomp `8.00` |
-| 13.17 | Charizard | Incineroar | Wave Crash → Charizard `20.00` | Switch → Arcanine-Hisui `3.66` |
-| 13.18 | Rotom-Wash | Garchomp | Wave Crash → Rotom-Wash `2.11` | Dragon Pulse → Garchomp `6.00` |
-| 13.19 | Glimmora | Incineroar | Wave Crash → Incineroar `20.00` | Dragon Pulse → Glimmora `5.52` |
+| 13.16 | Talonflame | Garchomp | Wave Crash → Talonflame `29.70` | Dragon Pulse → Garchomp `8.00` |
+| 13.17 | Charizard | Incineroar | Wave Crash → Charizard `19.80` | Switch → Arcanine-Hisui `3.66` |
+| 13.18 | Rotom-Wash | Garchomp | Wave Crash → Rotom-Wash `2.09` | Dragon Pulse → Garchomp `6.00` |
+| 13.19 | Glimmora | Incineroar | Wave Crash → Incineroar `19.80` | Dragon Pulse → Glimmora `5.52` |
 | 13.20 | Pelipper | Dragonite | Aqua Jet → Pelipper `2.49` | Dragon Pulse → Pelipper `27.44` |
 
 ---
@@ -381,25 +381,25 @@ Bench: Gallade, Arcanine-Hisui, Aegislash, Dragonite
 
 | # | Opp [A] | Opp [B] | Basculegion [A] | Pelipper [B] |
 |---|---|---|---|---|
-| 14.1 | Incineroar | Sneasler | Wave Crash → Incineroar `20.00` | Hurricane → Sneasler `20.00` |
-| 14.2 | Incineroar | Whimsicott | Wave Crash → Incineroar `40.00` | Hurricane → Whimsicott `8.00` |
-| 14.3 | Incineroar | Garchomp | Wave Crash → Incineroar `20.00` | Ice Beam → Garchomp `20.00` |
-| 14.4 | Incineroar | Farigiraf | Wave Crash → Farigiraf `120.00` | Weather Ball → Incineroar `7.73` |
-| 14.5 | Incineroar | Kingambit | Wave Crash → Kingambit `6.00` | Weather Ball → Incineroar `3.87` |
-| 14.6 | Incineroar | Aerodactyl | Wave Crash → Incineroar `40.00` | Weather Ball → Aerodactyl `6.00` |
-| 14.7 | Farigiraf | Sneasler | Wave Crash → Farigiraf `80.00` | Hurricane → Sneasler `40.00` |
-| 14.8 | Farigiraf | Garchomp | Wave Crash → Farigiraf `80.00` | Ice Beam → Garchomp `80.00` |
-| 14.9 | Whimsicott | Garchomp | Wave Crash → Garchomp `30.00` | Hurricane → Whimsicott `16.00` |
-| 14.10 | Whimsicott | Kingambit | Wave Crash → Kingambit `8.00` | Hurricane → Whimsicott `16.00` |
-| 14.11 | Sneasler | Garchomp | Wave Crash → Sneasler `15.00` | Ice Beam → Garchomp `20.00` |
+| 14.1 | Incineroar | Sneasler | Wave Crash → Incineroar `19.80` | Hurricane → Sneasler `20.00` |
+| 14.2 | Incineroar | Whimsicott | Wave Crash → Incineroar `39.60` | Hurricane → Whimsicott `8.00` |
+| 14.3 | Incineroar | Garchomp | Wave Crash → Incineroar `19.80` | Ice Beam → Garchomp `20.00` |
+| 14.4 | Incineroar | Farigiraf | Wave Crash → Farigiraf `118.80` | Weather Ball → Incineroar `7.73` |
+| 14.5 | Incineroar | Kingambit | Wave Crash → Kingambit `5.94` | Weather Ball → Incineroar `3.87` |
+| 14.6 | Incineroar | Aerodactyl | Wave Crash → Incineroar `39.60` | Weather Ball → Aerodactyl `6.00` |
+| 14.7 | Farigiraf | Sneasler | Wave Crash → Farigiraf `79.20` | Hurricane → Sneasler `40.00` |
+| 14.8 | Farigiraf | Garchomp | Wave Crash → Farigiraf `79.20` | Ice Beam → Garchomp `80.00` |
+| 14.9 | Whimsicott | Garchomp | Wave Crash → Garchomp `29.70` | Hurricane → Whimsicott `16.00` |
+| 14.10 | Whimsicott | Kingambit | Wave Crash → Kingambit `7.92` | Hurricane → Whimsicott `16.00` |
+| 14.11 | Sneasler | Garchomp | Wave Crash → Sneasler `14.85` | Ice Beam → Garchomp `20.00` |
 | 14.12 | Sneasler | Kingambit | Switch → Gallade `6.82` | Hurricane → Sneasler `20.00` |
-| 14.13 | Aerodactyl | Garchomp | Wave Crash → Garchomp `30.00` | Weather Ball → Aerodactyl `12.00` |
-| 14.14 | Lopunny | Garchomp | Wave Crash → Lopunny `7.50` | Ice Beam → Garchomp `15.00` |
+| 14.13 | Aerodactyl | Garchomp | Aqua Jet → Aerodactyl `6.00` | Ice Beam → Garchomp `60.00` |
+| 14.14 | Lopunny | Garchomp | Wave Crash → Lopunny `7.42` | Ice Beam → Garchomp `15.00` |
 | 14.15 | Weavile | Garchomp | Switch → Gallade `10.05` | Ice Beam → Garchomp `15.00` |
 | 14.16 | Talonflame | Garchomp | Aqua Jet → Talonflame `90.00` | Ice Beam → Garchomp `60.00` |
-| 14.17 | Charizard | Incineroar | Wave Crash → Incineroar `20.00` | Weather Ball → Charizard `20.00` |
-| 14.18 | Rotom-Wash | Garchomp | Wave Crash → Rotom-Wash `2.98` | Ice Beam → Garchomp `40.00` |
-| 14.19 | Glimmora | Incineroar | Wave Crash → Incineroar `20.00` | Weather Ball → Glimmora `4.00` |
+| 14.17 | Charizard | Incineroar | Wave Crash → Incineroar `19.80` | Weather Ball → Charizard `20.00` |
+| 14.18 | Rotom-Wash | Garchomp | Wave Crash → Rotom-Wash `2.95` | Ice Beam → Garchomp `40.00` |
+| 14.19 | Glimmora | Incineroar | Wave Crash → Incineroar `19.80` | Weather Ball → Glimmora `4.00` |
 | 14.20 | Pelipper | Dragonite | Aqua Jet → Pelipper `2.49` | Hurricane → Pelipper `26.88` |
 
 ---
