@@ -422,11 +422,10 @@ def _pick_team(state: BattleState, recorder: Optional[BattleRecorder] = None) ->
     order (via :func:`select_leads`).  The first two slots become leads;
     the remaining slots go to the back.
 
-    Selection is driven by type matchups:
-    * **Primary** — offensive coverage: which of our mons have moves that hit
-      the opponent's revealed team super-effectively.
-    * **Secondary** — defensive durability: how resistant each mon is to the
-      opponent's STAB types.
+    Selection is engine-grounded, not a type-chart heuristic: real
+    `outgoing_damage`/`incoming_damage` per matchup, weather- and
+    mega-aware, plus an opponent-archetype bring bonus and a hedged,
+    engine-scored lead-pair pick.  Full mechanics: `docs/TEAM_PREVIEW.md`.
 
     If *recorder* is provided the selection (opponent team, slot order, species
     names, designated mega) is persisted to the battle log via

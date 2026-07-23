@@ -51,8 +51,9 @@ to make green by editing expectations. This is a hard rule:
 | `damage.py` | `outgoing_damage()`, `incoming_damage()`, `type_effectiveness()` |
 | `turn_order.py` | `will_outspeed()`, `priority_bracket()`, `Combatant` dataclass |
 | `data/` | Usage: `moves-gen9championsvgc2026regmb-1760.txt` (Smogon M-B moveset dump → `sets.py`; "No Ability"/"Other" filtered at parse) + `leads-gen9championsvgc2026regmb-1760.txt` (ladder lead prior — a sub-observation tiebreak in `lead_stats.predict_pair`, never outranking our observed pair data). Dex: `smogon_champions_slim.json` (species/types/base stats) + `champions_moves/items/abilities/megas.json`. `sets_supplement.json` = hand-entered gap-fill merged at load (~empty; Watchog only) — the escape hatch for the next reg roll |
-| `team_preview.py` | Bring-4 selection logic |
-| `docs/DECISION_ARCHITECTURE.md` | Full narrative of how the engine works, with weight tables |
+| `team_preview.py` | Team preview: bring-4, mega pick, and lead-pair selection |
+| `docs/DECISION_ARCHITECTURE.md` | Full narrative of how the per-turn engine works, with weight tables |
+| `docs/TEAM_PREVIEW.md` | Full narrative of how `team_preview.py` picks the bring/mega/lead, with the archetype system, known limitations, and a constants table |
 | `tools/` | Dev/analysis scripts (see "Running things" for the prompt-free fixed-command set). Investigation: `inspect_battle.py <id> [--turn N]` (turn-by-turn log summary), `replay_turn.py <id> <turn>` (rebuild a logged board, run the **current** engine — the "would the fix change this?" tool), `team_report.py <dir>` (roster-perf + prediction-accuracy report), `turns_vs_lead.py`, `endgame_autopsy.py`, `preview_backtest.py`. `scratch.py` = gitignored ad-hoc-analysis slot. |
 | `CHANGELOG.md` | Per-version bug fixes — always check before investigating a bug |
 | `snapshots/turn1_openings/baseline.md` | Generated first-turn decision table (6 our leads × 20 opp leads) for the baseline roster |

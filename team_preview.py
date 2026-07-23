@@ -627,21 +627,16 @@ def select_leads(
     """Determine lead order from the already-selected bring list.
 
     Uses historical opponent-lead frequency data (accumulated from v0.5.0
-    battles onward) to predict which two Pokémon from *opp_species_list* are
-    most likely to be led, then picks the best lead *pair* (all C(n,2)
-    combinations): the pair's combined type-matchup score against the
-    predicted leads, multiplied by initiative rows —
-
-    * ``_SLOW_LEAD_FACTOR`` (×0.85) per pair member that is slower than both
-      predicted leads and has no attacking priority move.  Waived entirely
-      when the opponent roster contains a Trick Room setter (slow IS fast
-      under TR).
-    * ``_TW_EXPOSED_FACTOR`` (extra ×0.85) when BOTH pair members are slow
-      and the opponent roster has an undeniable priority Tailwind setter
-      (Gale Wings Talonflame / Prankster).
-
-    With no rows firing the argmax pair equals the top-2 individual matchup
-    scores (the pre-0.7.7 behaviour).
+    battles onward, `data.lead_stats`) to predict the opponent's likely lead
+    pair (hedged over the top-3 candidates, `predict_pairs`), then picks the
+    best lead *pair* from all C(n,2) combinations of our bring: a real turn-1
+    board is built per candidate pair × predicted pair (with Trick Room /
+    opponent-Tailwind field variants where a setter is present), scored by
+    the actual decision engine's phase-1 weights (`_score_lead_pairs` /
+    `_eval_lead_board`), combined across the hedge as a weighted geometric
+    mean, and multiplied by our own empirical per-pair win-rate prior
+    (`data.our_leads.pair_factor`).  Full mechanics, worked example, and every
+    constant: `docs/TEAM_PREVIEW.md`.
 
     Falls back to ascending team-slot order when:
 
