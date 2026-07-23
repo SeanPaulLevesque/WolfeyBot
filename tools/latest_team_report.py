@@ -1,12 +1,13 @@
-"""tools/latest_meta_report.py — Zero-argument meta-team report generator.
+"""tools/latest_team_report.py — Zero-argument report generator for the latest
+battle-data folder, whichever named team it belongs to.
 
-Finds the most recent meta-team battle-data folder under ``Battle Data/`` (the
-directory holding the single most-recently-modified battle log) and writes the
-standard team report to ``reports/meta-team_<team_version>_<engine_version>.md``.
+Finds the single most-recently-modified battle log anywhere under
+``Battle Data/`` (across every named team, not just meta-team) and writes the
+standard team report to ``reports/<team>_<team_version>_<engine_version>.md``.
 
 No arguments, no prompts, no judgement calls — run it bare:
 
-    .venv\\Scripts\\python.exe tools/latest_meta_report.py
+    .venv\\Scripts\\python.exe tools/latest_team_report.py
 
 It reuses the pure helpers in :mod:`tools.team_report`, so the report content is
 identical to running ``team_report.py`` by hand on that folder — this script
@@ -14,7 +15,7 @@ only does the "which folder is latest" lookup so a human (or the agent) doesn't
 have to.
 
 Layout assumed (what the bot writes named-team logs to):
-    Battle Data/<engine_version>/meta-team/<team_version>/*.json
+    Battle Data/<engine_version>/<team_name>/<team_version>/*.json
 """
 import os
 import sys
@@ -28,28 +29,27 @@ from tools.team_report import (
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BATTLE_DATA = os.path.join(ROOT, "Battle Data")
-TEAM_NAME = "meta-team"
 
 
-def latest_meta_dir():
-    """Return ``(dir, engine_version, team_version)`` for the meta-team data
-    folder holding the most-recently-modified battle log, or ``(None, None,
-    None)`` if there is no meta-team data."""
-    pattern = os.path.join(BATTLE_DATA, "*", TEAM_NAME, "*", "*.json")
+def latest_team_dir():
+    """Return ``(dir, engine_version, team_name, team_version)`` for the data
+    folder holding the most-recently-modified battle log across EVERY named
+    team, or ``(None, None, None, None)`` if there is no battle data at all."""
+    pattern = os.path.join(BATTLE_DATA, "*", "*", "*", "*.json")
     files = glob.glob(pattern)
     if not files:
-        return None, None, None
+        return None, None, None, None
     newest = max(files, key=os.path.getmtime)
     d = os.path.dirname(newest)
     parts = d.replace("\\", "/").split("/")
-    # .../Battle Data/<engine_version>/meta-team/<team_version>
-    return d, parts[-3], parts[-1]
+    # .../Battle Data/<engine_version>/<team_name>/<team_version>
+    return d, parts[-3], parts[-2], parts[-1]
 
 
 def main():
-    d, engine_version, team_version = latest_meta_dir()
+    d, engine_version, team_name, team_version = latest_team_dir()
     if d is None:
-        print(f"No {TEAM_NAME} battle data found under Battle Data/.")
+        print("No battle data found under Battle Data/.")
         sys.exit(1)
 
     files = find_log_files(d)
@@ -61,7 +61,7 @@ def main():
     # Prefer the path-derived team/version; fall back to log-derived if the
     # layout is unusual.
     derived_name, derived_tv = derive_team_meta(files)
-    team_name = derived_name or TEAM_NAME
+    team_name = team_name or derived_name
     team_version = team_version or derived_tv
     paste = load_paste(team_name, team_version)
 
