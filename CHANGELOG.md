@@ -1,5 +1,47 @@
 # WolfeyBot Changelog
 
+## 0.45.7 — 2026-07-23
+
+**Team-archetype bring bonus — Trick Room (first archetype).**
+
+Team preview can now recognize an opponent archetype from the revealed six
+and bias which 4 of our own roster get brought — starting with Trick Room.
+Deliberately not a species list: the bonus rewards whichever of *our own* six
+is slow relative to the *rest of our own roster*, computed purely from base
+Speed (a stat already in the data layer). Whoever that is on a given roster —
+Camerupt-Mega and Kingambit on off-meta-team v4 today, just Kingambit on a
+roster without a dedicated TR abuser — gets favored automatically; nothing is
+hardcoded by name.
+
+- **Detection** reuses the existing `_TR_SETTER_SPECIES` signal (population-
+  weighted ≥40% Trick Room usage) — the same check that already drives
+  `UrgencyModule`/`SetupDenialModule` in-battle — applied to the opponent's
+  whole preview six instead of the live board. New `_is_trick_room_team`.
+- **Reward**: `bring_multiplier = 1 + ARCHETYPE_SLOW_BOOST × slowness`, where
+  `slowness` is each of our member's battle-form Speed normalized against the
+  spread of speeds on our own roster (0 = our fastest, 1 = our slowest).
+  Applied separately to a mega-holder's `mega_val` (using the mega's own
+  Speed) and `base_val` (using the base form's Speed) — Camerupt-Mega (Speed
+  20) is even slower than base Camerupt (Speed 40), so the two need their own
+  multiplier, not one shared per-species number. `ARCHETYPE_SLOW_BOOST = 2.0`
+  shipped (the roster's slowest form gets ×3.0; the fastest gets ×1.0 — no
+  effect).
+- **Generalized registry**: one `Archetype` row (key, detector, `reward_slow`
+  bool, `max_boost`) — a future archetype (e.g. one that favors fast forms
+  instead) is a new row, not new code.
+- Applied in `select_team`, layered on top of the real engine matchup scores
+  the same way the empirical pair prior is layered onto the lead-board score
+  — matchup × archetype prior, logged separately, never folded into the
+  damage calc itself.
+
+Validated (score-only, no games): zero effect on a genuinely non-TR six
+(detector correctly gates); on a real TR six, Camerupt-Mega gets the single
+largest bonus of the whole roster (×3.00), Kingambit second (×2.27), scaling
+monotonically with Speed, tapering to ×1.00 for our fastest member. Bring-only
+for this first cut (lead order is independently re-derived by `select_leads`
+regardless of bring order, so this doesn't yet reach lead selection). +7
+tests; 0 turn-1 snapshot impact (preview-only).
+
 ## 0.45.6 — 2026-07-23
 
 ### Fixes

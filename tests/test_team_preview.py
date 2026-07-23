@@ -181,6 +181,79 @@ class TestAssumedWeatherForSix:
         assert rain != dry   # rain-boosted Water changes at least one matchup
 
 
+class TestIsTrickRoomTeam:
+    """Detection reuses decision.modules._TR_SETTER_SPECIES — the same
+    population-usage signal that already drives UrgencyModule/SetupDenial
+    in-battle, applied here to the whole preview six."""
+
+    def test_detects_known_tr_setter(self):
+        from team_preview import _is_trick_room_team
+        assert _is_trick_room_team(["Farigiraf", "Incineroar", "Sneasler"])
+
+    def test_no_tr_setter_present(self):
+        from team_preview import _is_trick_room_team
+        assert not _is_trick_room_team(["Incineroar", "Sneasler", "Garchomp"])
+
+
+class TestArchetypeBringBonus:
+    """Team-archetype bring bonus: NOT a species list — a detected archetype
+    (Trick Room, so far) rewards whichever of OUR OWN roster is slow/fast
+    RELATIVE TO THE REST OF THE ROSTER, computed purely from base Speed."""
+
+    def _members(self):
+        # Real, resolvable species — the bonus reads base_spe from the dex.
+        # Speeds: Camerupt-Mega 20, Kingambit 50, Basculegion 78, Arcanine-Hisui 90.
+        return [
+            make_member("Camerupt", ["Eruption"], mega_name="Camerupt-Mega",
+                       mega_stats={"spe": 20}),
+            make_member("Kingambit", ["Kowtow Cleave"]),
+            make_member("Basculegion", ["Wave Crash"]),
+            make_member("Arcanine-Hisui", ["Flare Blitz"]),
+        ]
+
+    def test_no_archetype_detected_is_noop(self):
+        from team_preview import _archetype_bring_bonus
+        members = self._members()
+        base = {i: (1.0, 1.0) for i in range(1, len(members) + 1)}
+        out = _archetype_bring_bonus(["Incineroar", "Sneasler"], members, base)
+        assert out == base
+
+    def test_trick_room_rewards_slowest_forms_in_rank_order(self):
+        from team_preview import _archetype_bring_bonus
+        members = self._members()
+        base = {i: (1.0, 1.0) for i in range(1, len(members) + 1)}
+        out = _archetype_bring_bonus(["Farigiraf", "Incineroar"], members, base)
+        camerupt_mega, kingambit, basculegion, arcanine = (
+            out[1][0], out[2][0], out[3][0], out[4][0])
+        assert camerupt_mega > kingambit > basculegion > arcanine
+        assert arcanine == pytest.approx(1.0)   # fastest form -> no bonus
+
+    def test_mega_and_base_forms_scale_independently(self):
+        """Mega Camerupt (spe 20) is even slower than base Camerupt (spe 40) —
+        the two tuple slots must scale by their OWN form's speed, not one
+        shared per-species multiplier."""
+        from team_preview import _archetype_bring_bonus
+        members = self._members()
+        base = {i: (1.0, 1.0) for i in range(1, len(members) + 1)}
+        out = _archetype_bring_bonus(["Farigiraf"], members, base)
+        mega_mult, base_mult = out[1]
+        assert mega_mult > base_mult > 1.0
+
+    def test_single_member_roster_is_noop(self):
+        """<2 resolvable speeds -> no spread to normalise against."""
+        from team_preview import _archetype_bring_bonus
+        members = [make_member("Kingambit", ["Kowtow Cleave"])]
+        base = {1: (2.0, 2.0)}
+        out = _archetype_bring_bonus(["Farigiraf"], members, base)
+        assert out == base
+
+    def test_registry_carries_the_shipped_constant(self):
+        from team_preview import _ARCHETYPES, ARCHETYPE_SLOW_BOOST
+        tr = next(a for a in _ARCHETYPES if a.key == "trick_room")
+        assert tr.reward_slow is True
+        assert tr.max_boost == ARCHETYPE_SLOW_BOOST
+
+
 class TestExperimentKnobs:
     """The preview experiment knobs (tools/preview_ab.py) — defaults must be
     behavior-neutral; non-defaults must actually move the scores."""

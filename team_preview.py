@@ -24,7 +24,8 @@ from __future__ import annotations
 
 import logging
 import math
-from typing import Optional
+from dataclasses import dataclass
+from typing import Callable, Optional
 
 from team import TeamMember
 
@@ -65,6 +66,111 @@ _LEAD_COVERAGE_FACTOR = 1.0 # pair penalty when BOTH leads' best attack answers
                             # the SAME opponent (the other gets a free turn)
 _PAIR_PRIOR_POWER = 1.0     # exponent on the empirical pair prior (>1 = lean
                             # harder on our own observed per-pair W-L)
+
+# ── Team archetype bring bonus ────────────────────────────────────────────────
+# "Is the opponent's SIX a recognisable archetype, and if so which of OUR OWN
+# members does that favour?"  Deliberately NOT a species list: the favoured
+# member is whichever of our 6 is slow/fast RELATIVE TO THE REST OF OUR OWN
+# ROSTER, computed from base Speed (a stat we already have) — self-adjusting
+# to whatever roster is active, no hand-picked names to maintain.  One row per
+# archetype; a future row (e.g. reward FAST forms vs a slow-team no-speed-
+# control opponent) is new data, not new code.
+ARCHETYPE_SLOW_BOOST = 2.0   # bonus at the roster's SLOWEST form: 1+this ×.
+                             # A future FAST-favouring archetype reuses the
+                             # same knob via its own `reward_slow=False` row.
+
+
+@dataclass(frozen=True)
+class Archetype:
+    """One opponent-team archetype the bring score reacts to.
+
+    ``detect`` — given the opponent's revealed six, is this archetype likely?
+    ``reward_slow`` — True favours OUR slowest battle-forms (Trick Room);
+    False would favour our fastest (reserved for a future archetype).
+    ``max_boost`` — the bonus multiplier at the extreme end of OUR OWN
+    roster's speed spread; a mon at the roster median gets roughly half that.
+    """
+    key: str
+    label: str
+    detect: Callable[[list[str]], bool]
+    reward_slow: bool
+    max_boost: float
+
+
+def _is_trick_room_team(opp_species_list: list[str]) -> bool:
+    """True if the opponent's six includes a usage-recognised Trick Room
+    setter — the SAME signal (`_TR_SETTER_SPECIES`, population-weighted ≥40%
+    TR usage) that already drives UrgencyModule/SetupDenialModule in-battle;
+    no new heuristic, just applied to the whole preview six instead of the
+    live board."""
+    from decision.modules import _TR_SETTER_SPECIES
+    from data import assumed_forme, base_forme
+    return any(base_forme(assumed_forme(s)) in _TR_SETTER_SPECIES
+               for s in opp_species_list)
+
+
+_ARCHETYPES: list[Archetype] = [
+    Archetype("trick_room", "Trick Room", _is_trick_room_team,
+              reward_slow=True, max_boost=ARCHETYPE_SLOW_BOOST),
+]
+
+
+def _archetype_bring_bonus(
+    opp_species_list: list[str],
+    our_members: list[TeamMember],
+    engine_scores: dict[int, tuple[float, float]],
+) -> dict[int, tuple[float, float]]:
+    """Layer each matched archetype's speed-based bring bonus on top of the
+    real matchup scores from `_engine_matchup_scores` — a separate concern,
+    same architecture as the empirical pair prior in `_score_lead_pairs`
+    (matchup × prior, logged separately, never folded into the damage calc).
+
+    The bonus is roster-relative: each member's `mega_val` is scaled by its
+    OWN mega-form Speed, `base_val` by its base-form Speed (Camerupt-Mega, at
+    base Speed 20, is even slower than base Camerupt at 40 — the two tuple
+    slots need their own multiplier, not one shared per species), normalised
+    against the spread of speeds actually on this roster.  A roster with no
+    speed spread (or <2 resolvable members) is left untouched.
+    """
+    matched = [a for a in _ARCHETYPES if a.detect(opp_species_list)]
+    if not matched:
+        return engine_scores
+    from data import base_spe
+
+    def _battle_speed(m: TeamMember) -> Optional[float]:
+        return base_spe(m.mega_name) if m.mega_name else base_spe(m.name)
+
+    speeds = [s for s in (_battle_speed(m) for m in our_members) if s is not None]
+    if len(speeds) < 2:
+        return engine_scores
+    lo, hi = min(speeds), max(speeds)
+    if hi <= lo:
+        return engine_scores
+
+    def _mult(form_speed: Optional[float]) -> float:
+        if form_speed is None:
+            return 1.0
+        factor = 1.0
+        for a in matched:
+            frac = (hi - form_speed) / (hi - lo)          # 0 fastest .. 1 slowest
+            lean = frac if a.reward_slow else (1.0 - frac)
+            factor *= 1.0 + a.max_boost * lean
+        return factor
+
+    out: dict[int, tuple[float, float]] = {}
+    notes: list[str] = []
+    for i, m in enumerate(our_members, start=1):
+        mega_val, base_val = engine_scores[i]
+        base_speed = base_spe(m.name)
+        mega_speed = base_spe(m.mega_name) if (m.mega_name and m.mega_stats) else base_speed
+        mega_mult, base_mult = _mult(mega_speed), _mult(base_speed)
+        out[i] = (mega_val * mega_mult, base_val * base_mult)
+        if mega_mult != 1.0 or base_mult != 1.0:
+            notes.append(f"{m.name} x{mega_mult:.2f}/{base_mult:.2f}")
+    if notes:
+        log.info("ARCHETYPE  %s detected -> bring bonus: %s",
+                 ", ".join(a.label for a in matched), "; ".join(notes))
+    return out
 
 
 def _members_resolvable(members: list[TeamMember]) -> bool:
@@ -438,6 +544,11 @@ def select_team(
     # ── Engine path (0.38.0): real damage matchups, native mega demotion ──
     engine_scores = _engine_matchup_scores(opp_species_list, our_members)
     if engine_scores is not None:
+        # Archetype bring bonus (0.45.7): a recognised opponent archetype (e.g.
+        # Trick Room) layers a roster-relative speed bonus on top of the real
+        # matchup scores — same architecture as the empirical pair prior in
+        # _score_lead_pairs (matchup × prior), never folded into the damage calc.
+        engine_scores = _archetype_bring_bonus(opp_species_list, our_members, engine_scores)
         remaining = list(engine_scores.keys())
         picked: list[int] = []
         mega_claimed = False
