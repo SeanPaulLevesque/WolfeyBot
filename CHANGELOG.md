@@ -1,5 +1,26 @@
 # WolfeyBot Changelog
 
+## 0.45.6 — 2026-07-23
+
+### Fixes
+- **HP-scaling base power (Eruption / Water Spout / Dragon Energy) modelled.**
+  The move data lists only the max (150), so a damaged user's Eruption was
+  scored as a full 150-BP nuke — worst exactly when the slow user has already
+  taken a hit. `full_damage_calc` now sets `power = max(1, floor(listed ×
+  attacker_hp_fraction))` for `_HP_SCALING_MOVES`, using the HP fraction already
+  threaded through for pinch abilities. Demo: Camerupt-Mega Eruption vs Garchomp
+  45% at full HP → 14% at 30%. Directly de-inflates our own Camerupt (off-meta
+  v4, Eruption lead) and every opponent sun-Torkoal Eruption / rain Water Spout
+  read. 0 turn-1 snapshot changes (opponents modelled at full HP). +4 tests.
+
+### Ops
+- **Graceful stop file.** `main.py` now checks `tools/scratch/stop` between
+  games and shuts down cleanly (finish the current game, never forfeit) when
+  present, consuming the file so it doesn't halt the next run. Complements
+  `--max-games` for stopping a running batch without a mid-game forfeit.
+  (A process already running predates the check — it can't read the file
+  retroactively; the hook applies to runs launched after this.)
+
 ## 0.45.5 — 2026-07-21
 
 Two new phase-1 modules for doubles-specific move value the single-target

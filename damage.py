@@ -118,6 +118,15 @@ _WEATHER_BALL_TYPE: dict[str, str] = {
     "rain": "Water", "sun": "Fire", "sand": "Rock", "hail": "Ice",
 }
 
+# HP-scaling base power: the move's power is its listed max × the user's current
+# HP fraction (Eruption/Water Spout = 150 at full, dropping linearly; floored at
+# 1).  The move data lists only the max, so without this a half-HP Eruption is
+# modelled as a full 150 BP nuke — badly over-valued exactly when the slow user
+# has already taken a hit.  (Dragon Energy is here too for when its data lands.)
+_HP_SCALING_MOVES: frozenset[str] = frozenset({
+    "Eruption", "Water Spout", "Dragon Energy",
+})
+
 # Personal-weather abilities (Champions): the holder's own moves are used as if
 # this weather were active — attacker-side only, never the field (no
 # Chlorophyll for allies, no effect on moves aimed AT the holder).  Applied by
@@ -785,6 +794,11 @@ def full_damage_calc(
         power *= 2
     if move_name == "Expanding Force" and terrain == "psychic" and atk_grounded:
         power = int(power * 1.5)
+
+    # HP-scaling base power (Eruption / Water Spout / Dragon Energy): listed
+    # power is the max, realised at full HP; scale by the user's current HP.
+    if move_name in _HP_SCALING_MOVES and power > 0:
+        power = max(1, math.floor(power * attacker_hp_fraction))
 
     # Moves that always land as critical hits regardless of the opponent's
     # stat stages (Gen 6+ rules).  Battle Armor / Shell Armor immunity is not

@@ -1498,3 +1498,37 @@ class TestTerrain:
     def test_no_terrain_no_change(self):
         assert self._calc("Thunderbolt").damage_avg == \
             self._calc("Thunderbolt", terrain=None).damage_avg
+
+
+class TestHpScalingMoves:
+    """Eruption / Water Spout base power = listed max (150) × user HP fraction."""
+
+    @staticmethod
+    def _erupt(frac):
+        return full_damage_calc(
+            "Eruption",
+            attacker_species="Camerupt-Mega", attacker_stats={"spa": 195, "hp": 160},
+            defender_species="Garchomp", defender_stats={"spd": 90, "hp": 180},
+            attacker_hp_fraction=frac,
+        ).damage_avg
+
+    def test_half_hp_is_half_damage(self):
+        assert self._erupt(0.5) == pytest.approx(self._erupt(1.0) * 0.5, rel=0.06)
+
+    def test_monotonic_in_hp(self):
+        assert self._erupt(0.25) < self._erupt(0.6) < self._erupt(1.0)
+
+    def test_extreme_low_hp_is_tiny_not_full(self):
+        """At 1% HP the power floors to 1, so the hit is a sliver of full — no
+        longer the 150-BP nuke it was modelled as before the scaling fix."""
+        assert self._erupt(0.01) < self._erupt(1.0) * 0.05
+
+    def test_water_spout_also_scales(self):
+        def spout(frac):
+            return full_damage_calc(
+                "Water Spout",
+                attacker_species="Basculegion", attacker_stats={"spa": 120, "hp": 150},
+                defender_species="Garchomp", defender_stats={"spd": 90, "hp": 180},
+                attacker_hp_fraction=frac,
+            ).damage_avg
+        assert spout(0.25) == pytest.approx(spout(1.0) * 0.25, rel=0.1)

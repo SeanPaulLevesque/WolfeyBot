@@ -975,7 +975,20 @@ class ShowdownClient:
             # (after the game is fully recorded + state popped) so shutdown has
             # no active battle to forfeit.
             self._games_done += 1
-            if self._max_games is not None and self._games_done >= self._max_games:
+            # Graceful early stop between games: a `tools/scratch/stop` file lets
+            # an operator halt a running batch cleanly (finish the current game,
+            # never forfeit).  Consumed on read so it doesn't stop the next run.
+            _stop_file = _os.path.join(
+                _os.path.dirname(_os.path.abspath(__file__)), "tools", "scratch", "stop")
+            if _os.path.exists(_stop_file):
+                self.log.info("Stop file present — shutting down cleanly after %d game(s).",
+                              self._games_done)
+                try:
+                    _os.remove(_stop_file)
+                except OSError:
+                    pass
+                await self.shutdown()
+            elif self._max_games is not None and self._games_done >= self._max_games:
                 self.log.info("Reached --max-games (%d) — shutting down after %d game(s).",
                               self._max_games, self._games_done)
                 await self.shutdown()
