@@ -101,12 +101,6 @@ def get_item(name: str) -> Optional[str]:
     return _ITEMS.get(name)
 
 
-def item_exists(name: str) -> bool:
-    """Return True if the item is in the Champions legal item list."""
-    _load()
-    return name in _ITEMS
-
-
 def speed_multiplier(item: Optional[str]) -> float:
     """Return the Speed multiplier granted by *item* (1.0 if none)."""
     if item in SPEED_BOOST_ITEMS:
@@ -119,9 +113,3 @@ def speed_multiplier(item: Optional[str]) -> float:
 def is_mega_stone(item: str) -> bool:
     """Return True if the item name ends in 'ite' (mega stone pattern)."""
     return item.endswith("ite")
-
-
-def all_items() -> dict[str, str]:
-    """Return the full ``{name: description}`` mapping (read-only copy)."""
-    _load()
-    return dict(_ITEMS)

@@ -1,7 +1,7 @@
 # WolfeyBot Battle Log Schema
 
 Reference for analyzing `Battle Data/{version}/*.json` files.
-This file is the only context needed — do not load `recorder.py` or `analyze_battles.py`.
+This file is the only context needed — do not load `recorder.py`.
 
 ---
 

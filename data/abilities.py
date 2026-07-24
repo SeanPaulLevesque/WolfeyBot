@@ -91,29 +91,3 @@ def get_ability(name: str) -> Optional[dict]:
     return _ABILITIES.get(name)
 
 
-def ability_description(name: str) -> str:
-    """Return the ability description string (empty string if not found)."""
-    a = get_ability(name)
-    return a["description"] if a else ""
-
-
-def speed_multiplier_for_ability(ability: str, weather: Optional[str] = None,
-                                 terrain: Optional[str] = None) -> float:
-    """
-    Return the Speed multiplier granted by *ability* given current field state.
-
-    ``weather`` should be one of: 'rain', 'sun', 'sand', 'hail', or None.
-    ``terrain`` should be one of: 'electric_terrain', or None.
-    """
-    required_condition = WEATHER_SPEED_ABILITIES.get(ability)
-    if required_condition:
-        active = weather or terrain
-        if active == required_condition:
-            return 2.0
-    return 1.0
-
-
-def all_abilities() -> dict[str, dict]:
-    """Return the full ``{name: data}`` mapping (read-only copy)."""
-    _load()
-    return dict(_ABILITIES)

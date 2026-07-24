@@ -193,12 +193,6 @@ def prob_outspeeds(
     return min(1.0, max(0.0, result / total_a)) if total_a else 0.5
 
 
-def most_likely_speed(name: str, **kwargs) -> Optional[int]:
-    """Return the single most probable Speed value, or None."""
-    dist = speed_distribution(name, **kwargs)
-    return dist[0].speed if dist else None
-
-
 # ── Internal helpers ─────────────────────────────────────────────────────────
 
 def _merge_and_sort(outcomes: list[SpeedOutcome]) -> list[SpeedOutcome]:

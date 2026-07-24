@@ -115,11 +115,6 @@ def move_priority(name: str) -> int:
     return m.get("priority", 0) if m else 0
 
 
-def is_priority_move(name: str) -> bool:
-    """Return True if the move has positive priority."""
-    return move_priority(name) > 0
-
-
 def is_spread_move(name: str) -> bool:
     """Return True if the move hits multiple targets (0.75× penalty applies)."""
     m = get_move(name)
@@ -168,9 +163,3 @@ def hit_range(name: str) -> tuple[float, float, float]:
     if c == 3.17:            # variable 2-5 hit move
         return (2.0, c, 5.0)
     return (c, c, c)         # fixed count (or single hit)
-
-
-def all_moves() -> dict[str, dict]:
-    """Return the full move dictionary (read-only copy)."""
-    _load()
-    return dict(_MOVES)
