@@ -1,5 +1,59 @@
 # WolfeyBot Changelog
 
+## 0.45.9 — 2026-07-23
+
+**Fix two team-preview bugs behind over-bringing Camerupt into losing matchups**
+(0.45.9) — root-caused via `tools/preview_inspect.py` replaying a real logged
+loss (`battle-...-2653908314`) through the live engine: bucket analysis of 47
+off-meta-team v4 games showed Camerupt's win rate cratering to 18.5% (5-22)
+whenever it fails to land a KO, vs. 76% (13-4) when it does, and going 1-8
+across the 9 games where an opponent Rain team was detected.
+
+**Bug 1 — Trick Room archetype false positive.** `_is_trick_room_team` was a
+binary flag: ANY opponent species clearing a static ≥40% population
+Trick-Room-usage threshold marked the whole six "Trick Room," applying
+`_archetype_bring_bonus`'s full-strength multiplier (up to 3x for our
+slowest form) regardless of how likely the read actually was. In the
+replayed loss, Sinistcha (64.9% real usage) and Gardevoir-Mega (56.3%) both
+cleared the bar and tripled Camerupt's score, even though the opponent's
+actual game plan was Rain (Pelipper) and Trick Room was never set once.
+Replaced with `_trick_room_confidence`: a continuous 0-1 read from each
+opponent's REAL population usage rate on its assumed forme (not the
+base-stripped name — Gardevoir's own rate is 25%, Gardevoir-Mega's is 56%),
+maxed across the six, scaling the archetype multiplier proportionally
+instead of applying it at full strength on any threshold pass. Deliberately
+NOT conditioned on weather — an earlier "suppress Trick Room when a weather
+setter is also present" idea was rejected: Trick-Room-sun (Torkoal + a real
+TR setter) is a legitimate, common archetype, so a weather-conflict rule
+would misfire against it exactly as often as it fixed a bad read.
+
+**Bug 2 — `select_mega` and `select_team` could disagree, and `select_mega`
+ignored the archetype bonus entirely.** `select_team`'s own bring loop
+decided who "claims" the mega slot via an ad hoc flag that flipped on
+whichever stone holder happened to be greedily picked (or lead-pair-seeded)
+first — an accident of iteration order — while `select_mega` ran
+afterward with a completely separate, fresh (and non-archetype-adjusted)
+matchup-score call, ranking candidates by raw `mega_val - base_val` gain.
+Camerupt's weak base form gave it a large relative gain even when its
+absolute mega value was lower than the alternative, and demoting whichever
+holder loses that argument can change who else even makes the bring (a
+degree of freedom neither the old greedy flag nor `select_mega`'s isolated
+ranking accounted for). Fixed by making `select_team` search jointly: for
+each candidate stone holder (rosters essentially never carry 3+, so this is
+at most a couple of cheap re-runs), re-run the greedy bring-fill assuming
+THAT holder is mega and every other holder is demoted to base, and keep
+whichever resulting bring-4 has the higher total engine value. `select_mega`
+now reads the SAME archetype-adjusted scores and the same `_bring_total`
+criterion, so it can never reach a different conclusion than the bring
+`select_team` already committed to.
+
+Both fixes are preview-only (team/mega/lead selection) — zero change to the
+per-turn decision engine, zero turn-1 snapshot diff. +11 tests: confidence
+scaling/proportionality, assumed-forme-aware usage lookup, a synthetic
+2-stone-holder scenario proving the old "biggest gain" ranking would pick
+the worse holder while the new joint-total search picks correctly, and
+select_team/select_mega agreement.
+
 ## 0.45.8 — 2026-07-23
 
 **Lead pair chosen first, by real-board evaluation over the full roster**

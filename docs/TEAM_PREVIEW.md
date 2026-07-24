@@ -146,33 +146,45 @@ member's. Shipped after an A/B eyeball across 6 curated opponent sixes: 1.5
 moved 2 of 6 (both sun teams, correctly demoting a fragile pick out of the
 bring); 2.0 changed nothing 1.5 hadn't already done.
 
-### One mega per battle (native demotion)
+### One mega per battle (joint search, 0.45.9)
 
 Only one Pokémon can actually mega evolve, so a second stone holder playing
-with an un-evolved stone is dead weight. `select_team` handles this with a
-**greedy pick**, not a static rule:
+with an un-evolved stone is dead weight. With 0-1 stone holders on the
+roster there's no ambiguity — that holder (if any) simply keeps its
+`mega_val` throughout, no search needed.
+
+With **2+** stone holders, which ONE should be mega is *coupled* to the rest
+of the bring — whichever one ISN'T mega falls back to `base_val` for the
+whole bring decision, which can change who else even makes the cut. So
+`select_team` decides it jointly instead of letting greedy pick order
+decide by accident (the pre-0.45.9 behavior: whichever holder happened to be
+seeded via the lead pair, or picked first in the greedy loop, silently
+"claimed" the mega slot for scoring purposes — an accident of iteration
+order, not a real decision, and one that could disagree with what
+`select_mega` designated afterward):
 
 ```python
-while remaining and len(picked) < n:
-    best = max(remaining, key=_value)   # mega_val, unless a mega is
-    picked.append(best)                  # already claimed by an earlier pick
-    remaining.remove(best)               # — then base_val
-    if <best holds a stone> and not mega_claimed:
-        mega_claimed = True
+def _fill(mega_holder):
+    """Greedy-fill the bring assuming *mega_holder* is the one stone holder
+    scored at its mega value; every other holder scores at base."""
+    ...
+
+best_picked, best_total = None, -1.0
+for h in holders_all:            # every stone holder on the FULL 6-mon roster
+    candidate = _fill(h)
+    total = _bring_total(candidate, our_members, engine_scores, h)
+    if total > best_total:
+        best_picked, best_total = candidate, total
+picked = best_picked
 ```
 
-The **first** stone holder taken keeps its `mega_val`; any **later** stone
-holder is re-valued at its real `base_val` (its own base stats/ability/typing
-run through the same real damage calc — not a BST-scaling guess). This
-correctly demotes a second mega candidate even when its typing is unchanged
-by mega evolution (a pure speed/power mega gains nothing defensively, which a
-type-only demotion would miss). If the seeded lead pair (above) already
-contains a stone holder, `mega_claimed` starts `True` before this loop even
-runs — so a second stone holder among the bench candidates is demoted from
-its very first bench pick, exactly as if it had been the second pick in the
-old all-6 greedy loop.
+Real rosters essentially never carry 3+ Mega Stones, so this is at most a
+couple of cheap re-runs of the existing greedy-fill, not a real
+combinatorial search. `select_mega` (below) shares this exact
+`_bring_total` criterion, so the two functions can never disagree about
+which holder should be mega for a given battle.
 
-### Archetype bring bonus (0.45.7) — Trick Room
+### Archetype bring bonus (0.45.7, confidence-weighted since 0.45.9) — Trick Room
 
 A recognized opponent **archetype** layers one more multiplier on top of the
 real matchup score — matching the empirical-pair-prior pattern in lead
@@ -186,50 +198,58 @@ should reward whichever of *our own* roster benefits most from that
 inversion. Deliberately **not a species list**: the reward is a pure function
 of base Speed, computed fresh against whatever roster is active.
 
-**Detection** — `_is_trick_room_team`: does the opponent's six contain a
-species whose `assumed_forme` is in `_TR_SETTER_SPECIES`
-(`decision.modules`: base-formes running Trick Room in ≥40% of their usage —
-the *same* population-usage signal that already drives `UrgencyModule`/
-`SetupDenialModule` in-battle, just applied to the whole preview six instead
-of the live board)?
+**Confidence, not a binary flag** — `_trick_room_confidence`: the MAX, across
+the opponent's six, of each member's real population usage rate for the move
+Trick Room on its **assumed forme** (`data.sets.move_distribution`; the
+assumed forme matters — Gardevoir's own usage is 25% but Gardevoir-Mega's is
+56%, so stripping the mega suffix first would silently under-read exactly
+the case that matters). A near-100%-usage setter reads as near-certain; a
+45%-of-the-time set earns roughly half the bring bonus, not the full swing.
 
-**Reward** — for each of our 6 members, compute a roster-relative slowness:
+This replaced an earlier binary version (`_is_trick_room_team`: does the six
+contain ANY species clearing a static ≥40% threshold, applied at full
+strength) after it was caught tripling Camerupt's score off a six that
+included Sinistcha and Gardevoir-Mega — both real, but only *sometimes* run,
+Trick Room setters — even though the opponent's actual game plan that game
+was Rain, and Trick Room was never set once. Rejected fix: "suppress the
+archetype whenever a weather setter is also present in the six" — Trick
+Room *and* weather are not mutually exclusive (Trick-Room-sun with Torkoal
+is a real, common VGC archetype), so a blanket conflict rule would misfire
+against a genuine TR-sun team exactly as often as it fixed a false read.
+Scaling by the setter's own real usage rate sidesteps this entirely — it
+never reasons about weather at all, only the actual per-species probability.
+
+**Reward** — for each of our 6 members, compute a roster-relative slowness
+and scale by the archetype's confidence:
 
 ```
 slowness(form_speed) = (roster_max_speed − form_speed) / (roster_max_speed − roster_min_speed)   ∈ [0, 1]
-bring_multiplier = 1 + ARCHETYPE_SLOW_BOOST × slowness
+bring_multiplier = 1 + ARCHETYPE_SLOW_BOOST × confidence × slowness
 ```
 
 applied **separately** to `mega_val` (using that member's mega-form Speed)
 and `base_val` (using its base-form Speed) — Camerupt-Mega (base Speed 20) is
 even *slower* than base Camerupt (40), so the two tuple entries need their
 own multiplier, not one shared per species. `ARCHETYPE_SLOW_BOOST = 2.0`
-shipped: the roster's single slowest form gets ×3.0; the fastest gets ×1.0
-(no effect at all).
+shipped: the roster's single slowest form gets ×3.0 **at 100% confidence**;
+the fastest gets ×1.0 regardless (no effect at all); a less-than-certain read
+scales linearly down from there.
 
 The registry (`_ARCHETYPES: list[Archetype]`) is built to extend without new
-code: each row is `(key, label, detect, reward_slow, max_boost)`. A
-speed-based archetype that favors *fast* forms instead (`reward_slow=False`)
-reuses the exact same mechanism. An archetype whose reaction *isn't*
-speed-based (discussed in
+code: each row is `(key, label, confidence, reward_slow, max_boost)`, where
+`confidence` returns a float in `[0, 1]`, not a bool. A speed-based archetype
+that favors *fast* forms instead (`reward_slow=False`) reuses the exact same
+mechanism. An archetype whose reaction *isn't* speed-based (discussed in
 [Known limitations](#known-limitations)) would need its own reaction
 field — the registry pattern (borrowed from `_SETUP_TYPES` in
 `decision/modules.py`) is built for that: one row per archetype, not one
 universal formula.
 
-**Verified effect** (live ladder data, 0.45.7, off-meta-team v4 — the team
-whose roster includes Camerupt): 25 of 50 games faced a detected Trick Room
-opponent; Camerupt + Kingambit were both brought in **25 of 25** of them.
-Scored in isolation, Camerupt-Mega's bonus (×3.00) was the single largest of
-any roster member; Kingambit's (×2.27) was second — exactly proportional to
-base Speed, with zero hand-picked names anywhere in the mechanism.
-
 This composes correctly with the 0.45.8 real-board lead-pair seeding above:
-when the seeded lead pair doesn't happen to include either of them (the real
-board found a stronger *lead* elsewhere), the archetype bonus still pulls
-them into the bench-fill slots — confirmed on the same worked TR example
-above, where the pre-0.45.8 bring never included Greninja, but Camerupt and
-Kingambit were retained on the bench regardless of who won the lead slot.
+when the seeded lead pair doesn't happen to include the archetype's favored
+member (the real board found a stronger *lead* elsewhere), the archetype
+bonus still pulls it into the bench-fill slots — confirmed on the worked
+example below.
 
 ### Fallback paths
 
@@ -244,42 +264,49 @@ Kingambit were retained on the bench regardless of who won the lead slot.
 ### Worked example
 
 Off-meta-team v4 vs `["Farigiraf", "Torkoal", "Sinistcha", "Hatterene",
-"Indeedee", "Snorlax"]` (a detected Trick Room six; sun also assumed via
-Torkoal's Drought):
+"Indeedee", "Snorlax"]` (Farigiraf is a 96.97%-usage Trick Room setter —
+near-certain; sun also assumed via Torkoal's Drought):
 
 | Member | Raw matchup (mega/base) | Archetype mult (mega/base) | Boosted (mega/base) |
 |---|--:|--:|--:|
-| Floette-Eternal | 2.09 / 1.61 | ×1.00 / ×1.24 | 2.09 / 2.00 |
-| Camerupt | 1.99 / 1.62 | **×3.00** / ×2.51 | **5.98** / 4.08 |
-| Arcanine-Hisui | 1.82 / 1.82 | ×1.29 / ×1.29 | 2.35 / 2.35 |
-| Milotic | 1.53 / 1.53 | ×1.51 / ×1.51 | 2.31 / 2.31 |
-| Kingambit | 1.65 / 1.65 | ×2.27 / ×2.27 | 3.75 / 3.75 |
-| Basculegion | 1.37 / 1.37 | ×1.59 / ×1.59 | 2.17 / 2.17 |
+| Camerupt | 1.99 / 1.62 | **×2.94** / ×2.47 | **5.86** / 4.00 |
+| Floette-Eternal | 2.09 / 1.61 | ×1.00 / ×1.24 | 2.09 / 1.99 |
+| Arcanine-Hisui | 1.82 / 1.82 | ×1.28 / ×1.28 | 2.33 / 2.33 |
+| Milotic | 1.53 / 1.53 | ×1.50 / ×1.50 | 2.29 / 2.29 |
+| Kingambit | 1.65 / 1.65 | ×2.23 / ×2.23 | 3.69 / 3.69 |
+| Basculegion | 1.37 / 1.37 | ×1.57 / ×1.57 | 2.15 / 2.15 |
 
-Bring (greedy pick, mega slot claimed by Camerupt first): **Camerupt,
-Kingambit, Arcanine-Hisui, Milotic**. With the archetype system disabled on
-this same six, the bring set is `{Camerupt, Kingambit, Arcanine-Hisui,
-Floette-Eternal}` — on this particular roster Camerupt and Kingambit already
-ranked highly on raw matchup, so the archetype's *visible* effect here lands
-on the marginal 4th slot (Milotic vs. Floette-Eternal) and on bring
-**order** (Camerupt moves to slot 1) rather than rescuing them from being cut
-— see the note on bring order below.
+Bring: **Floette-Eternal, Arcanine-Hisui, Camerupt, Kingambit** (mega:
+Camerupt). With the archetype system disabled on this same six, the bring
+SET is identical — `{Camerupt, Kingambit, Arcanine-Hisui, Floette-Eternal}`
+— since Camerupt and Kingambit already ranked highly on raw matchup here, so
+the archetype's *visible* effect on this particular roster lands on the mega
+assignment (Camerupt over Floette-Eternal) rather than on which 4 are cut.
 
 ---
 
 ## Part 2 — `select_mega`: which stone holder actually evolves
 
-Among the brought stone holders, pick the one whose **engine matchup value
-gains the most from mega evolving**:
+Ranks the brought stone holders by `_bring_total` (see above) — the whole
+bring's summed engine value with that holder as mega and every other holder
+demoted to base. Since the bring is already fixed by the time this runs,
+only one term changes between any two holder hypotheses, so this is
+*algebraically identical* to the simpler `gain = mega_val − base_val`
+ranking that shipped originally (sorted descending, ties broken by the
+higher `mega_val`) — no formula change was needed here.
 
-```
-gain(member) = mega_val − base_val        (from _engine_matchup_scores)
-```
+The real 0.45.9 fix is a **data-consistency** one: this used to compute its
+own fresh, non-archetype-adjusted matchup scores, while `select_team`
+(which decides who is even a bring-4 candidate in the first place) applies
+the archetype bonus on top — the two could reach genuinely different
+numbers for the same battle. Now both read the SAME archetype-adjusted
+scores, so `select_mega` can never disagree with the bring `select_team`
+already committed to.
 
-sorted descending, ties broken by the higher `mega_val`. This replaced an
-older defensive type-delta ranking that scored ≈0 for most stones — a pure
-speed/power mega (unchanged typing) showed no defensive gain under that
-scheme even when it was clearly the correct pick.
+(The original `gain` ranking replaced an even older defensive type-delta
+ranking that scored ≈0 for most stones — a pure speed/power mega, unchanged
+typing, showed no defensive gain under that scheme even when it was clearly
+the correct pick.)
 
 **Fallback**: with only one stone holder brought, or no opponent data, it's
 just the first (only) stone holder in the bring — no engine calc needed.
@@ -459,7 +486,7 @@ the narrower per-board inference apply — not yet implemented.
 | `_OFF_WEIGHT` | 2.0 | Bring score: offense weight |
 | `_DEF_WEIGHT` | 1.0 | Bring score: defense weight |
 | `_OPP_MEGA_WEIGHT` | 1.5 | Opponent's assumed mega counts extra in the bring average |
-| `ARCHETYPE_SLOW_BOOST` | 2.0 | Trick Room archetype: bonus at the roster's slowest form |
+| `ARCHETYPE_SLOW_BOOST` | 2.0 | Trick Room archetype: bonus at the roster's slowest form, at 100% detection confidence |
 | `_DOOMED_LEAD_FACTOR` | 0.25 | Lead score: penalty when the board says this slot dies before acting |
 | `_SWITCH_WANT_FACTOR` | 0.5 | Lead score: penalty when the engine's own best action is to switch out |
 | `_LEAD_COVERAGE_FACTOR` | 1.0 (inert) | Lead score: would penalize both leads answering the same opponent |

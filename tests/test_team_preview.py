@@ -181,18 +181,44 @@ class TestAssumedWeatherForSix:
         assert rain != dry   # rain-boosted Water changes at least one matchup
 
 
-class TestIsTrickRoomTeam:
-    """Detection reuses decision.modules._TR_SETTER_SPECIES — the same
-    population-usage signal that already drives UrgencyModule/SetupDenial
-    in-battle, applied here to the whole preview six."""
+class TestTrickRoomConfidence:
+    """Graduated confidence (0.45.9), not a binary flag: a species that only
+    sometimes runs Trick Room should earn a proportionally smaller bring
+    bonus, not the full swing. Replaced the old ≥40%-threshold binary
+    `_is_trick_room_team` after it tripled a slow mon's score off a setter
+    that only actually ran Trick Room ~1 game in 3 (see CHANGELOG 0.45.9)."""
 
-    def test_detects_known_tr_setter(self):
-        from team_preview import _is_trick_room_team
-        assert _is_trick_room_team(["Farigiraf", "Incineroar", "Sneasler"])
+    def test_known_tr_setter_has_high_confidence(self):
+        from team_preview import _trick_room_confidence
+        from data.sets import move_distribution
+        expected = dict(move_distribution("Farigiraf"))["Trick Room"] / 100.0
+        assert _trick_room_confidence(["Farigiraf", "Incineroar", "Sneasler"]) \
+            == pytest.approx(expected)
+        assert expected > 0.9   # sanity: Farigiraf is a near-certain TR setter
 
-    def test_no_tr_setter_present(self):
-        from team_preview import _is_trick_room_team
-        assert not _is_trick_room_team(["Incineroar", "Sneasler", "Garchomp"])
+    def test_no_tr_setter_is_zero(self):
+        from team_preview import _trick_room_confidence
+        assert _trick_room_confidence(["Incineroar", "Sneasler", "Garchomp"]) == 0.0
+
+    def test_uses_assumed_forme_not_base_stripped_name(self):
+        """Gardevoir's own usage and Gardevoir-Mega's usage differ a lot (25%
+        vs 56%) -- confidence must read the ASSUMED (mega-resolved) forme,
+        not the base-stripped species name, or it silently under-reads
+        exactly the case that matters (a mega whose set usage differs from
+        its base form's)."""
+        from team_preview import _trick_room_confidence
+        from data import assumed_forme
+        from data.sets import move_distribution
+        af = assumed_forme("Gardevoir")
+        expected = dict(move_distribution(af)).get("Trick Room", 0.0) / 100.0
+        assert _trick_room_confidence(["Gardevoir"]) == pytest.approx(expected)
+        assert af == "Gardevoir-Mega"   # sanity: this IS the case that mattered
+        assert expected > 0.4           # Gardevoir-Mega's real rate, not base's 25%
+
+    def test_max_confidence_is_capped_at_one(self):
+        from team_preview import _trick_room_confidence
+        # No species runs Trick Room >100% of the time; confidence is a rate.
+        assert _trick_room_confidence(["Farigiraf"]) <= 1.0
 
 
 class TestArchetypeBringBonus:
@@ -245,6 +271,42 @@ class TestArchetypeBringBonus:
         members = [make_member("Kingambit", ["Kowtow Cleave"])]
         base = {1: (2.0, 2.0)}
         out = _archetype_bring_bonus(["Farigiraf"], members, base)
+        assert out == base
+
+    def test_confidence_scales_the_boost_proportionally(self):
+        """A 50%-confidence archetype should apply exactly half the excess
+        boost of a 100%-confidence one -- the whole point of 0.45.9 (a
+        species that only sometimes runs the archetype's move shouldn't get
+        the full-strength swing). Patches the whole registry with a
+        synthetic Archetype so the confidence value is controlled directly,
+        not tied to any real species' usage rate."""
+        from unittest.mock import patch
+        from team_preview import _archetype_bring_bonus, Archetype, ARCHETYPE_SLOW_BOOST
+        members = self._members()
+        base = {i: (1.0, 1.0) for i in range(1, len(members) + 1)}
+
+        def _synthetic(confidence):
+            return [Archetype("test", "Test", lambda opp: confidence,
+                              reward_slow=True, max_boost=ARCHETYPE_SLOW_BOOST)]
+
+        with patch("team_preview._ARCHETYPES", _synthetic(1.0)):
+            full = _archetype_bring_bonus(["irrelevant"], members, base)
+        with patch("team_preview._ARCHETYPES", _synthetic(0.5)):
+            half = _archetype_bring_bonus(["irrelevant"], members, base)
+        # Camerupt-Mega is the roster's slowest form (lean == 1.0), so its
+        # multiplier is exactly 1 + max_boost*confidence there.
+        assert full[1][0] == pytest.approx(1.0 + ARCHETYPE_SLOW_BOOST * 1.0)
+        assert half[1][0] == pytest.approx(1.0 + ARCHETYPE_SLOW_BOOST * 0.5)
+
+    def test_zero_confidence_is_noop(self):
+        from unittest.mock import patch
+        from team_preview import _archetype_bring_bonus, Archetype, ARCHETYPE_SLOW_BOOST
+        members = self._members()
+        base = {i: (1.0, 1.0) for i in range(1, len(members) + 1)}
+        synthetic = [Archetype("test", "Test", lambda opp: 0.0,
+                               reward_slow=True, max_boost=ARCHETYPE_SLOW_BOOST)]
+        with patch("team_preview._ARCHETYPES", synthetic):
+            out = _archetype_bring_bonus(["irrelevant"], members, base)
         assert out == base
 
     def test_registry_carries_the_shipped_constant(self):
@@ -503,6 +565,82 @@ class TestRealBoardLeadPairSeedsTheBring:
         pair = _select_lead_pair(self._OPP, members)
         if pair is not None:   # real lead data happens to exist right now
             assert set(ordered[:2]) == set(pair)
+
+
+class TestJointMegaBringSelection:
+    """0.45.9: with 2+ stone holders on the roster, which one is mega is
+    coupled to the rest of the bring (the other falls back to base) -- so
+    select_team searches both assignments and keeps whichever produces the
+    higher TOTAL bring value, instead of letting an ad hoc greedy pick order
+    decide (or select_mega separately re-deciding by an isolated per-holder
+    gain that never accounts for what replaces a demoted holder)."""
+
+    def _members(self):
+        # A: tiny gain (9.0-8.8=0.2) but strong either way.
+        # B: huge gain (4.6-2.0=2.6) but a weak floor -- demoting B all the
+        # way down to 2.0 knocks it below E (4.5), so a bring built around
+        # "B is mega" swaps E in for B's base... which is a WORSE bring
+        # overall than "A is mega" (B excluded outright, E fills the slot),
+        # even though B's raw gain is 13x A's. See CHANGELOG 0.45.9 for the
+        # real numbers this mirrors (Camerupt vs Floette-Eternal).
+        return [
+            make_member("A", [], mega_name="A-Mega"),
+            make_member("B", [], mega_name="B-Mega"),
+            make_member("C", []),
+            make_member("D", []),
+            make_member("E", []),
+            make_member("F", []),
+        ]
+
+    _SCORES = {
+        1: (9.0, 8.8),   # A: mega, base
+        2: (4.6, 2.0),   # B: mega, base
+        3: (7.0, 7.0),   # C
+        4: (6.0, 6.0),   # D
+        5: (4.5, 4.5),   # E
+        6: (0.5, 0.5),   # F
+    }
+
+    def test_old_gain_ranking_would_have_picked_the_worse_holder(self):
+        """Sanity-check the fixture itself: raw gain favours B, but the
+        actual best total favours A -- confirming this scenario exercises
+        the real discrepancy, not a redundant case."""
+        gain_a = self._SCORES[1][0] - self._SCORES[1][1]
+        gain_b = self._SCORES[2][0] - self._SCORES[2][1]
+        assert gain_b > gain_a   # old code would rank B first
+
+        total_a_mega = self._SCORES[1][0] + self._SCORES[3][0] + \
+            self._SCORES[4][0] + self._SCORES[5][0]              # A,C,D,E
+        total_b_mega = self._SCORES[1][1] + self._SCORES[2][0] + \
+            self._SCORES[3][0] + self._SCORES[4][0]               # A,B,C,D
+        assert total_a_mega > total_b_mega   # but A-mega is the better bring
+
+    def test_select_team_picks_the_higher_total_not_the_higher_gain(self):
+        from unittest.mock import patch
+        members = self._members()
+        with patch("team_preview._engine_matchup_scores", return_value=self._SCORES), \
+             patch("team_preview._select_lead_pair", return_value=None):
+            bring = select_team(["irrelevant"], members, n=4)
+        names = {members[i - 1].name for i in bring}
+        assert names == {"A", "C", "D", "E"}   # B excluded, not B/C/D with A demoted
+
+    def test_select_mega_agrees_with_select_team(self):
+        """select_mega, called on whatever bring select_team produced, must
+        designate the SAME holder select_team's own search already assumed
+        -- the two can never disagree (0.45.9)."""
+        from unittest.mock import patch
+        members = self._members()
+        with patch("team_preview._engine_matchup_scores", return_value=self._SCORES), \
+             patch("team_preview._select_lead_pair", return_value=None):
+            bring = select_team(["irrelevant"], members, n=4)
+            mega = select_mega(bring, members, ["irrelevant"])
+        assert mega == "A"
+
+    def test_single_holder_in_final_bring_is_unaffected(self):
+        """When only one of the 2+ roster-wide holders actually makes the
+        bring, select_mega trivially designates it -- no ambiguity."""
+        members = self._members()
+        assert select_mega([1, 3, 4, 5], members, []) == "A"
 
 
 class TestDoomedLeadPenalty:

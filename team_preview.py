@@ -84,33 +84,55 @@ ARCHETYPE_SLOW_BOOST = 2.0   # bonus at the roster's SLOWEST form: 1+this ×.
 class Archetype:
     """One opponent-team archetype the bring score reacts to.
 
-    ``detect`` — given the opponent's revealed six, is this archetype likely?
-    ``reward_slow`` — True favours OUR slowest battle-forms (Trick Room);
-    False would favour our fastest (reserved for a future archetype).
-    ``max_boost`` — the bonus multiplier at the extreme end of OUR OWN
-    roster's speed spread; a mon at the roster median gets roughly half that.
+    ``confidence`` — given the opponent's revealed six, how likely (0.0-1.0)
+    is this archetype?  A graduated read, not a yes/no flag: a species that
+    only sometimes runs the archetype's defining move should earn a
+    proportionally smaller bring bonus, not the full swing (0.45.9 — a binary
+    ≥40%-usage threshold applied at full strength was tripling a slow mon's
+    score off a setter that only actually set Trick Room ~1 game in 3; see
+    CHANGELOG 0.45.9). ``reward_slow`` — True favours OUR slowest battle-forms
+    (Trick Room); False would favour our fastest (reserved for a future
+    archetype). ``max_boost`` — the bonus multiplier at 100% confidence and
+    the extreme end of OUR OWN roster's speed spread; a mon at the roster
+    median, or a less-than-certain read, gets proportionally less.
     """
     key: str
     label: str
-    detect: Callable[[list[str]], bool]
+    confidence: Callable[[list[str]], float]
     reward_slow: bool
     max_boost: float
 
 
-def _is_trick_room_team(opp_species_list: list[str]) -> bool:
-    """True if the opponent's six includes a usage-recognised Trick Room
-    setter — the SAME signal (`_TR_SETTER_SPECIES`, population-weighted ≥40%
-    TR usage) that already drives UrgencyModule/SetupDenialModule in-battle;
-    no new heuristic, just applied to the whole preview six instead of the
-    live board."""
-    from decision.modules import _TR_SETTER_SPECIES
-    from data import assumed_forme, base_forme
-    return any(base_forme(assumed_forme(s)) in _TR_SETTER_SPECIES
-               for s in opp_species_list)
+def _trick_room_confidence(opp_species_list: list[str]) -> float:
+    """How likely (0.0-1.0) is this opponent six actually playing Trick Room?
+
+    The MAX, across the six, of each opponent's real population usage rate
+    for the move "Trick Room" on its **assumed forme** (`data.assumed_forme`
+    — not the base-stripped name: Gardevoir's own usage is 25% but
+    Gardevoir-Mega's is 56%, so stripping the mega suffix before the lookup
+    would silently under-read exactly the case that matters). A near-100%
+    setter reads as near-certain; a 45%-of-the-time set reads as roughly a
+    coin flip and earns roughly half the bring bonus, not the full one.
+
+    Deliberately NOT conditioned on the opponent's weather or any other
+    archetype — Trick-Room-sun (a genuine, common VGC archetype: Torkoal +
+    a real TR setter) would be wrongly suppressed by a "weather present ->
+    not really Trick Room" rule, so this only ever reads the actual
+    per-species probability of the defining move."""
+    from data import assumed_forme
+    from data.sets import move_distribution
+    best = 0.0
+    for s in opp_species_list:
+        af = assumed_forme(s)
+        for move, pct in move_distribution(af):
+            if move == "Trick Room":
+                best = max(best, pct / 100.0)
+                break
+    return best
 
 
 _ARCHETYPES: list[Archetype] = [
-    Archetype("trick_room", "Trick Room", _is_trick_room_team,
+    Archetype("trick_room", "Trick Room", _trick_room_confidence,
               reward_slow=True, max_boost=ARCHETYPE_SLOW_BOOST),
 ]
 
@@ -132,7 +154,8 @@ def _archetype_bring_bonus(
     against the spread of speeds actually on this roster.  A roster with no
     speed spread (or <2 resolvable members) is left untouched.
     """
-    matched = [a for a in _ARCHETYPES if a.detect(opp_species_list)]
+    matched = [(a, c) for a in _ARCHETYPES
+               if (c := a.confidence(opp_species_list)) > 0.0]
     if not matched:
         return engine_scores
     from data import base_spe
@@ -151,10 +174,10 @@ def _archetype_bring_bonus(
         if form_speed is None:
             return 1.0
         factor = 1.0
-        for a in matched:
+        for a, confidence in matched:
             frac = (hi - form_speed) / (hi - lo)          # 0 fastest .. 1 slowest
             lean = frac if a.reward_slow else (1.0 - frac)
-            factor *= 1.0 + a.max_boost * lean
+            factor *= 1.0 + a.max_boost * confidence * lean
         return factor
 
     out: dict[int, tuple[float, float]] = {}
@@ -169,7 +192,8 @@ def _archetype_bring_bonus(
             notes.append(f"{m.name} x{mega_mult:.2f}/{base_mult:.2f}")
     if notes:
         log.info("ARCHETYPE  %s detected -> bring bonus: %s",
-                 ", ".join(a.label for a in matched), "; ".join(notes))
+                 ", ".join(f"{a.label} ({c:.0%})" for a, c in matched),
+                 "; ".join(notes))
     return out
 
 
@@ -535,6 +559,22 @@ def _engine_matchup_scores(opp_species_list: list[str],
     return out
 
 
+def _bring_total(slots: list[int], our_members: list[TeamMember],
+                 engine_scores: dict[int, tuple[float, float]],
+                 mega_holder: Optional[int]) -> float:
+    """Sum of each slot's engine value, crediting *mega_holder* (if present in
+    *slots*) its mega value and every OTHER stone holder in *slots* its base
+    value. The single shared criterion `select_team` and `select_mega` both
+    use (0.45.9) so the two can never disagree about which mega assignment
+    is best for a given bring-4 — see `select_team`'s docstring."""
+    total = 0.0
+    for i in slots:
+        mega_val, base_val = engine_scores[i]
+        holder = bool(our_members[i - 1].mega_name)
+        total += mega_val if (i == mega_holder or not holder) else base_val
+    return total
+
+
 def select_team(
     opp_species_list: list[str],
     our_members: list[TeamMember],
@@ -563,16 +603,21 @@ def select_team(
     **One mega per battle.**  Only one Pokémon can mega evolve in a game, so a
     second Mega-Stone holder would play with a dead item (a mega stone confers
     nothing un-evolved).  ``score_members`` values every stone holder at its
-    *mega* strength, which over-brings the pair.  Selection therefore proceeds
-    greedily: the first stone holder taken keeps its mega value, but any further
-    stone holder is re-valued at its **base** form — base typing/ability *and*
-    base stats (scaled by its own ``base_BST / mega_BST``) — which usually lets a
-    non-stone member take the slot instead.  Scaling by stats matters because a
-    Pokémon whose typing is unchanged on mega (e.g. a speed/power mega) wouldn't
-    be demoted by type scoring alone.  This is fully generic — it keys off
-    ``member.mega_name`` (truthy iff the member carries a Mega Stone) and the
-    member's own stat sheet, never specific species — so it still holds if the
-    team changes.
+    *mega* strength, which over-brings the pair.  With 0-1 stone holders on the
+    roster there's no ambiguity — that holder (if any) simply keeps its mega
+    value throughout.  With 2+ (0.45.9), which ONE should be mega is *coupled*
+    to the rest of the bring — whichever one ISN'T mega falls back to its
+    **base** form for the whole bring decision — so it's decided jointly: for
+    each candidate holder, greedy-fill the bring assuming THAT holder is the
+    mega and every other holder is base, then keep whichever candidate's total
+    engine value (:func:`_bring_total`) is highest.  Real rosters essentially
+    never carry 3+ Mega Stones, so this is at most a couple of cheap re-runs,
+    not a real combinatorial search.  Base-form values are already fully
+    stat-and-typing-aware (from :func:`_engine_matchup_scores`), so this is
+    fully generic — it keys off ``member.mega_name`` and the member's own
+    stat sheet, never specific species — so it still holds if the team
+    changes.  :func:`select_mega` shares this exact criterion, so the two
+    functions can never disagree about which holder should be mega.
 
     Args:
         opp_species_list: Species names of the opponent's revealed preview team.
@@ -600,25 +645,40 @@ def select_team(
         # REMAINING (bench) slots, which don't play turn 1 and so have no
         # real board to evaluate against in the first place.
         lead_pair = _select_lead_pair(opp_species_list, our_members) if n >= 2 else None
-        if lead_pair is not None:
-            picked: list[int] = list(lead_pair)
-            mega_claimed = any(our_members[i - 1].mega_name for i in picked)
+
+        def _fill(mega_holder: Optional[int]) -> list[int]:
+            """Greedy-fill the bring assuming *mega_holder* is the ONE stone
+            holder scored at its mega value; every other holder scores at
+            base (0.45.9 — see the class docstring's "One mega per battle")."""
+            picked: list[int] = list(lead_pair) if lead_pair is not None else []
+            remaining = [i for i in engine_scores if i not in picked]
+
+            def _value(i: int) -> float:
+                mega_val, base_val = engine_scores[i]
+                holder = bool(our_members[i - 1].mega_name)
+                return mega_val if (i == mega_holder or not holder) else base_val
+
+            while remaining and len(picked) < n:
+                best = max(remaining, key=_value)
+                picked.append(best)
+                remaining.remove(best)
+            return picked
+
+        holders_all = [i for i, m in enumerate(our_members, start=1) if m.mega_name]
+        if len(holders_all) <= 1:
+            picked = _fill(holders_all[0] if holders_all else None)
         else:
-            picked = []
-            mega_claimed = False
-        remaining = [i for i in engine_scores if i not in picked]
+            # 2+ stone holders: which ONE is mega is coupled to the rest of
+            # the bring (the other falls back to base), so search jointly
+            # instead of letting greedy pick-order decide by accident.
+            best_picked, best_total = None, -1.0
+            for h in holders_all:
+                candidate = _fill(h)
+                total = _bring_total(candidate, our_members, engine_scores, h)
+                if total > best_total:
+                    best_picked, best_total = candidate, total
+            picked = best_picked
 
-        def _value(i: int) -> float:
-            mega_val, base_val = engine_scores[i]
-            holder = bool(our_members[i - 1].mega_name)
-            return base_val if (holder and mega_claimed) else mega_val
-
-        while remaining and len(picked) < n:
-            best = max(remaining, key=_value)
-            picked.append(best)
-            remaining.remove(best)
-            if our_members[best - 1].mega_name and not mega_claimed:
-                mega_claimed = True
         log.info("TEAM SELECT (engine)  %s%s",
                  [(our_members[i - 1].name,
                    f"{engine_scores[i][0]:.2f}/{engine_scores[i][1]:.2f}")
@@ -640,13 +700,25 @@ def select_mega(
 ) -> Optional[str]:
     """Choose which brought stone holder mega evolves this battle.
 
-    Engine-grounded (cleanup C, completing task #5): among the brought stone
-    holders, designate the one whose **engine matchup value gains the most
-    from mega evolving** — ``mega_val − base_val`` from
-    :func:`_engine_matchup_scores` (real damage in and out, stat- and
-    ability-aware) — with the higher absolute mega value as the tiebreak.
-    Replaces the old defensive type-delta ranking, which was ≈0 for most
-    stones (a speed/power mega gains nothing defensively).
+    Ranks the brought stone holders by :func:`_bring_total` — the bring-4's
+    summed engine value with that holder as mega and every other holder
+    demoted to base.  Since ``slots`` (the bring) is already fixed by the
+    time this runs, only one term changes between any two holder hypotheses,
+    so this is *algebraically identical* to ranking by raw
+    ``mega_val - base_val`` gain — no formula change was needed here.
+
+    The real 0.45.9 fix is a data-consistency one: this used to compute its
+    own fresh, NON-archetype-adjusted `_engine_matchup_scores` call, while
+    `select_team` (which decides who is even a bring-4 candidate in the first
+    place) applies `_archetype_bring_bonus` on top.  The two could reach
+    genuinely different numbers for the same battle.  Now both read the
+    SAME archetype-adjusted scores, so `select_mega` can never disagree with
+    the bring `select_team` already committed to.  (The deeper insight —
+    that a weak base form shouldn't win a bring slot just because its mega
+    form gains a lot *relative to it* — is handled in `select_team`'s own
+    search over which holder to assume mega, where demoting a holder CAN
+    change who else makes the bring-4; that's a real degree of freedom this
+    function doesn't have.)
 
     Returns the base species name of the designated mega, or ``None`` when
     no brought member carries a Mega Stone.  Falls back to the first stone
@@ -659,15 +731,17 @@ def select_mega(
     if len(holders) > 1 and opp_species_list:
         scores = _engine_matchup_scores(opp_species_list, our_members)
         if scores is not None:
-            def _gain(s: int) -> tuple[float, float]:
-                mega_val, base_val = scores[s]
-                return (mega_val - base_val, mega_val)
-            holders.sort(key=_gain, reverse=True)
+            scores = _archetype_bring_bonus(opp_species_list, our_members, scores)
+
+            def _rank(s: int) -> tuple[float, float]:
+                return (_bring_total(slots, our_members, scores, s), scores[s][0])
+            holders.sort(key=_rank, reverse=True)
             log.info(
                 "TEAM PREVIEW  designated mega: %s  (candidates: %s)",
                 our_members[holders[0] - 1].name,
                 [(our_members[s - 1].name,
-                  f"gain={scores[s][0] - scores[s][1]:.2f}") for s in holders],
+                  f"bring_total={_bring_total(slots, our_members, scores, s):.2f}")
+                 for s in holders],
             )
             return our_members[holders[0] - 1].name
     designated = our_members[holders[0] - 1].name
