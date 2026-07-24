@@ -103,23 +103,51 @@ class Archetype:
     max_boost: float
 
 
+_TR_SLOW_THRESHOLD = 49   # base Speed at/under this counts as a genuinely
+                          # Trick-Room-shaped "slow mon" -- a coarser, purely
+                          # generically-below-average attacker (Kingambit at
+                          # 50) is common on plenty of non-TR teams too;
+                          # Dragalge at 44 and below is a different, dedicated
+                          # tier. Verified against two real sixes: a Sinistcha
+                          # rain six (Kingambit 50, Dragalge 44) needed the cut
+                          # BELOW 50 to exclude Kingambit; a genuine Farigiraf
+                          # TR six (Torkoal 20, Hatterene 29, Snorlax 30) sits
+                          # nowhere near the boundary either way.
+_TR_CORROBORATION = {0: 0.3, 1: 0.65}   # count of OTHER six-mons at/under the
+                                        # threshold -> confidence multiplier;
+                                        # 2+ -> 1.0 (no discount)
+
+
 def _trick_room_confidence(opp_species_list: list[str]) -> float:
     """How likely (0.0-1.0) is this opponent six actually playing Trick Room?
 
-    The MAX, across the six, of each opponent's real population usage rate
-    for the move "Trick Room" on its **assumed forme** (`data.assumed_forme`
-    — not the base-stripped name: Gardevoir's own usage is 25% but
-    Gardevoir-Mega's is 56%, so stripping the mega suffix before the lookup
-    would silently under-read exactly the case that matters). A near-100%
-    setter reads as near-certain; a 45%-of-the-time set reads as roughly a
-    coin flip and earns roughly half the bring bonus, not the full one.
+    Base signal: the MAX, across the six, of each opponent's real population
+    usage rate for the move "Trick Room" on its **assumed forme**
+    (`data.assumed_forme` — not the base-stripped name: Gardevoir's own usage
+    is 25% but Gardevoir-Mega's is 56%, so stripping the mega suffix before
+    the lookup would silently under-read exactly the case that matters). A
+    near-100% setter reads as near-certain; a 45%-of-the-time set reads as
+    roughly a coin flip.
+
+    Corroboration (0.45.10): a single TR-capable species doesn't mean the
+    TEAM is built around Trick Room — it may just be running that setter for
+    its OTHER utility (support, bulk, redirection). Real Trick Room teams
+    pack multiple genuinely slow attackers to abuse the inverted turn order,
+    not just one setter. So the base signal is discounted by how many OTHER
+    six-mons are ALSO at/under `_TR_SLOW_THRESHOLD`: 0 -> heavily discounted,
+    1 -> partial credit, 2+ -> full confidence, no discount. Caught a real
+    case: a Sinistcha (65% usage) + Kingambit + Dragalge rain six read as a
+    strong Trick Room signal pre-corroboration, even though the opponent's
+    actual game plan (and only genuine support core) was Rain, and Trick Room
+    was never set once in the logged game.
 
     Deliberately NOT conditioned on the opponent's weather or any other
     archetype — Trick-Room-sun (a genuine, common VGC archetype: Torkoal +
     a real TR setter) would be wrongly suppressed by a "weather present ->
     not really Trick Room" rule, so this only ever reads the actual
-    per-species probability of the defining move."""
-    from data import assumed_forme
+    per-species probability of the defining move (and, now, roster-wide
+    Speed shape) — never weather."""
+    from data import assumed_forme, base_spe
     from data.sets import move_distribution
     best = 0.0
     for s in opp_species_list:
@@ -128,7 +156,14 @@ def _trick_room_confidence(opp_species_list: list[str]) -> float:
             if move == "Trick Room":
                 best = max(best, pct / 100.0)
                 break
-    return best
+    if best == 0.0:
+        return 0.0
+    slow_count = sum(
+        1 for s in opp_species_list
+        if (spe := base_spe(assumed_forme(s))) is not None
+        and spe <= _TR_SLOW_THRESHOLD
+    )
+    return best * _TR_CORROBORATION.get(slow_count, 1.0)
 
 
 _ARCHETYPES: list[Archetype] = [

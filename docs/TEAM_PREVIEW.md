@@ -219,6 +219,50 @@ against a genuine TR-sun team exactly as often as it fixed a false read.
 Scaling by the setter's own real usage rate sidesteps this entirely — it
 never reasons about weather at all, only the actual per-species probability.
 
+**Corroboration (0.45.10)** — the per-species usage rate alone still wasn't
+enough. A Sinistcha (65% real usage) is a genuine signal on its own, but a
+single TR-capable species doesn't mean the whole TEAM is built around Trick
+Room — it may just be running that set for its other utility (bulk,
+support, redirection). Real Trick Room teams pack *multiple* genuinely slow
+attackers to abuse the inverted turn order. So the usage-rate signal is
+further scaled by how many OTHER six-mons are also at or under
+`_TR_SLOW_THRESHOLD = 49` base Speed:
+
+| Other slow six-mons | Confidence multiplier |
+|---|--:|
+| 0 | ×0.3 (heavily discounted) |
+| 1 | ×0.65 (partial credit) |
+| 2+ | ×1.0 (no discount) |
+
+49 was picked deliberately over a rounder-looking 50 or 60: Kingambit (base
+Speed 50) is a common below-average-speed pick on plenty of *non*-Trick-Room
+teams, so it shouldn't count as evidence of a real TR game plan; Dragalge
+(44) is a different, more dedicated tier and does count. Verified against
+two real sixes: a Sinistcha + Kingambit (50) + Dragalge (44) Rain six now
+reads at 42% confidence (down from 65%, one corroborator — Dragalge — not
+zero, since Kingambit misses the cut); a genuine Farigiraf Trick Room six
+with Torkoal (20), Hatterene (29), and Snorlax (30) keeps its full ~97%
+confidence untouched (2+ corroborators). Corroboration only ever discounts
+a real usage-rate signal — a six with no Trick-Room-capable species at all
+still reads 0.0 regardless of how many slow mons surround it.
+
+**This still isn't the whole story for a rain-team false-brought Camerupt**
+— confirmed the corroboration fix does NOT flip the bring/mega decision for
+the exact Sinistcha-rain-six game above, even at 42% confidence: Camerupt's
+*raw*, pre-archetype matchup score (mega 1.90 / base 1.26) is already
+inflated by the bring combiner's 2:1 offense:defense weighting (see
+[Constants quick-reference](#constants-quick-reference) — `_OFF_WEIGHT` /
+`_DEF_WEIGHT`). Per-opponent breakdown against that six: defense was 0.00
+against 3 of 6 members (worst incoming damage 271-449% of Camerupt's max
+HP — not a near-kill, several-times-over lethal), yet Camerupt's offense
+into the same six (0.58-0.85 average, since Earth Power/Heat Wave still hit
+reasonably) counts *twice* as much in the combiner as that catastrophic
+defense counts once, so the six-way matchup average never reads as
+disqualifying in the first place — before any archetype bonus is even
+applied. The archetype confidence work is a real, verified improvement, but
+it's discounting an already-inflated base number, not fixing the inflation
+itself. This is a separate, still-open issue.
+
 **Reward** — for each of our 6 members, compute a roster-relative slowness
 and scale by the archetype's confidence:
 
@@ -438,7 +482,7 @@ skipping in the common case where it just reconfirms what's already there.
 
 ## Known limitations
 
-Two real, current gaps — worth understanding before trusting a specific
+Three real, current gaps — worth understanding before trusting a specific
 matchup read, and candidates for future work:
 
 **1. Only the LEAD portion of bring is speed/turn-order-aware; the BENCH
@@ -477,6 +521,24 @@ matter slightly more than it used to, not less. The fix would be threading
 override instead of only letting
 the narrower per-board inference apply — not yet implemented.
 
+**3. The 6-way matchup average dilutes a concentrated real threat, and the
+2:1 offense:defense weighting compounds it.** `_one_form`'s defense score is
+the average, across all six opponents, of `1 − worst incoming fraction` —
+treating "safe against the team's support pick" and "one-shot by the team's
+designated attacker" as equally-weighted samples, when a real opponent will
+disproportionately field their actual attackers, not their whole six evenly.
+Confirmed on the Sinistcha Rain six above: Camerupt's defense was 0.00
+against 3 of 6 members specifically (worst incoming 271-449% of its own max
+HP), but the AVERAGE (0.14) doesn't read as disqualifying, and the combiner
+weights offense at 2× defense (`_OFF_WEIGHT`/`_DEF_WEIGHT`, below) on top of
+that — so Camerupt's still-decent offense into the same six (Earth Power and
+Heat Wave hit reasonably hard even into Water-types) further masks the
+concentrated defensive risk. The archetype-confidence work (above) discounts
+an inflated score; it doesn't fix the inflation at its source. Not yet
+implemented — a real fix likely needs either a worst-single-matchup penalty/
+floor alongside the average (rather than only ever averaging), or reweighting
+defense relative to offense when a real, common threat is this lethal.
+
 ---
 
 ## Constants quick-reference
@@ -487,6 +549,8 @@ the narrower per-board inference apply — not yet implemented.
 | `_DEF_WEIGHT` | 1.0 | Bring score: defense weight |
 | `_OPP_MEGA_WEIGHT` | 1.5 | Opponent's assumed mega counts extra in the bring average |
 | `ARCHETYPE_SLOW_BOOST` | 2.0 | Trick Room archetype: bonus at the roster's slowest form, at 100% detection confidence |
+| `_TR_SLOW_THRESHOLD` | 49 | Base Speed at/under this counts as a corroborating "slow mon" for Trick Room confidence |
+| `_TR_CORROBORATION` | {0: 0.3, 1: 0.65} | Confidence multiplier by count of other slow six-mons; 2+ → 1.0 (no discount) |
 | `_DOOMED_LEAD_FACTOR` | 0.25 | Lead score: penalty when the board says this slot dies before acting |
 | `_SWITCH_WANT_FACTOR` | 0.5 | Lead score: penalty when the engine's own best action is to switch out |
 | `_LEAD_COVERAGE_FACTOR` | 1.0 (inert) | Lead score: would penalize both leads answering the same opponent |

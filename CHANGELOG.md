@@ -1,5 +1,43 @@
 # WolfeyBot Changelog
 
+## 0.45.10 — 2026-07-24
+
+**Require corroborating slow mons for Trick Room archetype confidence**
+(0.45.10) — a single TR-capable species was still enough to trigger a large
+bring bonus even when the rest of the opponent's revealed six gave no other
+sign the team is actually built around Trick Room. Real Trick Room teams
+pack multiple genuinely slow attackers to abuse the inverted turn order, not
+just one setter running that move as one of several viable sets.
+
+New rule: `_trick_room_confidence`'s usage-rate signal is now further scaled
+by how many OTHER six-mons are also at or under `_TR_SLOW_THRESHOLD = 49`
+base Speed — 0 other slow mons discounts to ×0.3, 1 to ×0.65, 2+ leaves it
+at full strength (×1.0). 49 was picked deliberately over a rounder 50 or 60:
+Kingambit (base Speed 50) is a common below-average-speed pick on plenty of
+non-Trick-Room teams and shouldn't count as evidence; Dragalge (44) is a
+different, more dedicated tier and does. Verified against two real sixes: a
+Sinistcha (65% real Trick Room usage) + Kingambit (50) + Dragalge (44) Rain
+six now reads at 42% confidence, not 65%; a genuine Farigiraf Trick Room six
+with Torkoal (20)/Hatterene (29)/Snorlax (30) keeps its full ~97% confidence
+untouched.
+
+Honest limitation, confirmed by direct replay: this does NOT flip the
+bring/mega decision for the exact game this was root-caused from. Camerupt's
+raw, pre-archetype matchup score against that six is already inflated by the
+bring combiner's 2:1 offense:defense weighting — its defense was 0.00 against
+3 of 6 opponents (worst incoming damage 271-449% of its own max HP) but its
+offense into the same six (0.58-0.85 average) counts twice as much in the
+combined score, so the six-way average never reads as disqualifying even
+before any archetype bonus applies. This confidence work is a real,
+verified improvement on its own terms (see the false-positive rate drop it
+fixes), but it discounts an already-inflated base number rather than fixing
+the inflation at its source — documented as a new, separate, still-open item
+in docs/TEAM_PREVIEW.md's Known Limitations.
+
++7 tests. Preview-only, zero snapshot diff.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+
 ## 0.45.9 — 2026-07-23
 
 **Fix two team-preview bugs behind over-bringing Camerupt into losing matchups**

@@ -186,17 +186,52 @@ class TestTrickRoomConfidence:
     sometimes runs Trick Room should earn a proportionally smaller bring
     bonus, not the full swing. Replaced the old ≥40%-threshold binary
     `_is_trick_room_team` after it tripled a slow mon's score off a setter
-    that only actually ran Trick Room ~1 game in 3 (see CHANGELOG 0.45.9)."""
+    that only actually ran Trick Room ~1 game in 3 (see CHANGELOG 0.45.9).
 
-    def test_known_tr_setter_has_high_confidence(self):
-        from team_preview import _trick_room_confidence
+    Corroboration (0.45.10): a single TR-capable species doesn't mean the
+    TEAM is built around Trick Room -- real TR teams pack multiple genuinely
+    slow attackers, not just one setter. Real speeds used throughout:
+    Farigiraf/Incineroar 60, Sneasler 120 (none slow, 0 corroborators);
+    Dragalge-Mega 44 (1 corroborator; Kingambit at 50 deliberately misses the
+    <=49 cut -- it's a common below-average-speed pick on plenty of non-TR
+    teams too); Torkoal 20, Hatterene 29 (2 corroborators, genuinely
+    Trick-Room-shaped)."""
+
+    def _raw(self, species: str) -> float:
+        from data import assumed_forme
         from data.sets import move_distribution
-        expected = dict(move_distribution("Farigiraf"))["Trick Room"] / 100.0
-        assert _trick_room_confidence(["Farigiraf", "Incineroar", "Sneasler"]) \
-            == pytest.approx(expected)
-        assert expected > 0.9   # sanity: Farigiraf is a near-certain TR setter
+        af = assumed_forme(species)
+        return dict(move_distribution(af)).get("Trick Room", 0.0) / 100.0
 
-    def test_no_tr_setter_is_zero(self):
+    def test_no_corroboration_is_heavily_discounted(self):
+        """Farigiraf alone (Incineroar/Sneasler both non-slow) -- 0 other
+        slow mons -> the setter is probably providing different utility."""
+        from team_preview import _trick_room_confidence, _TR_CORROBORATION
+        raw = self._raw("Farigiraf")
+        assert raw > 0.9   # sanity: Farigiraf is a near-certain TR setter
+        got = _trick_room_confidence(["Farigiraf", "Incineroar", "Sneasler"])
+        assert got == pytest.approx(raw * _TR_CORROBORATION[0])
+
+    def test_one_corroborator_is_partial_credit(self):
+        """Farigiraf + Dragalge-Mega (44, one genuinely slow mon) -- partial,
+        not full, credit."""
+        from team_preview import _trick_room_confidence, _TR_CORROBORATION
+        raw = self._raw("Farigiraf")
+        got = _trick_room_confidence(["Farigiraf", "Dragalge", "Sneasler"])
+        assert got == pytest.approx(raw * _TR_CORROBORATION[1])
+
+    def test_two_or_more_corroborators_is_full_confidence(self):
+        """Farigiraf + Torkoal (20) + Hatterene (29) -- a genuinely
+        Trick-Room-shaped roster -> no discount at all."""
+        from team_preview import _trick_room_confidence
+        raw = self._raw("Farigiraf")
+        got = _trick_room_confidence(["Farigiraf", "Torkoal", "Hatterene"])
+        assert got == pytest.approx(raw)
+
+    def test_no_tr_setter_is_zero_regardless_of_corroboration(self):
+        """No TR-capable species at all -> confidence 0, even surrounded by
+        slow mons -- corroboration only ever discounts a real signal, never
+        creates one from nothing."""
         from team_preview import _trick_room_confidence
         assert _trick_room_confidence(["Incineroar", "Sneasler", "Garchomp"]) == 0.0
 
@@ -205,20 +240,28 @@ class TestTrickRoomConfidence:
         vs 56%) -- confidence must read the ASSUMED (mega-resolved) forme,
         not the base-stripped species name, or it silently under-reads
         exactly the case that matters (a mega whose set usage differs from
-        its base form's)."""
-        from team_preview import _trick_room_confidence
+        its base form's). Gardevoir-Mega itself is fast (spe 100, not a
+        corroborator), so a lone Gardevoir hits the 0-corroborator discount."""
+        from team_preview import _trick_room_confidence, _TR_CORROBORATION
         from data import assumed_forme
-        from data.sets import move_distribution
         af = assumed_forme("Gardevoir")
-        expected = dict(move_distribution(af)).get("Trick Room", 0.0) / 100.0
-        assert _trick_room_confidence(["Gardevoir"]) == pytest.approx(expected)
+        raw = self._raw("Gardevoir")
+        assert _trick_room_confidence(["Gardevoir"]) == \
+            pytest.approx(raw * _TR_CORROBORATION[0])
         assert af == "Gardevoir-Mega"   # sanity: this IS the case that mattered
-        assert expected > 0.4           # Gardevoir-Mega's real rate, not base's 25%
+        assert raw > 0.4                # Gardevoir-Mega's real rate, not base's 25%
 
     def test_max_confidence_is_capped_at_one(self):
         from team_preview import _trick_room_confidence
         # No species runs Trick Room >100% of the time; confidence is a rate.
-        assert _trick_room_confidence(["Farigiraf"]) <= 1.0
+        assert _trick_room_confidence(["Farigiraf", "Torkoal", "Hatterene"]) <= 1.0
+
+    def test_unresolvable_speed_is_skipped_not_a_crash(self):
+        """A species base_spe can't resolve for shouldn't count as a
+        corroborator, and shouldn't raise."""
+        from team_preview import _trick_room_confidence
+        got = _trick_room_confidence(["Farigiraf", "NotARealSpeciesXYZ"])
+        assert got >= 0.0
 
 
 class TestArchetypeBringBonus:
