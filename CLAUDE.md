@@ -272,9 +272,17 @@ string**. So a command whose arguments vary (version, message, battle id,
 paths, a `-c` snippet) re-prompts every single time. The fix is to make every
 routine op an **unchanging command** — push the variability into a file the
 script reads, not the command line. The user "Always allow"s each once; then
-it's permanent. The full fixed set (invoke **exactly** as written, no args):
+it's permanent. **This includes anything appended AFTER the fixed command —
+`| Select-Object`, `| tail`, `2>&1`, `-k "..."` — even just to trim output for
+your own reading.** Each is a different exact string, so none of them ever
+match an already-allowed rule; the approval friction this causes is invisible
+to you (you don't see the user's click), so it's easy to drift back into
+piping "just this once" without noticing it's happened again. If output is
+too long, read the full result — do not modify the command to shorten it.
+The full fixed set (invoke **exactly** as written, no args, nothing appended):
 - tests → `.venv\Scripts\python.exe -m pytest -q` (always the full suite;
-  a specific test file is a varying arg and will re-prompt)
+  a specific test file/`-k` filter/piped-and-trimmed output are all a varying
+  arg and will re-prompt)
 - analysis → `.venv\Scripts\python.exe tools/scratch.py` (put the snippet
   IN the file; never pass args, never a `-c` one-liner)
 - snapshots → `.venv\Scripts\python.exe tools/regen_snapshots.py`
