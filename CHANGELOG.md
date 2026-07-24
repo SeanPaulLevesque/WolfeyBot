@@ -1,5 +1,52 @@
 # WolfeyBot Changelog
 
+## 0.45.8 — 2026-07-23
+
+**Lead pair chosen first, by real-board evaluation over the full roster**
+(0.45.8) — team preview now takes advantage of the decision engine the same
+way `select_leads` already did, instead of scoring bring candidates
+independently.
+
+Previously `select_team` narrowed to a bring-4 using a partner-blind,
+board-blind matchup average (`_engine_matchup_scores`: real damage, but one
+mon vs one opponent, no turn order, no Fake Out, no doom, no spread credit —
+none of the 22 phase-1 modules), and only *then* did `select_leads` build a
+real 2v2 board to pick which 2 of that already-narrowed 4 should lead. A
+strong two-mon partnership could be missed entirely if the crude scorer
+ranked one of its members outside the top 4 on its own.
+
+New `_select_lead_pair(opp_six, our_members)` runs the *exact same* real-board
+machinery `select_leads` already used (`_score_lead_pairs` /
+`_eval_lead_board` / `make_engine()` — both already generic over an arbitrary
+slot list, so this is a call-site change, not new engine code) over every
+`C(6,2)` pairing of the FULL roster. The winning pair is seeded into the
+bring first; the matchup-average scorer then only fills the remaining n−2
+(bench) slots — a deliberate split, since a bench pick doesn't have a turn-1
+board to evaluate against in the first place. `select_leads` still runs
+afterward and still independently re-derives the winning pair rather than
+trusting its input order; in the common case it now confirms what
+`select_team` already found, instead of discovering it for the first time.
+
+Fallback (no lead-frequency data yet, or unresolvable members) is exact
+byte-for-byte equivalence with the pre-0.45.8 algorithm — proven, not
+assumed, via a dedicated regression test.
+
+Verified on real rosters: across 5 curated opponent sixes × 4 team versions
+(20 combinations), the bring SET actually changed in 17 of 20 — e.g. meta-team
+v11 vs a Trick Room six: the old scorer never brought Greninja at all (its 1v1
+matchup numbers didn't stand out); paired with Basculegion on a real board
+against the predicted opposing leads, it wins convincingly enough to top
+every other candidate pairing. Composes correctly with the 0.45.7 archetype
+bonus: on the same six, Camerupt+Kingambit are still both retained via the
+bench-fill stage even when they don't win the lead slot outright.
+
++4 tests. 0 turn-1 snapshot impact (preview-only — this pipeline never
+touches the per-turn decision engine's own scoring). docs/TEAM_PREVIEW.md and
+both affected docstrings updated to describe the new architecture, including
+an updated Known Limitations section (the bench portion of bring is still
+speed-blind by design; the pre-existing weather-scope gap now touches a
+slightly larger share of the pipeline, unchanged in kind).
+
 ## 0.45.7 — 2026-07-23
 
 **Team-archetype bring bonus — Trick Room (first archetype).**

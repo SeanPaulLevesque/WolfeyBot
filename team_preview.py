@@ -401,6 +401,40 @@ def _score_lead_pairs(slots: list[int], our_members: list[TeamMember],
     return scores
 
 
+def _select_lead_pair(opp_species_list: list[str],
+                      our_members: list[TeamMember]) -> Optional[tuple[int, int]]:
+    """The best lead PAIR from the FULL roster (0.45.8), chosen by the exact
+    same real-board evaluation `select_leads` already used within a
+    pre-narrowed bring-4 — widened here to every C(6,2) candidate so a strong
+    PARTNERSHIP can't be missed just because the (partner-blind) matchup
+    average in `select_team` already cut one of its members first.
+
+    Reuses `_score_lead_pairs`/`_eval_lead_board`/`make_engine()` completely
+    unchanged — both are already generic over an arbitrary `slots` list, so
+    this is a call-site change, not new engine machinery.
+
+    Returns ``None`` when there's no lead-frequency data yet
+    (`total_battles() == 0` — nothing to hedge a prediction on) or the engine
+    path is unavailable (unresolvable members / synthetic fixtures); callers
+    fall back to the pre-existing matchup-only bring logic in that case,
+    identical to pre-0.45.8 behaviour."""
+    try:
+        from data.lead_stats import predict_pairs, total_battles
+        if total_battles() <= 0:
+            return None
+        hedge = predict_pairs(opp_species_list)
+    except Exception:
+        return None
+    if not hedge:
+        return None
+    all_slots = list(range(1, len(our_members) + 1))
+    pair_scores = _score_lead_pairs(all_slots, our_members, hedge, opp_species_list)
+    if not pair_scores:
+        return None
+    _, ordered = max(pair_scores.values(), key=lambda v: v[0])
+    return ordered
+
+
 def _assumed_weather_for_six(opp_species_list: list[str]) -> Optional[str]:
     """The weather a setter *anywhere* in the opponent six will bring — the
     team-level assumption for scoring our bring against their plan.
@@ -515,6 +549,17 @@ def select_team(
     Falls back to the first *n* slots in team order when *opp_species_list* is
     empty (no opponent data available at preview time).
 
+    **Lead pair chosen first, by real-board evaluation (0.45.8).**  Before
+    filling any slot, :func:`_select_lead_pair` runs the *exact* real-board
+    engine eval `select_leads` uses — over every ``C(6,2)`` pairing of the
+    FULL roster, not a pre-narrowed bring-4 — so a strong two-mon partnership
+    (real turn order, Fake Out, doom, spread credit) can't be missed just
+    because the matchup-average scorer below (which never builds a board and
+    can't see any of that) happened to cut one of its members first.  That
+    pair is seeded into the bring and the remaining slots are filled below.
+    Falls back to choosing purely by matchup average (pre-0.45.8 behaviour)
+    when there's no lead-frequency data yet or the members don't resolve.
+
     **One mega per battle.**  Only one Pokémon can mega evolve in a game, so a
     second Mega-Stone holder would play with a dead item (a mega stone confers
     nothing un-evolved).  ``score_members`` values every stone holder at its
@@ -549,9 +594,19 @@ def select_team(
         # matchup scores — same architecture as the empirical pair prior in
         # _score_lead_pairs (matchup × prior), never folded into the damage calc.
         engine_scores = _archetype_bring_bonus(opp_species_list, our_members, engine_scores)
-        remaining = list(engine_scores.keys())
-        picked: list[int] = []
-        mega_claimed = False
+
+        # Real-board lead pair (0.45.8) — see the docstring above. Seeded into
+        # the bring first; the matchup-average loop below only fills the
+        # REMAINING (bench) slots, which don't play turn 1 and so have no
+        # real board to evaluate against in the first place.
+        lead_pair = _select_lead_pair(opp_species_list, our_members) if n >= 2 else None
+        if lead_pair is not None:
+            picked: list[int] = list(lead_pair)
+            mega_claimed = any(our_members[i - 1].mega_name for i in picked)
+        else:
+            picked = []
+            mega_claimed = False
+        remaining = [i for i in engine_scores if i not in picked]
 
         def _value(i: int) -> float:
             mega_val, base_val = engine_scores[i]
@@ -564,10 +619,11 @@ def select_team(
             remaining.remove(best)
             if our_members[best - 1].mega_name and not mega_claimed:
                 mega_claimed = True
-        log.info("TEAM SELECT (engine)  %s",
+        log.info("TEAM SELECT (engine)  %s%s",
                  [(our_members[i - 1].name,
                    f"{engine_scores[i][0]:.2f}/{engine_scores[i][1]:.2f}")
-                  for i in picked])
+                  for i in picked],
+                 "  [lead pair from real-board eval]" if lead_pair else "")
         return picked
 
     # ── No engine scores (unresolvable members — synthetic fixtures only) ─
@@ -637,6 +693,17 @@ def select_leads(
     mean, and multiplied by our own empirical per-pair win-rate prior
     (`data.our_leads.pair_factor`).  Full mechanics, worked example, and every
     constant: `docs/TEAM_PREVIEW.md`.
+
+    Since 0.45.8, `select_team` already runs this exact same real-board eval
+    over the full 6-mon roster to seed the bring (`_select_lead_pair`), so in
+    the common case *slots*' first two entries are already the winning pair
+    and this call **re-derives and confirms it** rather than discovering it
+    for the first time — the recompute is idempotent (same hedge, same board
+    eval, restricted to a slot list that already contains the winner) and
+    cheap enough at preview time not to bother skipping. This function
+    remains the sole source of truth whenever `select_team` couldn't seed a
+    pair (no lead data yet, unresolvable members) and for any other caller
+    that only has a pre-chosen bring list to work with.
 
     Falls back to ascending team-slot order when:
 

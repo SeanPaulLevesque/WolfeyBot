@@ -2,11 +2,20 @@
 
 This covers `team_preview.py`: the once-per-game pipeline that runs the
 instant the opponent's six is revealed, before turn 1. It answers three
-questions, in order, and each answer feeds the next:
+questions:
 
 1. **Which 4 of our 6 do we bring?** (`select_team`)
 2. **Which brought Mega Stone holder actually mega evolves?** (`select_mega`)
 3. **Which 2 of the 4 lead, and in what order do the rest sit?** (`select_leads`)
+
+Since 0.45.8 the real dependency runs the other way from how the numbering
+suggests: **the lead pair is chosen first**, by real-board evaluation over
+the *full* 6-mon roster, and question 1 is answered by seeding that pair into
+the bring and filling the remaining slots around it. `select_leads` still
+runs afterward and still independently re-derives the winning pair — it just
+usually finds the one already sitting in front, rather than discovering it
+for the first time. See [Part 1](#part-1--select_team-which-4-to-bring) for
+why.
 
 This is a separate system from the per-turn decision engine documented in
 [DECISION_ARCHITECTURE.md](DECISION_ARCHITECTURE.md) — that engine scores
@@ -34,7 +43,59 @@ last two doesn't matter in practice.
 
 ## Part 1 — `select_team`: which 4 to bring
 
-### The core score: `_engine_matchup_scores`
+### The lead pair is chosen first, by real-board evaluation (0.45.8)
+
+Before any matchup averaging runs, `_select_lead_pair(opp_six, our_members)`
+answers a sharper question: **of every possible pairing of our full 6**
+(`C(6,2) = 15` candidates), which 2 actually perform best together on a real
+turn-1 board against the opponent's likely leads?
+
+This reuses `select_leads`'s own machinery completely unchanged —
+`_score_lead_pairs`/`_eval_lead_board`/`make_engine()` are already generic
+over an arbitrary slot list; they were just never previously called before
+the bring-4 had already been narrowed. Widening the call to all 6 slots
+means:
+
+- Real turn order, Fake Out pressure, doom (dying before acting), spread
+  credit, recoil, boosted-target focus — **every phase-1 module** — now
+  informs *which 4 get brought*, not just which 2 of an already-narrowed 4
+  get to lead.
+- A strong two-mon partnership can't be missed just because the
+  (partner-blind, board-blind) matchup average below happened to rank one of
+  its members outside the top 4 on its own.
+
+The winning pair is seeded directly into the bring (as slots 0–1); the
+matchup-average scoring below then only has to fill the *remaining* n−2
+slots — the bench, which doesn't play turn 1 and so has no real board to
+evaluate against in the first place. That's a deliberate division of labor,
+not an oversight: a turn-1 board eval has nothing meaningful to say about "is
+this mon a good backup for later in the game," which is exactly the question
+the broader six-way matchup average is built to answer.
+
+**Fallback**: when there's no lead-frequency data yet (`total_battles() ==
+0`) or the roster doesn't resolve, `_select_lead_pair` returns `None` and
+`select_team` falls straight back to the pre-0.45.8 behavior — pure matchup
+average, greedy pick over all 6, no seeding. This is exact byte-for-byte
+equivalence, not an approximation of it (see
+`tests/test_team_preview.py::TestRealBoardLeadPairSeedsTheBring`).
+
+**Worked example** — meta-team v11 vs a detected Trick Room six
+(`["Farigiraf", "Torkoal", "Sinistcha", "Hatterene", "Indeedee", "Snorlax"]`):
+
+| | Bring |
+|---|---|
+| Pre-0.45.8 (matchup average only) | Kingambit, Chandelure, Decidueye-Hisui, Basculegion |
+| Real-board pair found | **Greninja + Basculegion** |
+| 0.45.8 (seeded) | Greninja, Basculegion, Kingambit, Chandelure |
+
+The old scorer never brought Greninja here at all — evaluated 1v1 against
+each opponent species independently, its matchup numbers didn't stand out.
+But paired with Basculegion on a real board against this six's predicted
+leads, it wins the actual turn-1 exchange convincingly enough to top every
+other candidate pairing — a fact that was structurally invisible to a scorer
+that never builds a board.
+
+### The bench score: `_engine_matchup_scores`
 
 For each of our 6 members, against **every** species in the opponent's
 revealed six, compute:
@@ -105,7 +166,11 @@ holder is re-valued at its real `base_val` (its own base stats/ability/typing
 run through the same real damage calc — not a BST-scaling guess). This
 correctly demotes a second mega candidate even when its typing is unchanged
 by mega evolution (a pure speed/power mega gains nothing defensively, which a
-type-only demotion would miss).
+type-only demotion would miss). If the seeded lead pair (above) already
+contains a stone holder, `mega_claimed` starts `True` before this loop even
+runs — so a second stone holder among the bench candidates is demoted from
+its very first bench pick, exactly as if it had been the second pick in the
+old all-6 greedy loop.
 
 ### Archetype bring bonus (0.45.7) — Trick Room
 
@@ -158,6 +223,13 @@ opponent; Camerupt + Kingambit were both brought in **25 of 25** of them.
 Scored in isolation, Camerupt-Mega's bonus (×3.00) was the single largest of
 any roster member; Kingambit's (×2.27) was second — exactly proportional to
 base Speed, with zero hand-picked names anywhere in the mechanism.
+
+This composes correctly with the 0.45.8 real-board lead-pair seeding above:
+when the seeded lead pair doesn't happen to include either of them (the real
+board found a stronger *lead* elsewhere), the archetype bonus still pulls
+them into the bench-fill slots — confirmed on the same worked TR example
+above, where the pre-0.45.8 bring never included Greninja, but Camerupt and
+Kingambit were retained on the bench regardless of who won the lead slot.
 
 ### Fallback paths
 
@@ -323,14 +395,17 @@ The winning pair becomes the lead; the rest of the bring keeps its
 
 ### A note on bring order vs. lead order
 
-`select_team`'s returned order (used for logging, and to decide which stone
-holder is "first" for the mega-demotion greedy pick) has **no effect** on
-which 2 of the 4 actually lead: `select_leads` independently re-derives the
-true best pair from the real board eval over every `C(4,2)` combination,
-regardless of the order it received. So the archetype bring bonus's effect
-on bring *order* (e.g. Camerupt moving to slot 1) is cosmetic; its only
-functional effect is on the composition of *which 4* make the bring-4 in
-marginal cases.
+Before 0.45.8, `select_team`'s returned order had no functional bearing on
+who leads — `select_leads` always independently re-derived the true best
+pair from scratch. Since 0.45.8, `select_team` typically *already puts the
+real lead pair first*, because it ran the same real-board search
+(`_select_lead_pair`) over the full roster before bench-filling. But
+`select_leads` still runs afterward and still independently re-derives the
+winning pair over whatever 4 it's handed, rather than trusting the input
+order — this is deliberate: it's the sole source of truth whenever
+`select_team` *couldn't* seed a pair (no lead data yet, unresolvable
+members), and the recompute is idempotent and cheap enough not to bother
+skipping in the common case where it just reconfirms what's already there.
 
 ---
 
@@ -339,28 +414,40 @@ marginal cases.
 Two real, current gaps — worth understanding before trusting a specific
 matchup read, and candidates for future work:
 
-**1. `select_team`'s matchup score is completely speed/turn-order-blind.**
-`_one_form` never touches speed, priority, or turn order anywhere — it's a
-pure two-sided damage-fraction average. This is *mostly* fine: a guaranteed
+**1. Only the LEAD portion of bring is speed/turn-order-aware; the BENCH
+portion still isn't.** Since 0.45.8 the lead pair is chosen by a real board
+eval (full turn order, doom, Fake Out, everything), but the remaining n−2
+bench slots are still filled by `_engine_matchup_scores`/`_one_form`, which
+never touches speed, priority, or turn order anywhere — a pure two-sided
+damage-fraction average. This is *mostly* fine for a bench pick: a guaranteed
 OHKO already floors `defense` to 0 regardless of who's faster, so "can this
 resistant pick just get blown up anyway" is captured without needing speed
-information. What's genuinely missing is a **multi-turn speed race**: e.g. a
-Grass-type that resists Mega Swampert's Water/Ground and looks great on
-paper, but where Swampert's Swift Swim (in rain, from some other teammate)
-lets it act first turn after turn — a sustained speed advantage the
-single-exchange damage-fraction model has no way to represent.
+information, and a bench member doesn't have a turn-1 board to evaluate
+against in the first place. What's genuinely missing is a **multi-turn speed
+race**: e.g. a Grass-type bench pick that resists Mega Swampert's
+Water/Ground and looks great on paper, but where Swampert's Swift Swim (in
+rain, from some other teammate) lets it act first turn after turn once it
+switches in — a sustained speed advantage the single-exchange damage-fraction
+model has no way to represent.
 
-**2. Weather detection is inconsistently scoped between the two stages.**
-`select_team`'s `_assumed_weather_for_six` scans the **whole opponent six**
-for a weather setter. But `select_leads`'s board eval (`_preview_state`)
-hardcodes `s.weather = None` and relies entirely on the in-battle engine's
-own `_assumed_weather` inference, which only scans the **two candidate mons
-on that specific hypothetical board** — not the wider six. So if a
-Swift-Swim mega is evaluated leading alongside a teammate that *isn't* the
-rain-setter, that particular candidate pairing's turn-order math never
-learns rain is coming, even though `select_team` already knows the whole
-roster implies it. The fix would be threading `_assumed_weather_for_six`'s
-result into `_preview_state` as an explicit override instead of only letting
+**2. Weather detection is inconsistently scoped, and now touches more of the
+pipeline than before.** `select_team`'s `_assumed_weather_for_six` (both for
+bench-filling and, via `_archetype_bring_bonus`, the archetype system) scans
+the **whole opponent six** for a weather setter. But every real-board
+evaluation — `_preview_state`, called by both `_select_lead_pair`'s
+full-roster search *and* `select_leads`'s narrower recompute — hardcodes
+`s.weather = None` and relies entirely on the in-battle engine's own
+`_assumed_weather` inference, which only scans the **two candidate mons on
+that specific hypothetical board**, not the wider six. So if a Swift-Swim
+mega is evaluated as part of a candidate pairing alongside a teammate that
+*isn't* the rain-setter, that pairing's turn-order math never learns rain is
+coming — even though `select_team` already knows the whole roster implies
+it, and even though this candidate pairing now directly decides the lead (not
+just a downstream reordering within an already-fixed bring-4, as before
+0.45.8). Widening real-board evaluation to the bring decision makes this gap
+matter slightly more than it used to, not less. The fix would be threading
+`_assumed_weather_for_six`'s result into `_preview_state` as an explicit
+override instead of only letting
 the narrower per-board inference apply — not yet implemented.
 
 ---

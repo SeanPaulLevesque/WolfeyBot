@@ -145,7 +145,7 @@ class TestSelectLeadsFallback:
 from team_preview import (
     _eval_lead_board, _score_lead_pairs, _engine_matchup_scores,
     _members_resolvable, _SWITCH_WANT_FACTOR, _ATK_FLOOR,
-    _assumed_weather_for_six,
+    _assumed_weather_for_six, _select_lead_pair, _archetype_bring_bonus,
 )
 from decision.engine import Action
 
@@ -418,6 +418,91 @@ class TestEnginePreviewIntegration:
         for (a, b), (score, ordered) in pairs.items():
             assert score > 0
             assert set(ordered) == {a, b}
+
+
+class TestRealBoardLeadPairSeedsTheBring:
+    """0.45.8: select_team seeds its bring with the lead pair chosen by real-
+    board evaluation over the FULL roster (_select_lead_pair), before filling
+    the remaining (bench) slots by matchup average — instead of narrowing to
+    a bring-4 first and only THEN discovering the real lead pair within it."""
+
+    _OPP = ["Garchomp", "Whimsicott", "Incineroar", "Farigiraf",
+            "Sneasler", "Pelipper"]
+
+    def _old_select_team(self, opp, members, n=4):
+        """The pre-0.45.8 algorithm: pure matchup average, no real-board
+        seeding — used as the fallback-equivalence reference."""
+        scores = _archetype_bring_bonus(
+            opp, members, _engine_matchup_scores(opp, members))
+        remaining = list(scores.keys())
+        picked: list[int] = []
+        mega_claimed = False
+        def _value(i):
+            mega_val, base_val = scores[i]
+            holder = bool(members[i - 1].mega_name)
+            return base_val if (holder and mega_claimed) else mega_val
+        while remaining and len(picked) < n:
+            best = max(remaining, key=_value)
+            picked.append(best)
+            remaining.remove(best)
+            if members[best - 1].mega_name and not mega_claimed:
+                mega_claimed = True
+        return picked
+
+    def test_no_lead_data_returns_none_and_matches_old_behaviour(self):
+        """With no lead-frequency data, _select_lead_pair is a no-op and
+        select_team's output is BYTE IDENTICAL to the pre-0.45.8 algorithm —
+        the fallback-equivalence guarantee."""
+        from team import get_team
+        from unittest.mock import patch
+        members = get_team()
+        with patch("data.lead_stats.total_battles", return_value=0):
+            assert _select_lead_pair(self._OPP, members) is None
+            new_bring = select_team(self._OPP, members, n=4)
+        old_bring = self._old_select_team(self._OPP, members, n=4)
+        assert new_bring == old_bring
+
+    def test_select_lead_pair_searches_the_full_roster(self):
+        """_select_lead_pair evaluates C(6,2) over ALL 6 members, not a
+        pre-narrowed subset — with real lead data (forced via a hedge mock),
+        it returns a valid 2-slot pair drawn from the whole roster."""
+        from team import get_team
+        from unittest.mock import patch
+        members = get_team()
+        hedge = [(["Garchomp", "Whimsicott"], 1.0)]
+        with patch("data.lead_stats.total_battles", return_value=50), \
+             patch("data.lead_stats.predict_pairs", return_value=hedge):
+            pair = _select_lead_pair(self._OPP, members)
+        assert pair is not None
+        a, b = pair
+        assert 1 <= a <= len(members) and 1 <= b <= len(members) and a != b
+
+    def test_select_team_seeds_exactly_the_chosen_pair(self):
+        """select_team's first two returned slots are exactly whatever
+        _select_lead_pair returns — proving the seeding wiring, not just that
+        SOME valid pair exists."""
+        from team import get_team
+        from unittest.mock import patch
+        members = get_team()
+        forced_pair = (3, 5)
+        with patch("team_preview._select_lead_pair", return_value=forced_pair):
+            bring = select_team(self._OPP, members, n=4)
+        assert bring[0] in forced_pair and bring[1] in forced_pair
+        assert set(bring[:2]) == set(forced_pair)
+        assert len(bring) == 4 and len(set(bring)) == 4
+
+    def test_select_leads_confirms_the_same_pair_end_to_end(self):
+        """The real, unmocked path: whatever pair select_team seeds (via real
+        lead data, if any exists) is confirmed — not overturned — by
+        select_leads' own independent recompute over the resulting bring-4."""
+        from team import get_team
+        members = get_team()
+        bring = select_team(self._OPP, members, n=4)
+        ordered = select_leads(bring, members, self._OPP)
+        assert sorted(ordered) == sorted(bring)
+        pair = _select_lead_pair(self._OPP, members)
+        if pair is not None:   # real lead data happens to exist right now
+            assert set(ordered[:2]) == set(pair)
 
 
 class TestDoomedLeadPenalty:
