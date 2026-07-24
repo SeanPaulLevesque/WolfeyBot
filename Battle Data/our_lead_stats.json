@@ -606,43 +606,43 @@
   "off-meta-team@v4": {
     "Basculegion|Kingambit": {
       "w": 3,
-      "g": 7
+      "g": 8
     },
     "Arcanine-Hisui|Floette-Eternal": {
-      "w": 5,
-      "g": 12
+      "w": 15,
+      "g": 28
     },
     "Arcanine-Hisui|Milotic": {
       "w": 2,
       "g": 2
     },
     "Basculegion|Floette-Eternal": {
-      "w": 11,
-      "g": 26
+      "w": 27,
+      "g": 53
     },
     "Arcanine-Hisui|Camerupt": {
-      "w": 7,
-      "g": 15
+      "w": 9,
+      "g": 18
     },
     "Camerupt|Floette-Eternal": {
       "w": 2,
-      "g": 5
+      "g": 9
     },
     "Floette-Eternal|Milotic": {
-      "w": 1,
-      "g": 3
+      "w": 5,
+      "g": 11
     },
     "Arcanine-Hisui|Basculegion": {
-      "w": 18,
-      "g": 27
+      "w": 27,
+      "g": 46
     },
     "Floette-Eternal|Kingambit": {
       "w": 2,
-      "g": 4
+      "g": 5
     },
     "Basculegion|Milotic": {
       "w": 1,
-      "g": 1
+      "g": 2
     },
     "Basculegion|Camerupt": {
       "w": 0,
