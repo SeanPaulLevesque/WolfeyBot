@@ -60,8 +60,13 @@ _OPP_MEGA_WEIGHT = 1.5      # weight of the opponent's assumed mega in the bring
                             # eyeball: moved 2/6 curated sixes, both credibly
                             # (Greninja out of sun brings); ×2 added nothing ×1.5
                             # hadn't already done
-_OFF_WEIGHT = 2.0           # bring combiner: offense weight …
-_DEF_WEIGHT = 1.0           # … and defense weight (2:1 shipped)
+_OFF_WEIGHT = 1.0           # bring combiner: offense weight … (2.0 -> 1.0 in
+                            # 0.45.11 -- the old 2:1 ratio let a mon's still-
+                            # decent offense into a six mask a catastrophic,
+                            # concentrated defensive risk it wouldn't survive
+                            # to use; see docs/TEAM_PREVIEW.md Known
+                            # Limitations #3 and CHANGELOG 0.45.11)
+_DEF_WEIGHT = 1.0           # … and defense weight (1:1 shipped)
 _LEAD_COVERAGE_FACTOR = 1.0 # pair penalty when BOTH leads' best attack answers
                             # the SAME opponent (the other gets a free turn)
 _PAIR_PRIOR_POWER = 1.0     # exponent on the empirical pair prior (>1 = lean

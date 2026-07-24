@@ -368,10 +368,14 @@ class TestExperimentKnobs:
 
     def test_default_knobs_are_neutral(self):
         """All knobs at their shipped defaults — sanity: they ARE the defaults.
-        (_OPP_MEGA_WEIGHT shipped at 1.5 in 0.45.3 after the A/B eyeball.)"""
+        (_OPP_MEGA_WEIGHT shipped at 1.5 in 0.45.3 after the A/B eyeball;
+        _OFF_WEIGHT/_DEF_WEIGHT moved from 2:1 to 1:1 in 0.45.11 — the old
+        2:1 ratio let a mon's still-decent offense into a six mask a
+        catastrophic, concentrated defensive risk it wouldn't survive to
+        use; see docs/TEAM_PREVIEW.md Known Limitations #3.)"""
         import team_preview as tp
         assert tp._OPP_MEGA_WEIGHT == 1.5
-        assert (tp._OFF_WEIGHT, tp._DEF_WEIGHT) == (2.0, 1.0)
+        assert (tp._OFF_WEIGHT, tp._DEF_WEIGHT) == (1.0, 1.0)
         assert tp._LEAD_COVERAGE_FACTOR == 1.0
         assert tp._PAIR_PRIOR_POWER == 1.0
 
@@ -390,9 +394,9 @@ class TestExperimentKnobs:
         from team import get_team
         members = get_team()
         base = _engine_matchup_scores(self._OPP, members)
-        with patch("team_preview._OFF_WEIGHT", 1.0):
-            even = _engine_matchup_scores(self._OPP, members)
-        assert base != even
+        with patch("team_preview._OFF_WEIGHT", 2.0):
+            weighted = _engine_matchup_scores(self._OPP, members)
+        assert base != weighted
 
     def test_coverage_factor_fires_on_same_target(self):
         """Both slots' best attack aimed at the same opponent → pair scaled by

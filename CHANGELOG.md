@@ -1,5 +1,35 @@
 # WolfeyBot Changelog
 
+## 0.45.11 — 2026-07-24
+
+**Reweight the bring score's offense:defense ratio from 2:1 to 1:1**
+(0.45.11) — `_OFF_WEIGHT` 2.0 → 1.0 (`_DEF_WEIGHT` stays 1.0). The old 2:1
+ratio let a mon's still-decent offense into an opponent six mask a
+catastrophic, concentrated defensive risk: Camerupt's offense into the
+Sinistcha/Kingambit/Dragalge Rain six (0.58-0.85 average — Earth Power and
+Heat Wave still hit reasonably even into Water-types) counted twice as much
+as its defense (0.14-0.22 — actually 0.00 against 3 of 6 members, worst
+incoming 271-449% of its own max HP), so the combined score never read as
+disqualifying.
+
+Verified the raw pre-archetype score does drop substantially with the
+reweight (Camerupt's mega value: 1.90 → 1.05 on the traced six), but this
+alone still doesn't flip that specific bring/mega decision — the Trick Room
+archetype bonus (42% confidence after 0.45.10's corroboration fix) is now
+the dominant remaining factor holding Camerupt up (1.94 adjusted vs
+Milotic's 1.25). That's an already-documented compounding interaction
+between the archetype system and the base matchup score, not a new problem.
+The underlying "6-way average dilutes a concentrated threat" limitation
+(docs/TEAM_PREVIEW.md Known Limitations #3) remains open regardless of this
+ratio.
+
++0 new tests (existing `TestExperimentKnobs` coverage already exercises both
+weights; updated the default-value assertions and the "moves the score"
+test's before/after framing for the new default). Preview-only, zero
+snapshot diff.
+
+Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>
+
 ## 0.45.10 — 2026-07-24
 
 **Require corroborating slow mons for Trick Room archetype confidence**

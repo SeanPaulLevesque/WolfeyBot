@@ -112,8 +112,11 @@ averaged over the six and combined as:
 matchup_value = _OFF_WEIGHT × mean(offense) + _DEF_WEIGHT × mean(defense)
 ```
 
-Shipped at `_OFF_WEIGHT = 2.0`, `_DEF_WEIGHT = 1.0` (offense counts double —
-inherited from the pre-engine legacy scorer, kept as tunable constants).
+Shipped at `_OFF_WEIGHT = 1.0`, `_DEF_WEIGHT = 1.0` (1:1 since 0.45.11; the
+original 2:1 was inherited from the pre-engine legacy scorer — offense
+counting double let a mon's still-decent offense into a six mask a
+catastrophic, concentrated defensive risk it wouldn't survive to use, see
+[Known limitations](#known-limitations) #3).
 
 This is **real damage**, not a type-chart multiplier: it calls the same
 `outgoing_damage`/`incoming_damage` used in battle, so it's automatically
@@ -521,23 +524,25 @@ matter slightly more than it used to, not less. The fix would be threading
 override instead of only letting
 the narrower per-board inference apply — not yet implemented.
 
-**3. The 6-way matchup average dilutes a concentrated real threat, and the
-2:1 offense:defense weighting compounds it.** `_one_form`'s defense score is
-the average, across all six opponents, of `1 − worst incoming fraction` —
-treating "safe against the team's support pick" and "one-shot by the team's
-designated attacker" as equally-weighted samples, when a real opponent will
-disproportionately field their actual attackers, not their whole six evenly.
-Confirmed on the Sinistcha Rain six above: Camerupt's defense was 0.00
-against 3 of 6 members specifically (worst incoming 271-449% of its own max
-HP), but the AVERAGE (0.14) doesn't read as disqualifying, and the combiner
-weights offense at 2× defense (`_OFF_WEIGHT`/`_DEF_WEIGHT`, below) on top of
-that — so Camerupt's still-decent offense into the same six (Earth Power and
-Heat Wave hit reasonably hard even into Water-types) further masks the
-concentrated defensive risk. The archetype-confidence work (above) discounts
-an inflated score; it doesn't fix the inflation at its source. Not yet
-implemented — a real fix likely needs either a worst-single-matchup penalty/
-floor alongside the average (rather than only ever averaging), or reweighting
-defense relative to offense when a real, common threat is this lethal.
+**3. The 6-way matchup average still dilutes a concentrated real threat.**
+`_one_form`'s defense score is the average, across all six opponents, of
+`1 − worst incoming fraction` — treating "safe against the team's support
+pick" and "one-shot by the team's designated attacker" as equally-weighted
+samples, when a real opponent will disproportionately field their actual
+attackers, not their whole six evenly. Confirmed on the Sinistcha Rain six
+above: Camerupt's defense was 0.00 against 3 of 6 members specifically
+(worst incoming 271-449% of its own max HP), but the AVERAGE (0.14) doesn't
+read as disqualifying on its own. Until 0.45.11 the combiner also weighted
+offense at 2× defense (`_OFF_WEIGHT`/`_DEF_WEIGHT`, below), which compounded
+this — Camerupt's still-decent offense into the same six (Earth Power and
+Heat Wave hit reasonably hard even into Water-types) further masked the
+concentrated defensive risk; 0.45.11 moved the ratio to 1:1, removing that
+specific compounding factor. The archetype-confidence work (above) discounts
+an inflated score; neither it nor the 1:1 reweighting fixes the underlying
+dilution at its source — a mon that's safe against 2 of 6 and dead against 4
+of 6 still only averages to a middling number. Not yet implemented — a real
+fix likely needs a worst-single-matchup penalty/floor alongside the average,
+rather than only ever averaging.
 
 ---
 
@@ -545,7 +550,7 @@ defense relative to offense when a real, common threat is this lethal.
 
 | Constant | Value | Effect |
 |---|--:|---|
-| `_OFF_WEIGHT` | 2.0 | Bring score: offense weight |
+| `_OFF_WEIGHT` | 1.0 | Bring score: offense weight (2.0 → 1.0 in 0.45.11) |
 | `_DEF_WEIGHT` | 1.0 | Bring score: defense weight |
 | `_OPP_MEGA_WEIGHT` | 1.5 | Opponent's assumed mega counts extra in the bring average |
 | `ARCHETYPE_SLOW_BOOST` | 2.0 | Trick Room archetype: bonus at the roster's slowest form, at 100% detection confidence |
